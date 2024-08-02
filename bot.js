@@ -70,7 +70,7 @@ client.on('messageCreate', (message) => {
 				cooldowns.set(message.author.id, cooldownEnd);
                 setTimeout(() => cooldowns.delete(message.author.id), 300000);
 				
-				let randPokemon = Math.floor(messageCount * 251); //number x is max pokedex entry //THIS LINE
+				let randPokemon = Math.floor(messageCount * 386); //number x is max pokedex entry //THIS LINE
 				db.all("SELECT * FROM pokemon", [], (err, rows) => {
 					if (err) {
 						console.error(err.message);
