@@ -251,7 +251,6 @@ client.on('messageCreate', (message) => {
 					}	
 				}
 				
-				
 			//release
 			else if (message.content.startsWith('.release') || message.content.startsWith('.r')) {
 				const args = message.content.split(' ');
