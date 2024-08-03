@@ -250,6 +250,98 @@ client.on('messageCreate', (message) => {
 						message.channel.send('No current pokemon dropped!');
 					}	
 				}
+				
+			//release
+			else if (message.content.startsWith('.release') || message.content.startsWith('.r')) {
+				const args = message.content.split(' ');
+				if (args.length !== 2 || isNaN(args[1])) {
+					message.channel.send('Please specify a valid number. Usage: .release #');
+					return;
+				}
+
+				const index = parseInt(args[1], 10) - 1;
+
+				dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
+					if (err) {
+						console.error(err.message);
+						message.channel.send('An error occurred while fetching your Pokémon.');
+						return;
+					}
+
+					if (!row || !row.caught_pokemon) {
+						message.channel.send('You have not caught any Pokémon yet.');
+						return;
+					}
+
+					const caughtPokemon = JSON.parse(row.caught_pokemon);
+
+					if (index < 0 || index >= caughtPokemon.length) {
+						message.channel.send('Please specify a valid Pokémon number.');
+						return;
+					}
+
+					const pokemonToRelease = caughtPokemon[index];
+
+					const embed = new EmbedBuilder()
+						.setColor('#ff0000')
+						.setTitle('Release Pokémon')
+						.setDescription(`Really release #${index + 1}, ${pokemonToRelease}?`)
+						.setTimestamp();
+
+					const buttonRow = new ActionRowBuilder()
+						.addComponents(
+						new ButtonBuilder()
+							.setCustomId('release_yes')
+							.setLabel('Yes')
+							.setStyle(ButtonStyle.Success),
+						new ButtonBuilder()
+							.setCustomId('release_no')
+							.setLabel('No')
+							.setStyle(ButtonStyle.Danger)
+						);
+
+					message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+						const filter = i => i.user.id === message.author.id;
+						const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+						collector.on('collect', async i => {
+						if (i.customId === 'release_yes') {
+							caughtPokemon.splice(index, 1);
+							dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), userId], (err) => {
+							if (err) {
+								console.error(err.message);
+							}
+							i.update({ content: `Successfully released ${pokemonToRelease}`, embeds: [], components: [] });
+							});
+						} else if (i.customId === 'release_no') {
+							i.update({ content: 'Release cancelled.', embeds: [], components: [] });
+						}
+						});
+
+						collector.on('end', collected => {
+							sentMessage.edit({components: [] });
+					/*const disabledRow = new ActionRowBuilder()
+						.addComponents(
+						new ButtonBuilder()
+							.setCustomId('release_yes')
+							.setLabel('Yes')
+							.setStyle(ButtonStyle.Success)
+							.setDisabled(true),
+						new ButtonBuilder()
+							.setCustomId('release_no')
+							.setLabel('No')
+							.setStyle(ButtonStyle.Danger)
+							.setDisabled(true)
+						);
+					sentMessage.edit({ components: [disabledRow] });*/
+						});
+					});
+				});
+			}
+			else if ((message.content === '.off' || message.content === '.stop') && (message.author.id === myUserID)) {
+				message.delete();
+				process.exit();
+			}
 			
 			//turn off
 			else if ( (message.content === '.off' || message.content === '.stop') && (userId === myUserID)) {
