@@ -13,7 +13,6 @@ const {
 	ActionRowBuilder,
 	ButtonBuilder,
 	ButtonStyle,
-	InteractionCollector, //Check if needed
 } = require('discord.js');
 
 const myUserID = '177580797165961216';
@@ -27,15 +26,8 @@ const client = new Client({
   ],
 });
 
-//NEW
 const cooldowns = new Map(); 	//Map<serverId, cooldownEnd>
 const activeDrops = new Map();	//Map<serverId, activePokemon>
-//NOTNEW
-
-/*
-let curMon = "";
-let messageCount = 0;
-const cooldowns = new Map();*/
 
 function generatePartyEmbed(pokemonList, page, pageSize) {
 	const start = page * pageSize;
@@ -62,13 +54,10 @@ client.on('ready', () => {
 client.on('messageCreate', (message) => {
 	if (!message.author.bot) {
 		if (message.content.length > 0) {
-			/*messageCount = Math.random(); */
 			const serverId = message.guild.id;
 			const userId = message.author.id;
 			const now = Date.now();
-			//console.log('Message math: ', messageCount, 'from: ', message.author.tag, 'Message: ', message.content);
-			if (message.content.startsWith('.d')) {//message.content[0] == '.' && message.content[1] == 'd') {
-				/* const now = Date.now(); */
+			if (message.content.startsWith('.d') || message.content.startsWith('.drop')) {
 				if (cooldowns.has(userId)) {
 					const cooldownEnd = Math.floor(cooldowns.get(userId) / 1000);
 					message.channel.send(`Please wait <t:${cooldownEnd}:R> before using this command again.`);
@@ -147,7 +136,7 @@ client.on('messageCreate', (message) => {
 					}
 				});
 			}
-			else if (message.content === '.p' || message.content === '.party') {
+			else if (message.content.startsWith('.p') || message.content.startsWith('.party') ) {
 			// Get the user's ID and display all their Pokémon in an embedded list
 			dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
 				if (err) {
@@ -177,7 +166,7 @@ client.on('messageCreate', (message) => {
 						);
 
 					message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
-						const filter = i => i.user.id === message.author.id;
+						const filter = i => i.user.id === userId;
 						const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
 						collector.on('collect', async i => {
@@ -210,7 +199,7 @@ client.on('messageCreate', (message) => {
 				}
 			});
 			}
-			else if ( (message.content === '.off' || message.content === '.stop') && (message.author.id === myUserID)) {
+			else if ( (message.content === '.off' || message.content === '.stop') && (userId === myUserID)) {
 				message.delete();
 				process.exit();
 			}
