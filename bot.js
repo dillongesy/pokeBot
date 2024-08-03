@@ -29,6 +29,7 @@ const client = new Client({
 const cooldowns = new Map(); 	//Map<serverId, cooldownEnd>
 const activeDrops = new Map();	//Map<serverId, activePokemon>
 
+//Embed Generator
 function generatePartyEmbed(pokemonList, page, pageSize) {
 	const start = page * pageSize;
 	const end = start + pageSize;
@@ -46,12 +47,14 @@ function generatePartyEmbed(pokemonList, page, pageSize) {
 	return embed;
 }
 
+//Helper function, replaces a char in a string
 String.prototype.replaceAt = function(index, char) {
     var a = this.split("");
     a[index] = char;
     return a.join("");
 }
 
+//Helper function, generates a random int given an upper bound
 function getRandomInt(upperBound) {
 	return Math.floor(Math.random() * upperBound);
 }
@@ -79,8 +82,7 @@ client.on('messageCreate', (message) => {
 				cooldowns.set(userId, cooldownEnd);
                 setTimeout(() => cooldowns.delete(userId), 300000);
 				
-				const messageCount = Math.random();
-				const randPokemon = Math.floor(messageCount * 386); //number x is max pokedex entry //THIS LINE
+				const randPokemon = getRandomInt(386); //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 				db.all("SELECT * FROM pokemon", [], (err, rows) => {
 					if (err) {
 						console.error(err.message);
@@ -137,7 +139,8 @@ client.on('messageCreate', (message) => {
 							}
 							activeDrops.delete(serverId);
 						});
-					} else {
+					} 
+					else {
 						// User is in the database, update their caught Pokémon
 						const caughtPokemon = JSON.parse(row.caught_pokemon);
 						caughtPokemon.push(curMon);
@@ -154,66 +157,68 @@ client.on('messageCreate', (message) => {
 			//party
 			else if (message.content.startsWith('.p') || message.content.startsWith('.party') ) {
 			// Get the user's ID and display all their Pokémon in an embedded list
-			dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
-				if (err) {
-					console.error(err.message);
-					message.channel.send('An error occurred while fetching your Pokémon.');
-					return;
-				}
-				if (!row || !row.caught_pokemon) {
-					message.channel.send('You have not caught any Pokémon yet.');
-				} else {
-					const caughtPokemon = JSON.parse(row.caught_pokemon);
-					const pageSize = 20;
-					let page = 0;
+				dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
+					if (err) {
+						console.error(err.message);
+						message.channel.send('An error occurred while fetching your Pokémon.');
+						return;
+					}
+					if (!row || !row.caught_pokemon) {
+						message.channel.send('You have not caught any Pokémon yet.');
+					} 
+					else {
+						const caughtPokemon = JSON.parse(row.caught_pokemon);
+						const pageSize = 20;
+						let page = 0;
 
-					const embed = generatePartyEmbed(caughtPokemon, page, pageSize);
+						const embed = generatePartyEmbed(caughtPokemon, page, pageSize);
 
-					const buttonRow = new ActionRowBuilder()
-						.addComponents(
-							new ButtonBuilder()
-								.setCustomId('prev')
-								.setLabel('◀')
-								.setStyle(ButtonStyle.Primary),
-							new ButtonBuilder()
-								.setCustomId('next')
-								.setLabel('▶')
-								.setStyle(ButtonStyle.Primary)
-						);
+						const buttonRow = new ActionRowBuilder()
+							.addComponents(
+								new ButtonBuilder()
+									.setCustomId('prev')
+									.setLabel('◀')
+									.setStyle(ButtonStyle.Primary),
+								new ButtonBuilder()
+									.setCustomId('next')
+									.setLabel('▶')
+									.setStyle(ButtonStyle.Primary)
+							);
 
-					message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
-						const filter = i => i.user.id === userId;
-						const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+						message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+							const filter = i => i.user.id === userId;
+							const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
-						collector.on('collect', async i => {
-							if (i.customId === 'prev') {
-								if (page > 0) page--;
-							} else if (i.customId === 'next') {
-								if ((page + 1) * pageSize < caughtPokemon.length) page++;
-							}
+							collector.on('collect', async i => {
+								if (i.customId === 'prev') {
+									if (page > 0) page--;
+								} 
+								else if (i.customId === 'next') {
+									if ((page + 1) * pageSize < caughtPokemon.length) page++;
+								}
 
-							await i.update({ embeds: [generatePartyEmbed(caughtPokemon, page, pageSize)] });
+								await i.update({ embeds: [generatePartyEmbed(caughtPokemon, page, pageSize)] });
+							});
+
+							collector.on('end', collected => {
+								const disabledRow = new ActionRowBuilder()
+									.addComponents(
+										new ButtonBuilder()
+											.setCustomId('prev')
+											.setLabel('◀')
+											.setStyle(ButtonStyle.Primary)
+											.setDisabled(true),
+										new ButtonBuilder()
+											.setCustomId('next')
+											.setLabel('▶')
+											.setStyle(ButtonStyle.Primary)
+											.setDisabled(true)
+									);
+								sentMessage.edit({ components: [disabledRow] });
+							});
 						});
-
-						collector.on('end', collected => {
-							const disabledRow = new ActionRowBuilder()
-								.addComponents(
-									new ButtonBuilder()
-										.setCustomId('prev')
-										.setLabel('◀')
-										.setStyle(ButtonStyle.Primary)
-										.setDisabled(true),
-									new ButtonBuilder()
-										.setCustomId('next')
-										.setLabel('▶')
-										.setStyle(ButtonStyle.Primary)
-										.setDisabled(true)
-								);
-							sentMessage.edit({ components: [disabledRow] });
-						});
-					});
-				}
-			});
+					}
+				});
 			}
 			
 			//hint
@@ -245,11 +250,11 @@ client.on('messageCreate', (message) => {
 					const regex = new RegExp("_", 'g');
 					let finalHint = curMonHint.replace(regex, "\\_");
 					message.channel.send(finalHint);
-					}
-					catch (error) {
-						message.channel.send('No current pokemon dropped!');
-					}	
 				}
+				catch (error) {
+					message.channel.send('No current pokemon dropped!');
+				}	
+			}
 				
 			//release
 			else if (message.content.startsWith('.release') || message.content.startsWith('.r')) {
@@ -320,27 +325,9 @@ client.on('messageCreate', (message) => {
 
 						collector.on('end', collected => {
 							sentMessage.edit({components: [] });
-					/*const disabledRow = new ActionRowBuilder()
-						.addComponents(
-						new ButtonBuilder()
-							.setCustomId('release_yes')
-							.setLabel('Yes')
-							.setStyle(ButtonStyle.Success)
-							.setDisabled(true),
-						new ButtonBuilder()
-							.setCustomId('release_no')
-							.setLabel('No')
-							.setStyle(ButtonStyle.Danger)
-							.setDisabled(true)
-						);
-					sentMessage.edit({ components: [disabledRow] });*/
 						});
 					});
 				});
-			}
-			else if ((message.content === '.off' || message.content === '.stop') && (message.author.id === myUserID)) {
-				message.delete();
-				process.exit();
 			}
 			
 			//turn off
