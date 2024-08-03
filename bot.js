@@ -13,7 +13,7 @@ const {
 	ActionRowBuilder,
 	ButtonBuilder,
 	ButtonStyle,
-	InteractionCollector,
+	InteractionCollector, //Check if needed
 } = require('discord.js');
 
 const myUserID = '177580797165961216';
@@ -27,9 +27,15 @@ const client = new Client({
   ],
 });
 
+//NEW
+const cooldowns = new Map(); 	//Map<serverId, cooldownEnd>
+const activeDrops = new Map();	//Map<serverId, activePokemon>
+//NOTNEW
+
+/*
 let curMon = "";
 let messageCount = 0;
-const cooldowns = new Map(); //NEW
+const cooldowns = new Map();*/
 
 function generatePartyEmbed(pokemonList, page, pageSize) {
 	const start = page * pageSize;
@@ -56,21 +62,24 @@ client.on('ready', () => {
 client.on('messageCreate', (message) => {
 	if (!message.author.bot) {
 		if (message.content.length > 0) {
-			messageCount = Math.random();
+			/*messageCount = Math.random(); */
+			const serverId = message.guild.id;
+			const userId = message.author.id;
+			const now = Date.now();
 			//console.log('Message math: ', messageCount, 'from: ', message.author.tag, 'Message: ', message.content);
-			if (message.content[0] == '.' && message.content[1] == 'd') {
-				const now = Date.now();
-				if (cooldowns.has(message.author.id)) {
-					const cooldownEnd = Math.floor(cooldowns.get(message.author.id) / 1000);
+			if (message.content.startsWith('.d')) {//message.content[0] == '.' && message.content[1] == 'd') {
+				/* const now = Date.now(); */
+				if (cooldowns.has(userId)) {
+					const cooldownEnd = Math.floor(cooldowns.get(userId) / 1000);
 					message.channel.send(`Please wait <t:${cooldownEnd}:R> before using this command again.`);
 					return;
 				}
-				
 				const cooldownEnd = now + 300000;
-				cooldowns.set(message.author.id, cooldownEnd);
-                setTimeout(() => cooldowns.delete(message.author.id), 300000);
+				cooldowns.set(userId, cooldownEnd);
+                setTimeout(() => cooldowns.delete(userId), 300000);
 				
-				let randPokemon = Math.floor(messageCount * 251); //number x is max pokedex entry //THIS LINE
+				const messageCount = Math.random();
+				const randPokemon = Math.floor(messageCount * 386); //number x is max pokedex entry //THIS LINE
 				db.all("SELECT * FROM pokemon", [], (err, rows) => {
 					if (err) {
 						console.error(err.message);
@@ -80,15 +89,18 @@ client.on('messageCreate', (message) => {
 					if (rows.length > 0) {
 						const pokemon = rows[randPokemon];
 						const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
-						curMon = pokemon.name ? `${pokemon.name}` : '';
+						const curMon = pokemon.name ? `${pokemon.name}` : '';
 						console.log(curMon);
+						
+						activeDrops.set(serverId, curMon);
+						
 						const embed = new EmbedBuilder()
 							.setColor('#0099ff')
 							//.setTitle(`Name: ${pokemon.name}`)
 							.addFields(
-							{ name: 'Dex Number', value: `${pokemon.dexNum}`, inline: true },
-							{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
-							{ name: 'Region', value: `${pokemon.region}`, inline: true }
+								{ name: 'Dex Number', value: `${pokemon.dexNum}`, inline: true },
+								{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
+								{ name: 'Region', value: `${pokemon.region}`, inline: true }
 							)
 							.setImage(pokemon.imageLink)
 							.setTimestamp()
@@ -101,41 +113,43 @@ client.on('messageCreate', (message) => {
 				});
 					
 			}
-			else if ((message.content.toLowerCase() === curMon.toLowerCase())
-				|| (curMon.toLowerCase() === 'farfetch\'d' && message.content.toLowerCase() === 'farfetchd')
-				|| (curMon.toLowerCase() === 'mr. mime' && message.content.toLowerCase() === 'mr mime')
-				|| (curMon.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'ho oh')
-				|| (curMon.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'hooh')) { //edge case
+			else if ( activeDrops.has(serverId) && (
+				   (message.content.toLowerCase() === activeDrops.get(serverId).toLowerCase())
+				|| (activeDrops.get(serverId).toLowerCase() === 'farfetch\'d' && message.content.toLowerCase() === 'farfetchd')
+				|| (activeDrops.get(serverId).toLowerCase() === 'mr. mime' && message.content.toLowerCase() === 'mr mime')
+				|| (activeDrops.get(serverId).toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'ho oh')
+				|| (activeDrops.get(serverId).toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'hooh'))) { //edge case
+				const curMon = activeDrops.get(serverId);
 				message.channel.send('Added to party list');
-				dbUser.get("SELECT * FROM user WHERE user_id = ?", [message.author.id], (err, row) => {
+				dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
 					if (err) {
 						console.error(err.message);
 						return;
 					}
 					if (!row) {
 						// User isn't in the database, add them
-						dbUser.run("INSERT INTO user (user_id, caught_pokemon) VALUES (?, ?)", [message.author.id, JSON.stringify([curMon])], (err) => {
+						dbUser.run("INSERT INTO user (user_id, caught_pokemon) VALUES (?, ?)", [userId, JSON.stringify([curMon])], (err) => {
 							if (err) {
 								console.error(err.message);
 							}
-							curMon = "";
+							activeDrops.delete(serverId);
 						});
 					} else {
 						// User is in the database, update their caught Pokémon
 						const caughtPokemon = JSON.parse(row.caught_pokemon);
 						caughtPokemon.push(curMon);
-						dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), message.author.id], (err) => {
+						dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), userId], (err) => {
 							if (err) {
 								console.error(err.message);
 							}
-							curMon = "";
+							activeDrops.delete(serverId);
 						});
 					}
 				});
 			}
 			else if (message.content === '.p' || message.content === '.party') {
 			// Get the user's ID and display all their Pokémon in an embedded list
-			dbUser.get("SELECT * FROM user WHERE user_id = ?", [message.author.id], (err, row) => {
+			dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
 				if (err) {
 					console.error(err.message);
 					message.channel.send('An error occurred while fetching your Pokémon.');
