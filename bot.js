@@ -52,14 +52,14 @@ String.prototype.replaceAt = function(index, char) {
     return a.join("");
 }
 
-//Helper function, generates a random int given an upper bound
+//Helper function, generates a random int given an upper bound: 0 to upperBound - 1 inclusive
 function getRandomInt(upperBound) {
 	return Math.floor(Math.random() * upperBound);
 }
 
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}`);
-	dbUser.run("CREATE TABLE IF NOT EXISTS user ( user_id TEXT PRIMARY KEY, caught_pokemon TEXT)");
+	dbUser.run("CREATE TABLE IF NOT EXISTS user ( user_id TEXT PRIMARY KEY, caught_pokemon TEXT, currency INTEGER DEFAULT 0)");
 });
 
 client.on('messageCreate', (message) => {
@@ -123,7 +123,8 @@ client.on('messageCreate', (message) => {
 				|| (activeDrops.get(serverId).toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'ho oh')
 				|| (activeDrops.get(serverId).toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'hooh'))) { //edge case
 				const curMon = activeDrops.get(serverId);
-				message.channel.send('Added to party list');
+				const coinsToAdd = getRandomInt(21) + 5;
+				message.channel.send(`Added ${curMon} to party! You gained ${coinsToAdd} coins for your catch.`);
 				dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
 					if (err) {
 						console.error(err.message);
@@ -131,7 +132,7 @@ client.on('messageCreate', (message) => {
 					}
 					if (!row) {
 						// User isn't in the database, add them
-						dbUser.run("INSERT INTO user (user_id, caught_pokemon) VALUES (?, ?)", [userId, JSON.stringify([curMon])], (err) => {
+						dbUser.run("INSERT INTO user (user_id, caught_pokemon, currency) VALUES (?, ?, ?)", [userId, JSON.stringify([curMon]), coinsToAdd], (err) => {
 							if (err) {
 								console.error(err.message);
 							}
@@ -139,10 +140,11 @@ client.on('messageCreate', (message) => {
 						});
 					} 
 					else {
-						// User is in the database, update their caught Pokémon
+						// User is in the database, update their caught Pokémon & currency
 						const caughtPokemon = JSON.parse(row.caught_pokemon);
 						caughtPokemon.push(curMon);
-						dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), userId], (err) => {
+						const newCurrency = row.currency + coinsToAdd;
+						dbUser.run("UPDATE user SET caught_pokemon = ?, currency = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), newCurrency, userId], (err) => {
 							if (err) {
 								console.error(err.message);
 							}
@@ -215,6 +217,22 @@ client.on('messageCreate', (message) => {
 								sentMessage.edit({ components: [disabledRow] });
 							});
 						});
+					}
+				});
+			}
+			//check currency
+			else if (message.content.startsWith('.c') || message.content.startsWith('.currency')) {
+				dbUser.get("SELECT currency FROM user WHERE user_id = ?", [userId], (err, row) => {
+					if (err) {
+						console.error(err.message);
+						message.channel.send('An error occurred while fetching your currency.');
+						return;
+					}
+					if (!row) {
+						message.channel.send('You have not earned any currency yet.');
+					}
+					else {
+						message.channel.send(`You currently have ${row.currency} coins.`);
 					}
 				});
 			}
