@@ -15,8 +15,6 @@ const {
 	ButtonStyle,
 } = require('discord.js');
 
-const myUserID = '177580797165961216';
-
 const Discord = require('discord.js');
 const client = new Client({
   intents: [
@@ -331,7 +329,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//turn off
-			else if ( (message.content === '.off' || message.content === '.stop') && (userId === myUserID)) {
+			else if ( (message.content === '.off' || message.content === '.stop') && (userId === '177580797165961216')) {
 				message.delete();
 				process.exit();
 			}
