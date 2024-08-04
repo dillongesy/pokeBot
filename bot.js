@@ -239,6 +239,27 @@ client.on('messageCreate', (message) => {
 				});
 			}
 			
+			//help
+			else if(message.content.startsWith('.help')) {
+				const helpEmbed = new EmbedBuilder()
+					.setColor('#0099ff')
+					.setTitle('Help')
+					.setDescription('List of available commands and how to use them:')
+					.addFields(
+						{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
+                        { name: '.party (.p)', value: 'Displays your caught Pokémon.' },
+                        { name: '.currency (.c)', value: 'Displays your current amount of coins.' },
+                        { name: '.hint (.h)', value: 'Gives a hint for the currently dropped Pokémon.' },
+                        { name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party. Example: .release 1' },
+                        { name: '.trade @<user> (.t)', value: 'Initiates a trade with another user.' },
+						{ name: 'Catching:', value: 'Type a pokemon\'s name after it has dropped to claim. Example: Pikachu' }
+                    )
+                    .setFooter({ text: 'Use the commands above to interact with the bot' })
+                    .setTimestamp();
+
+				message.channel.send({ embeds: [helpEmbed] });
+			}
+			
 			//hint
 			else if (message.content.startsWith('.h') || message.content.startsWith('.hint')) {
 				let curMon = "";
@@ -528,27 +549,6 @@ client.on('messageCreate', (message) => {
 					message.channel.send("To trade, use `.trade @<user>` to start.");
 					return;
 				}
-			}
-			
-			//help
-			else if(message.content.startsWith('.help')) {
-				const helpEmbed = new EmbedBuilder()
-					.setColor('#0099ff')
-					.setTitle('Help')
-					.setDescription('List of available commands and how to use them:')
-					.addFields(
-						{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
-                        { name: '.party (.p)', value: 'Displays your caught Pokémon.' },
-                        { name: '.currency (.c)', value: 'Displays your current amount of coins.' },
-                        { name: '.hint (.h)', value: 'Gives a hint for the currently dropped Pokémon.' },
-                        { name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party. Example: .release 1' },
-                        { name: '.trade @<user> (.t)', value: 'Initiates a trade with another user.' },
-						{ name: 'catching:', value: 'Type a pokemon\'s name after it has dropped to claim. Example: Pikachu' }
-                    )
-                    .setFooter({ text: 'Use the commands above to interact with the bot.' })
-                    .setTimestamp();
-
-				message.channel.send({ embeds: [helpEmbed] });
 			}
 			
 			//turn off
