@@ -26,6 +26,7 @@ const client = new Client({
 
 const cooldowns = new Map(); 	//Map<serverId, cooldownEnd>
 const activeDrops = new Map();	//Map<serverId, activePokemon>
+const activeTrades = new Map();	//Map<serverId, {user1, user2, user1Pokemon, user2Pokemon, user1Confirmed, user2Confirmed}>
 
 //Embed Generator
 function generatePartyEmbed(pokemonList, page, pageSize) {
@@ -220,7 +221,8 @@ client.on('messageCreate', (message) => {
 					}
 				});
 			}
-			//check currency
+			
+			//currency
 			else if (message.content.startsWith('.c') || message.content.startsWith('.currency')) {
 				dbUser.get("SELECT currency FROM user WHERE user_id = ?", [userId], (err, row) => {
 					if (err) {
@@ -326,17 +328,18 @@ client.on('messageCreate', (message) => {
 						const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
 						collector.on('collect', async i => {
-						if (i.customId === 'release_yes') {
-							caughtPokemon.splice(index, 1);
-							dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), userId], (err) => {
-							if (err) {
-								console.error(err.message);
+							if (i.customId === 'release_yes') {
+								caughtPokemon.splice(index, 1);
+								dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), userId], (err) => {
+								if (err) {
+									console.error(err.message);
+								}
+								i.update({ content: `Successfully released ${pokemonToRelease}`, embeds: [], components: [] });
+								});
+							} 
+							else if (i.customId === 'release_no') {
+								i.update({ content: 'Release cancelled.', embeds: [], components: [] });
 							}
-							i.update({ content: `Successfully released ${pokemonToRelease}`, embeds: [], components: [] });
-							});
-						} else if (i.customId === 'release_no') {
-							i.update({ content: 'Release cancelled.', embeds: [], components: [] });
-						}
 						});
 
 						collector.on('end', collected => {
@@ -345,6 +348,148 @@ client.on('messageCreate', (message) => {
 					});
 				});
 			}
+			
+			//trade
+			else if (message.content.startsWith('.trade') || message.content.startsWith('.t')) {
+				const args = message.content.split(' ');
+				if (args[1] === 'confirm') {
+					if (!activeTrades.has(serverId)) {
+      			      message.channel.send("No active trade to confirm.");
+     			       return;
+    			    }
+   			     const trade = activeTrades.get(serverId);
+    			    if (trade.user1 === userId) {
+   			         trade.user1Confirmed = true;
+   			     } 
+				 else if (trade.user2 === userId) {
+  			          trade.user2Confirmed = true;
+  			      } 
+				  else {
+   			         message.channel.send("You are not part of the active trade.");
+  			          return;
+    			    }
+        			if (trade.user1Confirmed && trade.user2Confirmed) {
+            			// Swap Pokémon
+            			dbUser.get("SELECT * FROM user WHERE user_id = ?", [trade.user1], (err, user1Row) => {
+           			     if (err) {
+          			          console.error(err.message);
+         			           message.channel.send('An error occurred while fetching user data.');
+         			           return;
+        			        }
+         			       const user1Pokemon = JSON.parse(user1Row.caught_pokemon);
+       			         const user1TradedPokemon = user1Pokemon.splice(trade.user1Pokemon, 1)[0];
+			
+       			         dbUser.get("SELECT * FROM user WHERE user_id = ?", [trade.user2], (err, user2Row) => {
+      			              if (err) {
+      			                  console.error(err.message);
+     			                   message.channel.send('An error occurred while fetching user data.');
+     			                   return;
+     			               }
+         			           const user2Pokemon = JSON.parse(user2Row.caught_pokemon);
+        			            const user2TradedPokemon = user2Pokemon.splice(trade.user2Pokemon, 1)[0];
+			
+      			              user1Pokemon.push(user2TradedPokemon);
+      			              user2Pokemon.push(user1TradedPokemon);
+
+     			               dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(user1Pokemon), trade.user1], (err) => {
+      			                  if (err) {
+     			                       console.error(err.message);
+               			             return;
+             			           }
+             			           dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(user2Pokemon), trade.user2], (err) => {
+                			            if (err) {
+               			                 console.error(err.message);
+              			                  return;
+               			            	}
+                			            message.channel.send(`Trade completed! <@!${user1Row.user_id}> traded ${user1TradedPokemon} with <@!${user2Row.user_id}> for ${user2TradedPokemon}.`);
+                            			activeTrades.delete(serverId);
+                        			});
+                    			});
+                			});
+            			});
+        			} 
+					else {
+						message.channel.send("Trade confirmed. Waiting for the other user to confirm.");
+        			}
+    			} 
+				else if (args[1] === 'add') {
+        			if (!activeTrades.has(serverId)) {
+            			message.channel.send("No active trade to add Pokémon.");
+           			 return;
+        			}
+        			const trade = activeTrades.get(serverId);
+        			const partyNum = parseInt(args[2], 10) - 1;
+        			if (trade.user1 === userId) {
+        			    trade.user1Pokemon = partyNum;
+        			} 
+					else if (trade.user2 === userId) {
+       			     trade.user2Pokemon = partyNum;
+					}
+					else {
+            			message.channel.send("You are not part of the active trade.");
+            			return;
+        			}
+        			if (trade.user1Pokemon !== null && trade.user2Pokemon !== null) {
+            			message.channel.send("Both Pokémon have been added to the trade. Type `.trade confirm` to confirm the trade.");
+        			} 
+					else {
+            			message.channel.send("Pokémon added to the trade. Waiting for the other user to add their Pokémon.");
+        			}
+    			}
+				else if (args.length === 2) {
+        			const targetUser = message.mentions.users.first();
+        			if (!targetUser) {
+            			message.channel.send("You must mention a user to trade with.");
+						return;
+        			}
+        			if (activeTrades.has(serverId)) {
+        			    message.channel.send("A trade is already in progress.");
+        			    return;
+        			}
+        			const tradeEmbed = new EmbedBuilder()
+        			    .setColor('#0099ff')
+            			.setTitle('Trade Request')
+            			.setDescription(`${message.author} wants to trade with ${targetUser}.`)
+            			.setTimestamp();
+        			const buttonRow = new ActionRowBuilder()
+            			.addComponents(
+                			new ButtonBuilder()
+                    			.setCustomId('accept_trade')
+                    			.setLabel('Accept')
+                    			.setStyle(ButtonStyle.Success),
+                			new ButtonBuilder()
+                    			.setCustomId('decline_trade')
+                    			.setLabel('Decline')
+                    			.setStyle(ButtonStyle.Danger)
+            			);
+        			message.channel.send({ embeds: [tradeEmbed], components: [buttonRow] }).then(sentMessage => {
+            			const filter = i => i.user.id === targetUser.id;
+            			const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+            			collector.on('collect', async i => {
+                			if (i.customId === 'accept_trade') {
+                    			activeTrades.set(serverId, {
+                        			user1: userId,
+                        			user2: targetUser.id,
+                        			user1Pokemon: null,
+                        			user2Pokemon: null,
+                        			user1Confirmed: false,
+                        			user2Confirmed: false
+								});
+                    			await i.update({ content: `Trade accepted. Both users, please add your Pokémon to the trade using \`.trade add <partyNum>\``, embeds: [], components: [] });
+                			} 
+							else if (i.customId === 'decline_trade') {
+                    			await i.update({ content: `Trade declined by ${targetUser}`, embeds: [], components: [] });
+                			}
+            			});
+            			collector.on('end', collected => {
+                			if (collected.size === 0) {
+                    			sentMessage.edit({ content: `Trade request timed out.`, embeds: [], components: [] });
+                			}
+            			});
+        			});
+    			}
+			}
+			
 			
 			//turn off
 			else if ( (message.content === '.off' || message.content === '.stop') && (userId === '177580797165961216')) {
