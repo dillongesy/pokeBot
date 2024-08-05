@@ -263,11 +263,11 @@ client.on('messageCreate', (message) => {
 					dbServer.get("SELECT allowed_channels_id FROM server WHERE server_id = ?", [serverId], (err, row) => {
 						if (err) {
 							console.error(err.message);
-							message.channel.send('An error occurred while fetching your active channels.');
+							message.channel.send('An error occurred while fetching your server\'s active channels.');
 							return;
 						}
 						if (!row || !row.allowed_channels_id) {
-							message.channel.send('You have no selected any active channels yet.');
+							message.channel.send('You have not selected any active channels yet.');
 						}
 						else {
 							const activeChannels = row.allowed_channels_id.split(',');
@@ -276,7 +276,7 @@ client.on('messageCreate', (message) => {
 							
 							const embed = new EmbedBuilder()
 								.setColor('#0099ff')
-								.setTitle('Your Active Channels')
+								.setTitle('My Active Channels')
 								.setDescription(formattedChannelsList || 'No Channels Found')
 								.setFooter({ text: `Showing ${Math.min(20, activeChannels.length)} of ${activeChannels.length} Channels` })
 								.setTimestamp();
@@ -660,6 +660,7 @@ client.on('messageCreate', (message) => {
 													return;
 												}
 												message.channel.send(`Trade completed! <@!${user1Row.user_id}> traded ${user1TradedPokemon} with <@!${user2Row.user_id}> for ${user2TradedPokemon}.`);
+												clearTimeout(trade.timeout);
 												activeTrades.delete(serverId);
 											});
 										});
@@ -725,6 +726,7 @@ client.on('messageCreate', (message) => {
 							return;
 						}
 						activeTrades.delete(serverId);
+						clearTimeout(trade.timeout);
 						message.channel.send("Trade has been cancelled.");
 					}
 					
