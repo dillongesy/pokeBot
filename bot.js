@@ -361,6 +361,71 @@ client.on('messageCreate', (message) => {
 				
 			}
 			
+			//View
+			else if (message.content.startsWith('.view')) {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					const args = message.content.split(' ');
+					if (args.length !== 2 || isNaN(args[1])) {
+						message.channel.send('Please specify a valid number. Usage: `.view <partyNumber>`');
+						return;
+					}
+					
+					const index = parseInt(args[1], 10) - 1;
+					
+					dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
+						if (err) {
+							console.error(err.message);
+							message.channel.send('An error occurred while fetching your Pokémon.');
+							return;
+						}
+
+						if (!row || !row.caught_pokemon) {
+							message.channel.send('You have not caught any Pokémon yet.');
+							return;
+						}
+
+						const caughtPokemon = JSON.parse(row.caught_pokemon);
+
+						if (index < 0 || index >= caughtPokemon.length) {
+							message.channel.send('Please specify a valid Pokémon number.');
+							return;
+						}
+
+						const pokemonToDisplay = caughtPokemon[index];
+						
+						db.get("SELECT * FROM pokemon WHERE name = ?", [pokemonToDisplay], (err, pokemonRow) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching Pokémon information.');
+								return;
+							}
+							if (!pokemonRow) {
+								message.channel.send('Pokémon not found in the database.');
+								return;
+							}
+							
+							const type2 = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
+							
+							const embed = new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle(`Your ${pokemonRow.name}`)
+								.addFields(
+									{ name: 'Dex Number', value: `${pokemonRow.dexNum}`, inline: true },
+									{ name: 'Type', value: `${pokemonRow.type1}${type2}`, inline: true },
+									{ name: 'Region', value: `${pokemonRow.region}`, inline: true }
+								)
+								.setImage(pokemonRow.imageLink)
+								.setTimestamp();
+								
+								message.channel.send({embeds: [embed] });
+						});
+					});
+				});
+			}
+			
 			//party
 			else if (message.content.startsWith('.p') || message.content.startsWith('.party') ) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
@@ -794,7 +859,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//turn off
-			else if ( (message.content === '.off' || message.content === '.stop') && (userId === '177580797165961216')) {
+			else if ( (message.content === '.off' || message.content === '.stop') && ((userId === '177580797165961216') || (userId === '233239544776884224'))) {
 				message.delete();
 				process.exit();
 			}
