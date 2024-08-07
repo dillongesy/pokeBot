@@ -26,7 +26,7 @@ const client = new Client({
 });
 
 const cooldowns = new Map(); 	//Map<serverId, cooldownEnd>
-const activeDrops = new Map();	//Map<serverId, activePokemon>
+const activeDrops = new Map();	//Map<serverId, activePokemon {name, isShiny}>
 const activeTrades = new Map();	//Map<serverId, {user1, user2, user1Pokemon, user2Pokemon, user1Confirmed, user2Confirmed}>
 
 //Embed Generator
@@ -99,6 +99,7 @@ client.on('messageCreate', (message) => {
 						message.channel.send(`Please wait <t:${cooldownEnd}:R> before using this command again.`);
 						return;
 					}
+					
 					const cooldownEnd = now + 300000;
 					cooldowns.set(userId, cooldownEnd);
 					setTimeout(() => cooldowns.delete(userId), 300000);
@@ -111,12 +112,22 @@ client.on('messageCreate', (message) => {
 							return;
 						}
 						if (rows.length > 0) {
+							const isShiny = Math.random() < 0.00025;
 							const pokemon = rows[randPokemon];
+							let imageLink = null;
+							
+							if (isShiny) {
+								imageLink = pokemon.shinyImageLink;
+							}
+							else {
+								imageLink = pokemon.imageLink;
+							}
+							
 							const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
 							const curMon = pokemon.name ? `${pokemon.name}` : '';
 							console.log(curMon);
 							
-							activeDrops.set(serverId, curMon);
+							activeDrops.set(serverId, { name: curMon, isShiny });
 							
 							const embed = new EmbedBuilder()
 								.setColor('#0099ff')
@@ -126,7 +137,7 @@ client.on('messageCreate', (message) => {
 									{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
 									{ name: 'Region', value: `${pokemon.region}`, inline: true }
 								)
-								.setImage(pokemon.imageLink)
+								.setImage(imageLink)
 								.setTimestamp()
 
 							message.channel.send({ embeds: [embed] });
@@ -140,50 +151,70 @@ client.on('messageCreate', (message) => {
 			
 			//catch
 			else if ( activeDrops.has(serverId) && (
-				   (message.content.toLowerCase() === activeDrops.get(serverId).toLowerCase())
-				|| (activeDrops.get(serverId).toLowerCase() === 'farfetch\'d' && message.content.toLowerCase() === 'farfetchd')
-				|| (activeDrops.get(serverId).toLowerCase() === 'mr. mime' && message.content.toLowerCase() === 'mr mime')
-				|| (activeDrops.get(serverId).toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'ho oh')
-				|| (activeDrops.get(serverId).toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'hooh'))) { //edge case
+				   (message.content.toLowerCase() === activeDrops.get(serverId).name.toLowerCase())
+				|| (activeDrops.get(serverId).name.toLowerCase() === 'farfetch\'d' && message.content.toLowerCase() === 'farfetchd')
+				|| (activeDrops.get(serverId).name.toLowerCase() === 'mr. mime' && message.content.toLowerCase() === 'mr mime')
+				|| (activeDrops.get(serverId).name.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'ho oh')
+				|| (activeDrops.get(serverId).name.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'hooh'))) { //edge case
+				
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
 					}
 					const curMon = activeDrops.get(serverId);
-					const coinsToAdd = getRandomInt(21) + 5;
-					message.channel.send(`Added ${curMon} to party! You gained ${coinsToAdd} coins for your catch.`);
-					dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
+					const curMonName = curMon.name;
+					let isShinyVar = curMon.isShiny ? 1: 0;
+					db.get("SELECT * FROM pokemon WHERE name = ?", [curMonName], (err, pokemonRow) => {
 						if (err) {
 							console.error(err.message);
+							message.channel.send('An error occurred while fetching Pokémon information.');
 							return;
 						}
-						if (!row) {
-							// User isn't in the database, add them
-							dbUser.run("INSERT INTO user (user_id, caught_pokemon, currency) VALUES (?, ?, ?)", [userId, JSON.stringify([curMon]), coinsToAdd], (err) => {
-								if (err) {
-									console.error(err.message);
-								}
-								activeDrops.delete(serverId);
-							});
-						} 
-						else {
-							// User is in the database, update their caught Pokémon & currency
-							const caughtPokemon = JSON.parse(row.caught_pokemon);
-							caughtPokemon.push(curMon);
-							const newCurrency = row.currency + coinsToAdd;
-							dbUser.run("UPDATE user SET caught_pokemon = ?, currency = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), newCurrency, userId], (err) => {
-								if (err) {
-									console.error(err.message);
-								}
-								activeDrops.delete(serverId);
-							});
+						if (!pokemonRow) {
+							message.channel.send('Pokémon not found in the database.');
+							return;
 						}
+						const coinsToAdd = getRandomInt(21) + 5;
+						const shinyMon = isShinyVar ? `✨${curMonName}` : curMonName;
+						const messageText = isShinyVar
+							? `Added ✨${curMonName} to party! You gained ${coinsToAdd} coins for your catch.`
+							: `Added ${curMonName} to party! You gained ${coinsToAdd} coins for your catch.`;
+						
+						message.channel.send(messageText);
+						
+						dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
+							if (err) {
+								console.error(err.message);
+								return;
+							}
+							if (!row) {
+								// User isn't in the database, add them
+								dbUser.run("INSERT INTO user (user_id, caught_pokemon, currency) VALUES (?, ?, ?)", [userId, JSON.stringify([shinyMon]), coinsToAdd], (err) => {
+									if (err) {
+										console.error(err.message);
+									}
+									activeDrops.delete(serverId);
+								});
+							} 
+							else {
+								// User is in the database, update their caught Pokémon & currency
+								const caughtPokemon = JSON.parse(row.caught_pokemon);
+								caughtPokemon.push(shinyMon);
+								const newCurrency = row.currency + coinsToAdd;
+								dbUser.run("UPDATE user SET caught_pokemon = ?, currency = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), newCurrency, userId], (err) => {
+									if (err) {
+										console.error(err.message);
+									}
+									activeDrops.delete(serverId);
+								});
+							}
+						}); 
 					});
 				});
 			}
 			
 			//Config: Set channel(s) for the bot
-			else if (message.content.startsWith('.setChannel')) {
+			else if (message.content.startsWith('.setChannel') || message.content.startsWith('.setchannel') || message.content.startsWith('.setChannels') || message.content.startsWith('.setchannels')) {
 				try {
 					if (!message.member.permissions.has('ADMINISTRATOR')) {
 						isChannelAllowed(serverId, message.channel.id, (allowed) => {
@@ -255,7 +286,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//Config: View Set Channels
-			else if (message.content.startsWith('.viewChannels')) {
+			else if (message.content.startsWith('.viewChannels') || message.content.startsWith('.viewchannels')) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -288,7 +319,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//Config: Remove Set Channels
-			else if (message.content.startsWith('.resetChannels')) {
+			else if (message.content.startsWith('.resetChannels') || message.content.startsWith('.resetchannels')) {
 				try {
 					if (!message.member.permissions.has('ADMINISTRATOR')) {
 						isChannelAllowed(serverId, message.channel.id, (allowed) => {
@@ -362,7 +393,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//View
-			else if (message.content.startsWith('.view')) {
+			else if (message.content.startsWith('.view') || message.content.startsWith('.v')) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -390,38 +421,72 @@ client.on('messageCreate', (message) => {
 						const caughtPokemon = JSON.parse(row.caught_pokemon);
 
 						if (index < 0 || index >= caughtPokemon.length) {
-							message.channel.send('Please specify a valid Pokémon number.');
+							message.channel.send('Please specify a valid party number.');
 							return;
 						}
 
 						const pokemonToDisplay = caughtPokemon[index];
 						
-						db.get("SELECT * FROM pokemon WHERE name = ?", [pokemonToDisplay], (err, pokemonRow) => {
-							if (err) {
-								console.error(err.message);
-								message.channel.send('An error occurred while fetching Pokémon information.');
-								return;
-							}
-							if (!pokemonRow) {
-								message.channel.send('Pokémon not found in the database.');
-								return;
-							}
-							
-							const type2 = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
-							
-							const embed = new EmbedBuilder()
-								.setColor('#0099ff')
-								.setTitle(`Your ${pokemonRow.name}`)
-								.addFields(
-									{ name: 'Dex Number', value: `${pokemonRow.dexNum}`, inline: true },
-									{ name: 'Type', value: `${pokemonRow.type1}${type2}`, inline: true },
-									{ name: 'Region', value: `${pokemonRow.region}`, inline: true }
-								)
-								.setImage(pokemonRow.imageLink)
-								.setTimestamp();
+						if (pokemonToDisplay[0] === '✨') {
+							let shinyDisplayedPokemon = pokemonToDisplay.replaceAt(0, '');
+							db.get("SELECT * FROM pokemon WHERE name = ?", [shinyDisplayedPokemon], (err, pokemonRow) => {
+								if (err) {
+									console.error(err.message);
+									message.channel.send('An error occurred while fetching Pokémon information.');
+									return;
+								}
+								if (!pokemonRow) {
+									message.channel.send('Pokémon not found in the database.');
+									return;
+								}
 								
-								message.channel.send({embeds: [embed] });
-						});
+								const type2 = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
+								
+								
+								const embed = new EmbedBuilder()
+									.setColor('#0099ff')
+									.setTitle(`Your ✨${pokemonRow.name}`)
+									.addFields(
+										{ name: 'Dex Number', value: `${pokemonRow.dexNum}`, inline: true },
+										{ name: 'Type', value: `${pokemonRow.type1}${type2}`, inline: true },
+										{ name: 'Region', value: `${pokemonRow.region}`, inline: true }
+									)
+									.setImage(pokemonRow.shinyImageLink)
+									.setTimestamp();
+									
+									message.channel.send({embeds: [embed] });
+							});
+						}
+						else {
+							db.get("SELECT * FROM pokemon WHERE name = ?", [pokemonToDisplay], (err, pokemonRow) => {
+								if (err) {
+									console.error(err.message);
+									message.channel.send('An error occurred while fetching Pokémon information.');
+									return;
+								}
+								if (!pokemonRow) {
+									message.channel.send('Pokémon not found in the database.');
+									return;
+								}
+								
+								const type2 = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
+								
+								
+								const embed = new EmbedBuilder()
+									.setColor('#0099ff')
+									.setTitle(`Your ${pokemonRow.name}`)
+									.addFields(
+										{ name: 'Dex Number', value: `${pokemonRow.dexNum}`, inline: true },
+										{ name: 'Type', value: `${pokemonRow.type1}${type2}`, inline: true },
+										{ name: 'Region', value: `${pokemonRow.region}`, inline: true }
+									)
+									.setImage(pokemonRow.imageLink)
+									.setTimestamp();
+									
+									message.channel.send({embeds: [embed] });
+							});
+						}
+						
 					});
 				});
 			}
@@ -533,6 +598,7 @@ client.on('messageCreate', (message) => {
 						.addFields(
 							{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
 							{ name: '.party (.p)', value: 'Displays your caught Pokémon.' },
+							{ name: '.view <partyNum> (.v)', value: 'Displays a pokemon from your party. Example: .view 1' },
 							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
 							{ name: '.hint (.h)', value: 'Gives a hint for the currently dropped Pokémon.' },
 							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party. Example: .release 1' },
@@ -557,10 +623,10 @@ client.on('messageCreate', (message) => {
 					let curMon = "";
 					let monLength = 0;
 					try {
-						curMon = activeDrops.get(serverId);
+						curMon = activeDrops.get(serverId).name;
 						monLength = curMon.length;
 						let numLetters = 0;
-						let curMonHint = activeDrops.get(serverId);
+						let curMonHint = activeDrops.get(serverId).name;
 						while (numLetters / monLength < 0.6) {
 							const randomInt = getRandomInt(monLength);
 							if (!(curMonHint[randomInt] === '_')) {
@@ -587,7 +653,7 @@ client.on('messageCreate', (message) => {
 					}
 				});				
 			}
-				
+			
 			//release
 			else if (message.content.startsWith('.release') || message.content.startsWith('.r')) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
@@ -617,7 +683,7 @@ client.on('messageCreate', (message) => {
 						const caughtPokemon = JSON.parse(row.caught_pokemon);
 
 						if (index < 0 || index >= caughtPokemon.length) {
-							message.channel.send('Please specify a valid Pokémon number.');
+							message.channel.send('Please specify a valid party number.');
 							return;
 						}
 
