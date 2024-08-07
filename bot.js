@@ -155,7 +155,11 @@ client.on('messageCreate', (message) => {
 				|| (activeDrops.get(serverId).name.toLowerCase() === 'farfetch\'d' && message.content.toLowerCase() === 'farfetchd')
 				|| (activeDrops.get(serverId).name.toLowerCase() === 'mr. mime' && message.content.toLowerCase() === 'mr mime')
 				|| (activeDrops.get(serverId).name.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'ho oh')
-				|| (activeDrops.get(serverId).name.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'hooh'))) { //edge case
+				|| (activeDrops.get(serverId).name.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'hooh')
+				|| (activeDrops.get(serverId).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mime jr')
+				|| (activeDrops.get(serverId).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mimejr')
+				|| (activeDrops.get(serverId).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygon z')
+				|| (activeDrops.get(serverId).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygonz'))) { //edge case
 				
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
@@ -636,13 +640,19 @@ client.on('messageCreate', (message) => {
 						}
 						//Edge cases handled in poor ways
 						if (curMon.toLowerCase() === 'farfetch\'d') {
-							curMonHint = curMonHint.replaceAt(8, '\'');;
+							curMonHint = curMonHint.replaceAt(8, '\'');
 						}
 						else if (curMon.toLowerCase() === 'mr. mime') {
 							curMonHint = curMonHint.replaceAt(2, '.');
 						}
 						else if (curMon.toLowerCase() === 'ho-oh') {
 							curMonHint = curMonHint.replaceAt(2, '-');
+						}
+						else if (curMon.toLowerCase() === 'mime jr.') {
+							curMonHint = curMonHint.replaceAt(7, '.');
+						}
+						else if (curMon.toLowerCase() === 'porygon-z') {
+							curMonHint = curMonHint.replaceAt(7, '-');
 						}
 						const regex = new RegExp("_", 'g');
 						let finalHint = curMonHint.replace(regex, "\\_");
