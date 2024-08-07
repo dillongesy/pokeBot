@@ -104,7 +104,7 @@ client.on('messageCreate', (message) => {
 					cooldowns.set(userId, cooldownEnd);
 					setTimeout(() => cooldowns.delete(userId), 300000);
 					
-					const randPokemon = getRandomInt(386); //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+					const randPokemon = getRandomInt(493); //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 					db.all("SELECT * FROM pokemon", [], (err, rows) => {
 						if (err) {
 							console.error(err.message);
@@ -163,7 +163,7 @@ client.on('messageCreate', (message) => {
 					}
 					const curMon = activeDrops.get(serverId);
 					const curMonName = curMon.name;
-					let isShinyVar = curMon.isShiny ? 1: 0;
+					let isShinyVar = curMon.isShiny ? 1 : 0;
 					db.get("SELECT * FROM pokemon WHERE name = ?", [curMonName], (err, pokemonRow) => {
 						if (err) {
 							console.error(err.message);
@@ -838,10 +838,10 @@ client.on('messageCreate', (message) => {
 								return;
 							}
 							if (trade.user1Pokemon !== null && trade.user2Pokemon !== null) {
-								message.channel.send("Both Pokémon have been added to the trade. Type `.trade confirm` to confirm the trade.");
+								message.channel.send("Both Pokémon have been added to the trade. Type `.trade confirm` to confirm the trade."); //TODO: display pokemon added
 							} 
 							else {
-								message.channel.send("Pokémon added to the trade. Waiting for the other user to add their Pokémon.");
+								message.channel.send("Pokémon added to the trade. Waiting for the other user to add their Pokémon.");//TODO: display pokemon added
 							}
 						});	
 					}
