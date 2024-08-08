@@ -54,6 +54,11 @@ String.prototype.replaceAt = function(index, char) {
     return a.join("");
 }
 
+//Helper function, capitalizes first letter in a string
+function capitalizeFirstLetter(string) {
+	return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
 //Helper function, generates a random int given an upper bound: 0 to upperBound - 1 inclusive
 function getRandomInt(upperBound) {
 	return Math.floor(Math.random() * upperBound);
@@ -112,7 +117,11 @@ client.on('messageCreate', (message) => {
 							return;
 						}
 						if (rows.length > 0) {
-							const isShiny = Math.random() < 0.00025;
+							const shinyNumber = Math.random();
+							let isShiny = false;
+							if (shinyNumber < 0.00025) {
+								isShiny = true;
+							}
 							const pokemon = rows[randPokemon];
 							let imageLink = null;
 							
@@ -125,7 +134,7 @@ client.on('messageCreate', (message) => {
 							
 							const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
 							const curMon = pokemon.name ? `${pokemon.name}` : '';
-							console.log(curMon);
+							console.log(curMon + ' ' + shinyNumber);
 							
 							activeDrops.set(serverId, { name: curMon, isShiny });
 							
@@ -501,6 +510,9 @@ client.on('messageCreate', (message) => {
 					if (!allowed) {
 						return;
 					}
+					
+					const args = message.content.split(' ').slice(1);
+					
 					// Get the user's ID and display all their Pokémon in an embedded list
 					dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
 						if (err) {
@@ -510,9 +522,12 @@ client.on('messageCreate', (message) => {
 						}
 						if (!row || !row.caught_pokemon) {
 							message.channel.send('You have not caught any Pokémon yet.');
+							return;
 						} 
-						else {
-							const caughtPokemon = JSON.parse(row.caught_pokemon);
+						
+						const caughtPokemon = JSON.parse(row.caught_pokemon);
+						
+						if (args.length === 0) {
 							const pageSize = 20;
 							let page = 0;
 
@@ -521,12 +536,20 @@ client.on('messageCreate', (message) => {
 							const buttonRow = new ActionRowBuilder()
 								.addComponents(
 									new ButtonBuilder()
+										.setCustomId('rewind')
+										.setLabel('⏪')
+										.setStyle(ButtonStyle.Primary),
+									new ButtonBuilder()
 										.setCustomId('prev')
 										.setLabel('◀')
 										.setStyle(ButtonStyle.Primary),
 									new ButtonBuilder()
 										.setCustomId('next')
 										.setLabel('▶')
+										.setStyle(ButtonStyle.Primary),
+									new ButtonBuilder()
+										.setCustomId('fforward')
+										.setLabel('⏩')
 										.setStyle(ButtonStyle.Primary)
 								);
 
@@ -536,10 +559,26 @@ client.on('messageCreate', (message) => {
 
 								collector.on('collect', async i => {
 									if (i.customId === 'prev') {
-										if (page > 0) page--;
+										if (page > 0) {
+											page--;
+										}
+										else {
+											page = Math.ceil(caughtPokemon.length / pageSize) - 1;;
+										}
 									} 
 									else if (i.customId === 'next') {
-										if ((page + 1) * pageSize < caughtPokemon.length) page++;
+										if ((page + 1) * pageSize < caughtPokemon.length) {
+											page++;
+										}
+										else {
+											page = 0;
+										}
+									}
+									else if (i.customId === 'rewind') {
+										page = 0;
+									}
+									else if (i.customId === 'fforward') {
+										page = Math.ceil(caughtPokemon.length / pageSize) - 1;;
 									}
 
 									await i.update({ embeds: [generatePartyEmbed(caughtPokemon, page, pageSize)] });
@@ -549,6 +588,11 @@ client.on('messageCreate', (message) => {
 									const disabledRow = new ActionRowBuilder()
 										.addComponents(
 											new ButtonBuilder()
+												.setCustomId('rewind')
+												.setLabel('⏪')
+												.setStyle(ButtonStyle.Primary)
+												.setDisabled(true),
+											new ButtonBuilder()
 												.setCustomId('prev')
 												.setLabel('◀')
 												.setStyle(ButtonStyle.Primary)
@@ -557,12 +601,83 @@ client.on('messageCreate', (message) => {
 												.setCustomId('next')
 												.setLabel('▶')
 												.setStyle(ButtonStyle.Primary)
+												.setDisabled(true),
+											new ButtonBuilder()
+												.setCustomId('fforward')
+												.setLabel('⏩')
+												.setStyle(ButtonStyle.Primary)
 												.setDisabled(true)
-										);
+											);
 									sentMessage.edit({ components: [disabledRow] });
 								});
 							});
 						}
+						
+						else if (args[0].toLowerCase() === 'name:') {
+							if (args.length > 1) {
+								let searchName = args[1].toLowerCase();
+								searchName = capitalizeFirstLetter(searchName);
+								
+								const filteredPokemon = caughtPokemon.map((p, index) => ({name: p, id: index + 1})).filter(p => typeof p.name === 'string' && (p.name === searchName || p.name === '✨' + searchName));
+								
+								if (filteredPokemon.length === 0) {
+									message.channel.send(`You do not have any Pokémon named ${args[1]}.`);
+								}
+								else {
+									const embed = new EmbedBuilder()
+										.setColor('#0099ff')
+										.setTitle(`All ${searchName} in your party:`)
+										.setDescription(filteredPokemon.map(p => ` \`\`${p.id}\`\` ${p.name} `).join('\n'))
+										.setTimestamp();
+									message.channel.send({ embeds: [embed] });
+								}
+							}
+							else {
+								message.channel.send('Improper use of command. Example: .p name: <pokemon>');
+							}
+						}
+						else if (args[0].toLowerCase() === 'swap') {
+							if (args.length > 2) {
+								const partyNum1 = parseInt(args[1], 10) - 1;
+								const partyNum2 = parseInt(args[2], 10) - 1;
+								
+								if (isNaN(partyNum1) || isNaN(partyNum2) || partyNum1 < 0 || partyNum2 < 0 || partyNum1 >= caughtPokemon.length || partyNum2 >= caughtPokemon.length) {
+									message.channel.send("Invalid party numbers provided for swapping.");
+									return;
+								}
+								
+								[caughtPokemon[partyNum1], caughtPokemon[partyNum2]] = [caughtPokemon[partyNum2], caughtPokemon[partyNum1]];
+								
+								dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), userId], (err) => {
+									if (err) {
+										console.error(err.message);
+										message.channel.send('An error occurred while swapping your Pokémon.');
+										return;
+									}
+									message.channel.send(`Swapped Pokémon at positions ${partyNum1 + 1} and ${partyNum2 + 1}.`);
+								});
+							}
+							else {
+								message.channel.send('Improper use of command. Example: .p swap <partyNum> <partyNum>');
+							}
+						}
+						else if (args[0].toLowerCase() === 'shiny') {
+							const shinyPokemon = caughtPokemon.map((p, index) => ({ name: p, id: index + 1 })).filter(p => typeof p.name === 'string' && p.name.startsWith('✨'));
+							if (shinyPokemon.length === 0) {
+								message.channel.send("You do not have any shiny Pokémon.");
+							} else {
+								const embed = new EmbedBuilder()
+									.setColor('#FFD700') // Gold color for shiny Pokémon
+									.setTitle('Your Shiny Pokémon')
+									.setDescription(shinyPokemon.map(p => ` \`\`${p.id}\`\` ${p.name} `).join('\n'))
+									.setTimestamp();
+								message.channel.send({ embeds: [embed] });
+							}
+						}
+						else {
+							message.channel.send("Invalid command usage. Use `.p` for party, `.p name <pokemon>` to search, or `.p swap <partyNum1> <partyNum2>` to swap.");
+						}
+						
 					});
 				});
 			}
@@ -601,17 +716,16 @@ client.on('messageCreate', (message) => {
 						.setDescription('List of available commands and how to use them:')
 						.addFields(
 							{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
-							{ name: '.party (.p)', value: 'Displays your caught Pokémon.' },
-							{ name: '.view <partyNum> (.v)', value: 'Displays a pokemon from your party. Example: .view 1' },
+							{ name: '.party (.p)', value: 'Displays your caught Pokémon. \n Usages: .party name: <pokemon>, .party shiny, .party swap 1 10' },
+							{ name: '.view <partyNum> (.v)', value: 'Displays a pokemon from your party. \n Example: .view 1' },
 							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
 							{ name: '.hint (.h)', value: 'Gives a hint for the currently dropped Pokémon.' },
-							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party. Example: .release 1' },
+							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party. \n Example: .release 1' },
 							{ name: '.trade @<user> (.t)', value: 'Initiates a trade with another user.' },
 							{ name: '.setChannel: #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channels>.' },
 							{ name: '.resetChannels:', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
 							{ name: '.viewChannels:', value: '`ADMIN ONLY:` Posts a list of channels the server allows bot commands in' }
 						)
-						.setFooter({ text: 'Use the commands above to interact with the bot' })
 						.setTimestamp();
 
 					message.channel.send({ embeds: [helpEmbed] });
