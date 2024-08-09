@@ -81,67 +81,6 @@ function isChannelAllowed(serverId, channelId, callback) {
 	});
 }
 
-function removeLegendary() {
-	dbUser.all("SELECT user_id, caught_pokemon FROM user", (err, rows) => {
-		if (err) {
-			console.error('Error fetching users:', err.message);
-			return;
-		}
-
-		// Iterate through each user
-		rows.forEach(user => {
-			let caughtPokemon = JSON.parse(user.caught_pokemon);
-
-			// Fetch details for each Pokémon and filter out legendary and mythical ones
-			const promises = caughtPokemon.map(pokemonName => checkIsLegendaryOrMythical(pokemonName));
-
-			Promise.all(promises).then(results => {
-				const filteredPokemon = caughtPokemon.filter((pokemonName, index) => !results[index]);
-
-				// Update the user's Pokémon list
-				dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(filteredPokemon), user.user_id], (updateErr) => {
-				if (updateErr) {
-					console.error(`Error updating user ${user.user_id}:`, updateErr.message);
-				} else {
-					console.log(`Updated Pokémon list for user ${user.user_id}`);
-				}
-				});
-			}).catch(err => {
-				console.error('Error processing Pokémon:', err.message);
-			});
-		});
-	});
-}
-
-function checkIsLegendaryOrMythical(pokemonName) {
-	  return new Promise((resolve, reject) => {
-			if (!pokemonName || typeof pokemonName !== 'string') {
-				resolve(false);
-				return;
-			}
-
-			let finalName = pokemonName;
-			if (pokemonName[0] === '✨') {
-				finalName = finalName.replaceAt(0, '');
-			}
-
-			// Query your Pokémon database for the isLM value
-			db.get("SELECT isLM FROM pokemon WHERE name = ?", [finalName], (err, row) => {
-				if (err) {
-					console.error('Error fetching Pokémon:', err.message);
-					reject(err);
-					return;
-				}
-
-				if (row && (row.isLM === 1 || row.isLM === 2)) {
-					resolve(true);
-				} else {
-					resolve(false);
-				}
-			});
-	});
-}
-
 const dropCommandRegex = /^\.(drop|d)\b/;
 const setChannelCommandRegex = /^\.(setchannel|setchannels)\b/;
 const viewChannelCommandRegex = /^\.(viewchannels)\b/;
@@ -298,9 +237,18 @@ client.on('messageCreate', (message) => {
 						}
 						const coinsToAdd = getRandomInt(21) + 5;
 						const shinyMon = isShinyVar ? `✨${curMonName}` : curMonName;
+						
+						let userDisplayName = '';
+						if (message.guild.members.cache.get(userId).displayName.toLowerCase().includes("@everyone")) {
+							userDisplayName = "Someone";
+						}
+						else {
+							userDisplayName = message.guild.members.cache.get(userId).displayName;
+						}
+						
 						const messageText = isShinyVar
-							? `Added ✨${curMonName} to party! You gained ${coinsToAdd} coins for your catch.`
-							: `Added ${curMonName} to party! You gained ${coinsToAdd} coins for your catch.`;
+							? `Added ✨${curMonName} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
+							: `Added ${curMonName} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
 						
 						message.channel.send(messageText);
 						
@@ -333,12 +281,6 @@ client.on('messageCreate', (message) => {
 						}); 
 					});
 				});
-			}
-			
-			//resetLegendary - REMOVE
-			else if (message.content.toLowerCase().startsWith('.resetlegendaries') && userId === '177580797165961216') {
-				removeLegendary(); //REMOVE
-				message.channel.send('All legendary pokemon reset.');
 			}
 			
 			//Config: Set channel(s) for the bot
@@ -1084,7 +1026,10 @@ client.on('messageCreate', (message) => {
 							}
 							
 							const pokeName = userPokemon[partyNum];
-							const authorUserName = message.member.displayName;
+							let authorUserName = message.member.displayName;
+							if (authorUserName.toLowerCase().includes("@everyone")) {
+								authorUserName = "Someone";
+							}
 							
 							if (trade.user1Pokemon !== null && trade.user2Pokemon !== null) {
 								
@@ -1103,9 +1048,23 @@ client.on('messageCreate', (message) => {
 											return;
 										}
 										const user2PokemonName = JSON.parse(user2Row.caught_pokemon)[trade.user2Pokemon];
-
+										
+										let userDisplayName1 = '';
+										let userDisplayName2 = '';
+										if (message.guild.members.cache.get(trade.user1).displayName.toLowerCase().includes("@everyone")) {
+											userDisplayName1 = "Someone";
+										}
+										else {
+											userDisplayName1 = message.guild.members.cache.get(trade.user1).displayName;
+										}
+										if (message.guild.members.cache.get(trade.user2).displayName.toLowerCase().includes("@everyone")) {
+											userDisplayName2 = "Someone";
+										}
+										else {
+											userDisplayName2 = message.guild.members.cache.get(trade.user2).displayName;
+										}
 										message.channel.send(
-											`Trade set: **${user1PokemonName}** (added by ${message.guild.members.cache.get(trade.user1).displayName}) and **${user2PokemonName}** (added by ${message.guild.members.cache.get(trade.user2).displayName}). Type \`.trade confirm\` to confirm the trade.`
+											`Trade set: **${user1PokemonName}** (added by ${userDisplayName1}) and **${user2PokemonName}** (added by ${userDisplayName2}). Type \`.trade confirm\` to confirm the trade.`
 										);
 									});
 								});
