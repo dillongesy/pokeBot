@@ -336,8 +336,9 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//resetLegendary - REMOVE
-			else if (message.content.toLowerCase().startsWith('.resetLegendaries') && userId === '177580797165961216') {
+			else if (message.content.toLowerCase().startsWith('.resetlegendaries') && userId === '177580797165961216') {
 				removeLegendary(); //REMOVE
+				message.channel.send('All legendary pokemon reset.');
 			}
 			
 			//Config: Set channel(s) for the bot
