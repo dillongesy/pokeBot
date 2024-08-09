@@ -81,6 +81,18 @@ function isChannelAllowed(serverId, channelId, callback) {
 	});
 }
 
+const dropCommandRegex = /^\.(drop|d)\b/;
+const setChannelCommandRegex = /^\.(setchannel|setchannels)\b/;
+const viewChannelCommandRegex = /^\.(viewchannels)\b/;
+const resetChannelCommandRegex = /^\.(resetchannels)\b/;
+const viewCommandRegex = /^\.(view|v)\b/;
+const partyCommandRegex = /^\.(party|p)\b/;
+const currencyCommandRegex = /^\.(currency|c)\b/;
+const helpCommandRegex = /^\.(help)\b/;
+const hintCommandRegex = /^\.(hint|h)\b/;
+const releaseCommandRegex = /^\.(release|r)\b/;
+const tradeCommandRegex = /^\.(trade|t)\b/;
+
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}`);
 	dbUser.run("CREATE TABLE IF NOT EXISTS user (user_id TEXT PRIMARY KEY, caught_pokemon TEXT, currency INTEGER DEFAULT 0)");
@@ -94,14 +106,14 @@ client.on('messageCreate', (message) => {
 			const now = Date.now();
 			
 			//drop
-			if (message.content.startsWith('.d') || message.content.startsWith('.drop')) {
+			if (dropCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
 					}
 					if (cooldowns.has(userId)) {
 						const cooldownEnd = Math.floor(cooldowns.get(userId) / 1000);
-						message.channel.send(`Please wait <t:${cooldownEnd}:R> before using this command again.`);
+						message.channel.send(`You can drop again <t:${cooldownEnd}:R>.`);
 						return;
 					}
 					
@@ -227,7 +239,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//Config: Set channel(s) for the bot
-			else if (message.content.startsWith('.setChannel') || message.content.startsWith('.setchannel') || message.content.startsWith('.setChannels') || message.content.startsWith('.setchannels')) {
+			else if (setChannelCommandRegex.test(message.content.toLowerCase())) {
 				try {
 					if (!message.member.permissions.has('ADMINISTRATOR')) {
 						isChannelAllowed(serverId, message.channel.id, (allowed) => {
@@ -299,7 +311,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//Config: View Set Channels
-			else if (message.content.startsWith('.viewChannels') || message.content.startsWith('.viewchannels')) {
+			else if (viewChannelCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -332,7 +344,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//Config: Remove Set Channels
-			else if (message.content.startsWith('.resetChannels') || message.content.startsWith('.resetchannels')) {
+			else if (resetChannelCommandRegex.test(message.content.toLowerCase())) {
 				try {
 					if (!message.member.permissions.has('ADMINISTRATOR')) {
 						isChannelAllowed(serverId, message.channel.id, (allowed) => {
@@ -393,7 +405,7 @@ client.on('messageCreate', (message) => {
 								});
 								
 							} 
-							else if (i.customId === 'release_no') {
+							else if (i.customId === 'reset_no') {
 								i.update({ content: 'Cancelled channel configuration reset', embeds: [], components: [] });
 							}
 						});
@@ -402,11 +414,10 @@ client.on('messageCreate', (message) => {
 							sentMessage.edit({components: [] });
 						});
 					});
-				
 			}
 			
 			//View
-			else if (message.content.startsWith('.view') || message.content.startsWith('.v')) {
+			else if (viewCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -505,7 +516,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//party
-			else if (message.content.startsWith('.p') || message.content.startsWith('.party') ) {
+			else if (partyCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -645,6 +656,10 @@ client.on('messageCreate', (message) => {
 									message.channel.send("Invalid party numbers provided for swapping.");
 									return;
 								}
+								if (partyNum1 === partyNum2) {
+									message.channel.send("There's no reason to swap the same pokemon.");
+									return;
+								}
 								
 								[caughtPokemon[partyNum1], caughtPokemon[partyNum2]] = [caughtPokemon[partyNum2], caughtPokemon[partyNum1]];
 								
@@ -675,7 +690,7 @@ client.on('messageCreate', (message) => {
 							}
 						}
 						else {
-							message.channel.send("Invalid command usage. Use `.p` for party, `.p name <pokemon>` to search, or `.p swap <partyNum1> <partyNum2>` to swap.");
+							message.channel.send("Invalid command usage. Use `.p` for party, `.p name: <pokemon>` to search, or `.p swap <partyNum1> <partyNum2>` to swap.");
 						}
 						
 					});
@@ -683,7 +698,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//currency
-			else if (message.content.startsWith('.c') || message.content.startsWith('.currency')) {
+			else if (currencyCommandRegex.test(message.content.toLowerCase())) { //message.content.startsWith('.c') || message.content.startsWith('.currency')) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -705,7 +720,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//help
-			else if(message.content.startsWith('.help')) {
+			else if(helpCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -733,7 +748,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//hint
-			else if (message.content.startsWith('.h') || message.content.startsWith('.hint')) {
+			else if (hintCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -779,7 +794,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//release
-			else if (message.content.startsWith('.release') || message.content.startsWith('.r')) {
+			else if (releaseCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -859,7 +874,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//trade
-			else if (message.content.startsWith('.trade') || message.content.startsWith('.t')) {
+			else if (tradeCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
