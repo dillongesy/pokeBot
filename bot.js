@@ -81,6 +81,67 @@ function isChannelAllowed(serverId, channelId, callback) {
 	});
 }
 
+function removeLegendary() {
+	dbUser.all("SELECT user_id, caught_pokemon FROM user", (err, rows) => {
+		if (err) {
+			console.error('Error fetching users:', err.message);
+			return;
+		}
+
+		// Iterate through each user
+		rows.forEach(user => {
+			let caughtPokemon = JSON.parse(user.caught_pokemon);
+
+			// Fetch details for each Pokémon and filter out legendary and mythical ones
+			const promises = caughtPokemon.map(pokemonName => checkIsLegendaryOrMythical(pokemonName));
+
+			Promise.all(promises).then(results => {
+				const filteredPokemon = caughtPokemon.filter((pokemonName, index) => !results[index]);
+
+				// Update the user's Pokémon list
+				dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(filteredPokemon), user.user_id], (updateErr) => {
+				if (updateErr) {
+					console.error(`Error updating user ${user.user_id}:`, updateErr.message);
+				} else {
+					console.log(`Updated Pokémon list for user ${user.user_id}`);
+				}
+				});
+			}).catch(err => {
+				console.error('Error processing Pokémon:', err.message);
+			});
+		});
+	});
+}
+
+function checkIsLegendaryOrMythical(pokemonName) {
+	  return new Promise((resolve, reject) => {
+			if (!pokemonName || typeof pokemonName !== 'string') {
+				resolve(false);
+				return;
+			}
+
+			let finalName = pokemonName;
+			if (pokemonName[0] === '✨') {
+				finalName = finalName.replaceAt(0, '');
+			}
+
+			// Query your Pokémon database for the isLM value
+			db.get("SELECT isLM FROM pokemon WHERE name = ?", [finalName], (err, row) => {
+				if (err) {
+					console.error('Error fetching Pokémon:', err.message);
+					reject(err);
+					return;
+				}
+
+				if (row && (row.isLM === 1 || row.isLM === 2)) {
+					resolve(true);
+				} else {
+					resolve(false);
+				}
+			});
+	});
+}
+
 const dropCommandRegex = /^\.(drop|d)\b/;
 const setChannelCommandRegex = /^\.(setchannel|setchannels)\b/;
 const viewChannelCommandRegex = /^\.(viewchannels)\b/;
@@ -106,7 +167,7 @@ client.on('messageCreate', (message) => {
 			const now = Date.now();
 			
 			//drop
-			if (dropCommandRegex.test(message.content.toLowerCase())) {
+			if (dropCommandRegex.test(message.content.toLowerCase())) { //TODO: fix channels in 1 server interfering
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -121,7 +182,7 @@ client.on('messageCreate', (message) => {
 					cooldowns.set(userId, cooldownEnd);
 					setTimeout(() => cooldowns.delete(userId), 300000);
 					
-					const randPokemon = getRandomInt(493); //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+					
 					db.all("SELECT * FROM pokemon", [], (err, rows) => {
 						if (err) {
 							console.error(err.message);
@@ -131,10 +192,46 @@ client.on('messageCreate', (message) => {
 						if (rows.length > 0) {
 							const shinyNumber = Math.random();
 							let isShiny = false;
+							const legendaryNumber = Math.random();
+							let isLegendary = false;
+							const mythicalNumber = Math.random();
+							let isMythical = false;
+							
 							if (shinyNumber < 0.00025) {
 								isShiny = true;
 							}
-							const pokemon = rows[randPokemon];
+							if (legendaryNumber < 0.0075) {
+								isLegendary = true;
+							}
+							if (mythicalNumber < 0.005) {
+								isMythical = true;
+							}
+							
+							let randPokemon = getRandomInt(493); //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+							let pokemon = null;
+							
+							if (isMythical) {
+								pokemon = rows[randPokemon];
+								while (pokemon.isLM !== 2) {
+									randPokemon = getRandomInt(493); //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+									pokemon = rows[randPokemon];
+								}
+							}
+							else if (isLegendary) {
+								pokemon = rows[randPokemon];
+								while (pokemon.isLM !== 1) {
+									randPokemon = getRandomInt(493); //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+									pokemon = rows[randPokemon];
+								}
+							}
+							else {
+								pokemon = rows[randPokemon];
+								while (pokemon.isLM !== 0) {
+									randPokemon = getRandomInt(493); //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+									pokemon = rows[randPokemon];
+								}
+							}
+							
 							let imageLink = null;
 							
 							if (isShiny) {
@@ -146,7 +243,7 @@ client.on('messageCreate', (message) => {
 							
 							const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
 							const curMon = pokemon.name ? `${pokemon.name}` : '';
-							console.log(curMon + ' ' + shinyNumber);
+							console.log('Current pokemon: ' + curMon + '\n' + 'ShinyNum:     ' + shinyNumber + ' (<0.00025)' + '\n' + 'MythicalNum:  ' + mythicalNumber + ' (<0.005)' + '\n' + 'LegendaryNum: ' + legendaryNumber + ' (<0.0075)' +'\n');
 							
 							activeDrops.set(serverId, { name: curMon, isShiny });
 							
@@ -236,6 +333,11 @@ client.on('messageCreate', (message) => {
 						}); 
 					});
 				});
+			}
+			
+			//resetLegendary - REMOVE
+			else if (message.content.toLowerCase().startsWith('.resetLegendaries') && userId === '177580797165961216') {
+				removeLegendary(); //REMOVE
 			}
 			
 			//Config: Set channel(s) for the bot
@@ -698,7 +800,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//currency
-			else if (currencyCommandRegex.test(message.content.toLowerCase())) { //message.content.startsWith('.c') || message.content.startsWith('.currency')) {
+			else if (currencyCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -731,7 +833,7 @@ client.on('messageCreate', (message) => {
 						.setDescription('List of available commands and how to use them:')
 						.addFields(
 							{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
-							{ name: '.party (.p)', value: 'Displays your caught Pokémon. \n Usages: .party name: <pokemon>, .party shiny, .party swap 1 10' },
+							{ name: '.party (.p)', value: 'Displays your caught Pokémon. \n Usages: .party name: <pokemon> | .party shiny | .party swap 1 10' },
 							{ name: '.view <partyNum> (.v)', value: 'Displays a pokemon from your party. \n Example: .view 1' },
 							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
 							{ name: '.hint (.h)', value: 'Gives a hint for the currently dropped Pokémon.' },
