@@ -47,6 +47,24 @@ function generatePartyEmbed(pokemonList, page, pageSize) {
 	return embed;
 }
 
+//Helper function, .dex Embed Generator
+function updateEmbed(shinyImg, dexNumber, pokemonRow) {
+	const type2 = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
+	const imageLink = shinyImg ? pokemonRow.shinyImageLink : pokemonRow.imageLink;
+							
+	return new EmbedBuilder()
+		.setColor('#0099ff')
+		.setTitle(`Pokedex Entry`)
+		.addFields(
+			{ name: 'Name', value: `${pokemonRow.name}`, inline: true },
+			{ name: 'Dex Number', value: `${dexNumber}`, inline: true },
+			{ name: 'Type', value: `${pokemonRow.type1}${type2}`, inline: true },
+			{ name: 'Region', value: `${pokemonRow.region}`, inline: true }
+		)
+		.setImage(imageLink)
+		.setTimestamp();
+}
+
 //Helper function, replaces a char in a string
 String.prototype.replaceAt = function(index, char) {
     var a = this.split("");
@@ -92,6 +110,9 @@ const helpCommandRegex = /^\.(help)\b/;
 const hintCommandRegex = /^\.(hint|h)\b/;
 const releaseCommandRegex = /^\.(release|r)\b/;
 const tradeCommandRegex = /^\.(trade|t)\b/;
+const dexCommandRegex = /^\.(dex)\b/;
+
+const maxDexNum = 493; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}`);
@@ -146,27 +167,27 @@ client.on('messageCreate', (message) => {
 								isMythical = true;
 							}
 							
-							let randPokemon = getRandomInt(493); //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+							let randPokemon = getRandomInt(maxDexNum); 
 							let pokemon = null;
 							
 							if (isMythical) {
 								pokemon = rows[randPokemon];
 								while (pokemon.isLM !== 2) {
-									randPokemon = getRandomInt(493); //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+									randPokemon = getRandomInt(maxDexNum);
 									pokemon = rows[randPokemon];
 								}
 							}
 							else if (isLegendary) {
 								pokemon = rows[randPokemon];
 								while (pokemon.isLM !== 1) {
-									randPokemon = getRandomInt(493); //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+									randPokemon = getRandomInt(maxDexNum);
 									pokemon = rows[randPokemon];
 								}
 							}
 							else {
 								pokemon = rows[randPokemon];
 								while (pokemon.isLM !== 0) {
-									randPokemon = getRandomInt(493); //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+									randPokemon = getRandomInt(maxDexNum);
 									pokemon = rows[randPokemon];
 								}
 							}
@@ -461,6 +482,140 @@ client.on('messageCreate', (message) => {
 					});
 			}
 			
+			//dex
+			else if (dexCommandRegex.test(message.content.toLowerCase())) {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					const args = message.content.split(' ');
+					if (args.length < 2) {
+						message.channel.send('Please specify a valid pokemon or its pokedex number. Usage: `.dex <Pokemon>` or `.dex <PokedexNum>`');
+						return;
+					}
+					
+					let pokemonIdentifier = args[1];
+					let isNumber = !isNaN(pokemonIdentifier);
+					let query = '';
+					if (!isNumber) {
+						pokemonIdentifier = pokemonIdentifier.toLowerCase();
+						pokemonIdentifier = capitalizeFirstLetter(pokemonIdentifier);
+						query = "SELECT * FROM pokemon WHERE name = ?";
+					}
+					else {
+						pokemonIdentifier = parseInt(pokemonIdentifier, 10);
+						query = "SELECT * FROM pokemon WHERE dexNum = ?";
+					}
+					
+					db.get(query, [pokemonIdentifier], (err, pokemonRow) => {
+						if (err) {
+							console.error(err.message);
+							message.channel.send('An error occurred while fetching Pokémon information.');
+							return;
+						}
+						if (!pokemonRow) {
+							message.channel.send('Pokémon not found in the database.');
+							return;
+						}
+						let shinyImg = false;
+						
+						let embed = updateEmbed(shinyImg, pokemonRow.dexNum, pokemonRow);
+						
+						const buttonRow = new ActionRowBuilder()
+							.addComponents(
+								new ButtonBuilder()
+									.setCustomId('prev')
+									.setLabel('◀')
+									.setStyle(ButtonStyle.Primary),
+								new ButtonBuilder()
+									.setCustomId('shinyBtn')
+									.setLabel('✨')
+									.setStyle(ButtonStyle.Primary),
+								new ButtonBuilder()
+									.setCustomId('next')
+									.setLabel('▶')
+									.setStyle(ButtonStyle.Primary)
+							);
+						
+						message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+							const filter = i => i.user.id === userId;
+							const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+							collector.on('collect', async i => {
+								if (i.customId === 'prev') {
+									let prevDexNum = pokemonRow.dexNum - 1;
+									if (prevDexNum < 1) {
+										prevDexNum = maxDexNum;
+									}
+									db.get("SELECT * FROM pokemon WHERE dexNum = ?", [prevDexNum], (err, prevPokemonRow) => {
+										if (err) {
+											console.error(err.message);
+											message.channel.send('An error occurred while fetching Pokémon information.');
+											return;
+										}
+										if (!prevPokemonRow) {
+											message.channel.send('Pokémon not found in the database.');
+											return;
+										}
+										pokemonRow = prevPokemonRow;
+										embed = updateEmbed(shinyImg, prevDexNum, pokemonRow);
+										i.update({ embeds: [embed] });
+									});
+									
+								} else if (i.customId === 'next') {
+									let nextDexNum = pokemonRow.dexNum + 1;
+									if (nextDexNum > maxDexNum) {
+										nextDexNum = 1;
+									}
+									db.get("SELECT * FROM pokemon WHERE dexNum = ?", [nextDexNum], (err, nextPokemonRow) => {
+										if (err) {
+											console.error(err.message);
+											message.channel.send('An error occurred while fetching Pokémon information.');
+											return;
+										}
+										if (!nextPokemonRow) {
+											message.channel.send('Pokémon not found in the database.');
+											return;
+										}
+										pokemonRow = nextPokemonRow;
+										embed = updateEmbed(shinyImg, nextDexNum, pokemonRow);
+										i.update({ embeds: [embed] });
+									});
+									
+								} else if (i.customId === 'shinyBtn') {
+									shinyImg = !shinyImg;
+									embed = updateEmbed(shinyImg, pokemonRow.dexNum, pokemonRow);
+									i.update({ embeds: [embed] });
+								}
+							});
+
+							collector.on('end', collected => {
+								const disabledRow = new ActionRowBuilder()
+									.addComponents(
+										new ButtonBuilder()
+											.setCustomId('prev')
+											.setLabel('◀')
+											.setStyle(ButtonStyle.Primary)
+											.setDisabled(true),
+										new ButtonBuilder()
+											.setCustomId('shinyBtn')
+											.setLabel('✨')
+											.setStyle(ButtonStyle.Primary)
+											.setDisabled(true),
+										new ButtonBuilder()
+											.setCustomId('next')
+											.setLabel('▶')
+											.setStyle(ButtonStyle.Primary)
+											.setDisabled(true)
+										
+									);
+								sentMessage.edit({ components: [disabledRow] });
+							});
+						});
+					});
+				});
+			}
+			
 			//View
 			else if (viewCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
@@ -468,7 +623,7 @@ client.on('messageCreate', (message) => {
 						return;
 					}
 					const args = message.content.split(' ');
-					if (args.length !== 2 || isNaN(args[1])) {
+					if (args.length < 2 || isNaN(args[1])) {
 						message.channel.send('Please specify a valid number. Usage: `.view <partyNumber>`');
 						return;
 					}
