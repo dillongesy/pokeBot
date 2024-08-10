@@ -54,10 +54,8 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow) {
 							
 	return new EmbedBuilder()
 		.setColor('#0099ff')
-		.setTitle(`Pokedex Entry`)
+		.setTitle(`${pokemonRow.name} - #${dexNumber}`)
 		.addFields(
-			{ name: 'Name', value: `${pokemonRow.name}`, inline: true },
-			{ name: 'Dex Number', value: `${dexNumber}`, inline: true },
 			{ name: 'Type', value: `${pokemonRow.type1}${type2}`, inline: true },
 			{ name: 'Region', value: `${pokemonRow.region}`, inline: true }
 		)
@@ -209,9 +207,7 @@ client.on('messageCreate', (message) => {
 							
 							const embed = new EmbedBuilder()
 								.setColor('#0099ff')
-								//.setTitle(`Name: ${pokemon.name}`)
 								.addFields(
-									{ name: 'Dex Number', value: `${pokemon.dexNum}`, inline: true },
 									{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
 									{ name: 'Region', value: `${pokemon.region}`, inline: true }
 								)
