@@ -168,14 +168,14 @@ client.on('messageCreate', (message) => {
 							let randPokemon = getRandomInt(maxDexNum); 
 							let pokemon = null;
 							
-							if (isMythical) {
+							if (isMythical) { //query the database for isLM = 2 and randomly select
 								pokemon = rows[randPokemon];
 								while (pokemon.isLM !== 2) {
 									randPokemon = getRandomInt(maxDexNum);
 									pokemon = rows[randPokemon];
 								}
 							}
-							else if (isLegendary) {
+							else if (isLegendary) { //query the database for isLM = 1 and randomly select
 								pokemon = rows[randPokemon];
 								while (pokemon.isLM !== 1) {
 									randPokemon = getRandomInt(maxDexNum);
@@ -183,7 +183,7 @@ client.on('messageCreate', (message) => {
 								}
 							}
 							else {
-								pokemon = rows[randPokemon];
+								pokemon = rows[randPokemon]; //this is fine
 								while (pokemon.isLM !== 0) {
 									randPokemon = getRandomInt(maxDexNum);
 									pokemon = rows[randPokemon];
@@ -256,7 +256,7 @@ client.on('messageCreate', (message) => {
 						const shinyMon = isShinyVar ? `✨${curMonName}` : curMonName;
 						
 						let userDisplayName = '';
-						if (message.guild.members.cache.get(userId).displayName.toLowerCase().includes("@everyone")) {
+						if (message.guild.members.cache.get(userId).displayName.toLowerCase().includes("@everyone") || message.guild.members.cache.get(userId).displayName.toLowerCase().includes("@here")) {
 							userDisplayName = "Someone";
 						}
 						else {
@@ -496,6 +496,55 @@ client.on('messageCreate', (message) => {
 					if (!isNumber) {
 						pokemonIdentifier = pokemonIdentifier.toLowerCase();
 						pokemonIdentifier = capitalizeFirstLetter(pokemonIdentifier);
+						
+						
+						
+						//more edge cases handled in bad ways
+						if (pokemonIdentifier === 'Farfetchd') {
+							pokemonIdentifier = 'Farfetch\'d';
+						}
+						else if (pokemonIdentifier === 'Mr' && args.length > 2) { //args.length > 2
+							if (args[2].toLowerCase() === 'mime') {
+								pokemonIdentifier = 'Mr. Mime';
+							}
+						}
+						else if (pokemonIdentifier === 'Mr.' && args.length > 2) { //length > 2
+							if (args[2].toLowerCase() === 'mime') {
+								pokemonIdentifier = 'Mr. Mime';
+							}
+						}
+						else if (pokemonIdentifier === 'Ho' && args.length > 2) { //args.length > 2
+							if (args[2].toLowerCase() === 'oh') {
+								pokemonIdentifier = 'Ho-Oh';
+							}
+						}
+						else if (pokemonIdentifier === 'Hooh') {
+							pokemonIdentifier = 'Ho-Oh';
+						}
+						else if (pokemonIdentifier === 'Ho-oh') {
+							pokemonIdentifier = 'Ho-Oh';
+						}
+						else if (pokemonIdentifier === 'Mime' && args.length > 2) { //length > 2
+							if (args[2].toLowerCase() === 'jr' || args[2].toLowerCase() === 'jr.') {
+								pokemonIdentifier = 'Mime Jr.';
+							}
+						}
+						else if (pokemonIdentifier === 'Mimejr') {
+							pokemonIdentifier = 'Mime Jr.';
+						}
+						else if (pokemonIdentifier === 'Porygon' && args.length > 2) { //length > 2
+							if (args[2].toLowerCase() === 'z') {
+								pokemonIdentifier = 'Porygon-Z';
+							}
+						}
+						else if (pokemonIdentifier === 'Porygonz') {
+							pokemonIdentifier = 'Porygon-Z';
+						}
+						else if (pokemonIdentifier === 'Porygon-z') {
+							pokemonIdentifier = 'Porygon-Z';
+						}
+						
+						
 						query = "SELECT * FROM pokemon WHERE name = ?";
 					}
 					else {
@@ -1178,7 +1227,7 @@ client.on('messageCreate', (message) => {
 							
 							const pokeName = userPokemon[partyNum];
 							let authorUserName = message.member.displayName;
-							if (authorUserName.toLowerCase().includes("@everyone")) {
+							if (authorUserName.toLowerCase().includes("@everyone") || authorUserName.toLowerCase().includes("@here")) {
 								authorUserName = "Someone";
 							}
 							
@@ -1202,13 +1251,13 @@ client.on('messageCreate', (message) => {
 										
 										let userDisplayName1 = '';
 										let userDisplayName2 = '';
-										if (message.guild.members.cache.get(trade.user1).displayName.toLowerCase().includes("@everyone")) {
+										if (message.guild.members.cache.get(trade.user1).displayName.toLowerCase().includes("@everyone") || message.guild.members.cache.get(trade.user1).displayName.toLowerCase().includes("@here")) {
 											userDisplayName1 = "Someone";
 										}
 										else {
 											userDisplayName1 = message.guild.members.cache.get(trade.user1).displayName;
 										}
-										if (message.guild.members.cache.get(trade.user2).displayName.toLowerCase().includes("@everyone")) {
+										if (message.guild.members.cache.get(trade.user2).displayName.toLowerCase().includes("@everyone") || message.guild.members.cache.get(trade.user2).displayName.toLowerCase().includes("@here")) {
 											userDisplayName2 = "Someone";
 										}
 										else {
