@@ -80,6 +80,55 @@ function getRandomInt(upperBound) {
 	return Math.floor(Math.random() * upperBound);
 }
 
+//Helper function, help handle some weird pokemon names that are a little weird
+//Takes in an all lowercase pokemon name, except a capitalized first letter
+function fixPokemonName(pokemonIdentifier, args) {
+	if (pokemonIdentifier === 'Farfetchd') {
+		pokemonIdentifier = 'Farfetch\'d';
+	}
+	else if (pokemonIdentifier === 'Mr' && args.length > 2) { //args.length > 2
+		if (args[2].toLowerCase() === 'mime') {
+			pokemonIdentifier = 'Mr. Mime';
+		}
+	}
+	else if (pokemonIdentifier === 'Mr.' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'mime') {
+			pokemonIdentifier = 'Mr. Mime';
+		}
+	}
+	else if (pokemonIdentifier === 'Ho' && args.length > 2) { //args.length > 2
+		if (args[2].toLowerCase() === 'oh') {
+			pokemonIdentifier = 'Ho-Oh';
+		}
+	}
+	else if (pokemonIdentifier === 'Hooh') {
+		pokemonIdentifier = 'Ho-Oh';
+	}
+	else if (pokemonIdentifier === 'Ho-oh') {
+		pokemonIdentifier = 'Ho-Oh';
+	}
+	else if (pokemonIdentifier === 'Mime' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'jr' || args[2].toLowerCase() === 'jr.') {
+			pokemonIdentifier = 'Mime Jr.';
+		}
+	}
+	else if (pokemonIdentifier === 'Mimejr') {
+		pokemonIdentifier = 'Mime Jr.';
+	}
+	else if (pokemonIdentifier === 'Porygon' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'z') {
+			pokemonIdentifier = 'Porygon-Z';
+		}
+	}
+	else if (pokemonIdentifier === 'Porygonz') {
+		pokemonIdentifier = 'Porygon-Z';
+	}
+	else if (pokemonIdentifier === 'Porygon-z') {
+		pokemonIdentifier = 'Porygon-Z';
+	}
+	return pokemonIdentifier;
+}
+
 //Helper function, checks if the bot should be posting in a configured channel
 function isChannelAllowed(serverId, channelId, callback) {
 	dbServer.get("SELECT allowed_channels_id FROM server WHERE server_id = ?", [serverId], (err, row) => {
@@ -109,6 +158,7 @@ const hintCommandRegex = /^\.(hint|h)\b/;
 const releaseCommandRegex = /^\.(release|r)\b/;
 const tradeCommandRegex = /^\.(trade|t)\b/;
 const dexCommandRegex = /^\.(dex)\b/;
+const forceSpawnCommandRegex = /^\.(forcespawn)\b/;
 
 const maxDexNum = 493; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
@@ -122,7 +172,7 @@ client.on('messageCreate', (message) => {
 		if (message.content.length > 0) {
 			const serverId = message.guild.id;
 			const userId = message.author.id;
-			const now = Date.now();
+			const now = Date.now();			
 			
 			//drop
 			if (dropCommandRegex.test(message.content.toLowerCase())) { //TODO: fix channels in 1 server interfering
@@ -220,6 +270,72 @@ client.on('messageCreate', (message) => {
 							message.channel.send('No Pokémon found in the database.');
 						}
 					});
+				});
+			}
+			
+			//force a spawn
+			else if (forceSpawnCommandRegex.test(message.content.toLowerCase()) && userId === '177580797165961216') {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					const args = message.content.split(' ');
+					if (args.length < 2) {
+						message.channel.send('Please specify a valid pokedex number. Usage: `.forceSpawn <PokedexNum>`');
+						return;
+					}
+					
+					let pokemonIdentifier = args[1];
+					let isNumber = !isNaN(pokemonIdentifier);
+					if (!isNumber) {
+						message.channel.send('Please specify a valid pokedex number. Usage: `.forceSpawn <PokedexNum>`');
+					}
+					else {
+						db.get("SELECT * FROM pokemon WHERE dexNum = ?", [pokemonIdentifier], (err, pokemon) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching Pokémon information.');
+								return;
+							}
+							if (!pokemon) {
+								message.channel.send('Pokémon not found in the database.');
+								return;
+							}
+							
+							const shinyNumber = Math.random();
+							let isShiny = false;
+							
+							if (shinyNumber < 0.00025) {
+								isShiny = true;
+							}
+							isShiny = true; //REMOVE
+							console.log('Name: ' + pokemon.name + '\nShinyNum: ' + shinyNumber + ' (<0.00025)');
+							
+							let imageLink = '';
+							if (isShiny) {
+								imageLink = pokemon.shinyImageLink;
+							}
+							else {
+								imageLink = pokemon.imageLink;
+							}
+							
+							const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
+							const curMon = pokemon.name ? `${pokemon.name}` : '';
+							
+							activeDrops.set(serverId, { name: curMon, isShiny });
+							
+							const embed = new EmbedBuilder()
+								.setColor('#0099ff')
+								.addFields(
+									{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
+									{ name: 'Region', value: `${pokemon.region}`, inline: true }
+								)
+								.setImage(imageLink)
+								.setTimestamp()
+
+							message.channel.send({ embeds: [embed] });
+						});
+					}
 				});
 			}
 			
@@ -496,54 +612,7 @@ client.on('messageCreate', (message) => {
 					if (!isNumber) {
 						pokemonIdentifier = pokemonIdentifier.toLowerCase();
 						pokemonIdentifier = capitalizeFirstLetter(pokemonIdentifier);
-						
-						
-						
-						//more edge cases handled in bad ways
-						if (pokemonIdentifier === 'Farfetchd') {
-							pokemonIdentifier = 'Farfetch\'d';
-						}
-						else if (pokemonIdentifier === 'Mr' && args.length > 2) { //args.length > 2
-							if (args[2].toLowerCase() === 'mime') {
-								pokemonIdentifier = 'Mr. Mime';
-							}
-						}
-						else if (pokemonIdentifier === 'Mr.' && args.length > 2) { //length > 2
-							if (args[2].toLowerCase() === 'mime') {
-								pokemonIdentifier = 'Mr. Mime';
-							}
-						}
-						else if (pokemonIdentifier === 'Ho' && args.length > 2) { //args.length > 2
-							if (args[2].toLowerCase() === 'oh') {
-								pokemonIdentifier = 'Ho-Oh';
-							}
-						}
-						else if (pokemonIdentifier === 'Hooh') {
-							pokemonIdentifier = 'Ho-Oh';
-						}
-						else if (pokemonIdentifier === 'Ho-oh') {
-							pokemonIdentifier = 'Ho-Oh';
-						}
-						else if (pokemonIdentifier === 'Mime' && args.length > 2) { //length > 2
-							if (args[2].toLowerCase() === 'jr' || args[2].toLowerCase() === 'jr.') {
-								pokemonIdentifier = 'Mime Jr.';
-							}
-						}
-						else if (pokemonIdentifier === 'Mimejr') {
-							pokemonIdentifier = 'Mime Jr.';
-						}
-						else if (pokemonIdentifier === 'Porygon' && args.length > 2) { //length > 2
-							if (args[2].toLowerCase() === 'z') {
-								pokemonIdentifier = 'Porygon-Z';
-							}
-						}
-						else if (pokemonIdentifier === 'Porygonz') {
-							pokemonIdentifier = 'Porygon-Z';
-						}
-						else if (pokemonIdentifier === 'Porygon-z') {
-							pokemonIdentifier = 'Porygon-Z';
-						}
-						
+						pokemonIdentifier = fixPokemonName(pokemonIdentifier, args);
 						
 						query = "SELECT * FROM pokemon WHERE name = ?";
 					}
@@ -874,6 +943,8 @@ client.on('messageCreate', (message) => {
 								let searchName = args[1].toLowerCase();
 								searchName = capitalizeFirstLetter(searchName);
 								
+								searchName = fixPokemonName(searchName, args);
+								
 								const filteredPokemon = caughtPokemon.map((p, index) => ({name: p, id: index + 1})).filter(p => typeof p.name === 'string' && (p.name === searchName || p.name === '✨' + searchName));
 								
 								if (filteredPokemon.length === 0) {
@@ -892,6 +963,7 @@ client.on('messageCreate', (message) => {
 								message.channel.send('Improper use of command. Example: .p name: <pokemon>');
 							}
 						}
+
 						else if (args[0].toLowerCase() === 'swap') {
 							if (args.length > 2) {
 								const partyNum1 = parseInt(args[1], 10) - 1;
@@ -933,6 +1005,99 @@ client.on('messageCreate', (message) => {
 									.setTimestamp();
 								message.channel.send({ embeds: [embed] });
 							}
+						}
+						else if (args[0].toLowerCase() === 'legendary') {
+							let promises = caughtPokemon.map(pokemonName => {
+								if (typeof pokemonName !== 'string') {
+									return Promise.resolve(null);
+								}
+								
+								let isShiny = false;
+								let finalName = pokemonName;
+								if (pokemonName[0] === '✨') {
+									isShiny = true;
+									finalName = finalName.substring(1);
+								}
+								return new Promise((resolve, reject) => {
+									db.get("SELECT * FROM pokemon WHERE name = ? AND isLM = 1", [finalName], (err, pokemonRow) => {
+										if (err) {
+											console.error('Error fetching Pokémon:', err.message);
+											reject(err);
+										}
+										resolve(pokemonRow ? {...pokemonRow, isShiny } : null);
+									});
+								});
+							});
+							Promise.all(promises).then(results => {
+								const legendaryPokemon = results
+									.filter(p => p != null)
+									.map((p, index) => ({ 
+										name: (p.isShiny ? '✨' : '') + p.name, 
+										id: index + 1 
+									}));
+								
+								if (legendaryPokemon.length === 0) {
+									message.channel.send("You do not have any legendary Pokémon.");
+								}
+								else {
+									const embed = new EmbedBuilder()
+										.setColor('#0099ff')
+										.setTitle('Your Legendary Pokémon')
+										.setDescription(legendaryPokemon.map(p => ` \`\`${p.id}\`\` ${p.name} `).join('\n'))
+										.setTimestamp();
+									message.channel.send({ embeds: [embed] });
+								}
+							}).catch(error => {
+								console.error('Error processing Pokémon:', error.message);
+								message.channel.send("An error occurred while retrieving your Pokémon.");
+							});
+						}
+						else if (args[0].toLowerCase() === 'mythical') {
+							let promises = caughtPokemon.map(pokemonName => {
+								if (typeof pokemonName !== 'string') {
+									return Promise.resolve(null);
+								}
+								
+								let isShiny = false;
+								let finalName = pokemonName;
+								if (pokemonName[0] === '✨') {
+									isShiny = true;
+									finalName = finalName.substring(1);
+								}
+								return new Promise((resolve, reject) => {
+									db.get("SELECT * FROM pokemon WHERE name = ? AND isLM = 2", [finalName], (err, pokemonRow) => {
+										if (err) {
+											console.error('Error fetching Pokémon:', err.message);
+											reject(err);
+										}
+										resolve(pokemonRow ? {...pokemonRow, isShiny } : null);
+									});
+								});
+							});
+							
+							Promise.all(promises).then(results => {
+								const mythicalPokemon = results
+									.filter(p => p != null)
+									.map((p, index) => ({ 
+										name: (p.isShiny ? '✨' : '') + p.name, 
+										id: index + 1 
+									}));
+								
+								if (mythicalPokemon.length === 0) {
+									message.channel.send("You do not have any legendary Pokémon.");
+								}
+								else {
+									const embed = new EmbedBuilder()
+										.setColor('#0099ff')
+										.setTitle('Your Legendary Pokémon')
+										.setDescription(mythicalPokemon.map(p => ` \`\`${p.id}\`\` ${p.name} `).join('\n'))
+										.setTimestamp();
+									message.channel.send({ embeds: [embed] });
+								}
+							}).catch(error => {
+								console.error('Error processing Pokémon:', error.message);
+								message.channel.send("An error occurred while retrieving your Pokémon.");
+							});
 						}
 						else {
 							message.channel.send("Invalid command usage. Use `.p` for party, `.p name: <pokemon>` to search, or `.p swap <partyNum1> <partyNum2>` to swap.");
@@ -978,11 +1143,12 @@ client.on('messageCreate', (message) => {
 							{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
 							{ name: '.party (.p)', value: 'Displays your caught Pokémon. \n Usages: .party name: <pokemon> | .party shiny | .party swap 1 10' },
 							{ name: '.view <partyNum> (.v)', value: 'Displays a pokemon from your party. \n Example: .view 1' },
+							{ name: '.dex <pokemon> (.v)', value: 'Displays a pokemon from the pokedex. \n Usages: .dex 1 | .dex bulbasaur' },
 							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
 							{ name: '.hint (.h)', value: 'Gives a hint for the currently dropped Pokémon.' },
 							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party. \n Example: .release 1' },
 							{ name: '.trade @<user> (.t)', value: 'Initiates a trade with another user.' },
-							{ name: '.setChannel: #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channels>.' },
+							{ name: '.setChannel: #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channel>. \n Example: .setChannel <text1> <text2>' },
 							{ name: '.resetChannels:', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
 							{ name: '.viewChannels:', value: '`ADMIN ONLY:` Posts a list of channels the server allows bot commands in' }
 						)
@@ -1005,7 +1171,7 @@ client.on('messageCreate', (message) => {
 						monLength = curMon.length;
 						let numLetters = 0;
 						let curMonHint = activeDrops.get(serverId).name;
-						while (numLetters / monLength < 0.6) {
+						while (numLetters / monLength < 0.5) {
 							const randomInt = getRandomInt(monLength);
 							if (!(curMonHint[randomInt] === '_')) {
 								curMonHint = curMonHint.replaceAt(randomInt, '_');
