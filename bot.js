@@ -26,7 +26,7 @@ const client = new Client({
 });
 
 const cooldowns = new Map(); 	//Map<serverId, cooldownEnd>
-const activeDrops = new Map();	//Map<serverId, activePokemon {name, isShiny}>
+const activeDrops = new Map();	//Map<serverId_channelId, activePokemon {name, isShiny}>
 const activeTrades = new Map();	//Map<serverId, {user1, user2, user1Pokemon, user2Pokemon, user1Confirmed, user2Confirmed}>
 
 //Helper function, .party Embed Generator
@@ -253,7 +253,7 @@ client.on('messageCreate', (message) => {
 							const curMon = pokemon.name ? `${pokemon.name}` : '';
 							console.log('Current pokemon: ' + curMon + '\n' + 'ShinyNum:     ' + shinyNumber + ' (<0.00025)' + '\n' + 'MythicalNum:  ' + mythicalNumber + ' (<0.005)' + '\n' + 'LegendaryNum: ' + legendaryNumber + ' (<0.0075)' +'\n');
 							
-							activeDrops.set(serverId, { name: curMon, isShiny });
+							activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny });
 							
 							const embed = new EmbedBuilder()
 								.setColor('#0099ff')
@@ -321,7 +321,7 @@ client.on('messageCreate', (message) => {
 							const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
 							const curMon = pokemon.name ? `${pokemon.name}` : '';
 							
-							activeDrops.set(serverId, { name: curMon, isShiny });
+							activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny });
 							
 							const embed = new EmbedBuilder()
 								.setColor('#0099ff')
@@ -339,23 +339,23 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//catch
-			else if ( activeDrops.has(serverId) && (
-				   (message.content.toLowerCase() === activeDrops.get(serverId).name.toLowerCase())
-				|| (activeDrops.get(serverId).name.toLowerCase() === 'farfetch\'d' && message.content.toLowerCase() === 'farfetchd')
-				|| (activeDrops.get(serverId).name.toLowerCase() === 'mr. mime' && message.content.toLowerCase() === 'mr mime')
-				|| (activeDrops.get(serverId).name.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'ho oh')
-				|| (activeDrops.get(serverId).name.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'hooh')
-				|| (activeDrops.get(serverId).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mime jr')
-				|| (activeDrops.get(serverId).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mimejr')
-				|| (activeDrops.get(serverId).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mimejr.')
-				|| (activeDrops.get(serverId).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygon z')
-				|| (activeDrops.get(serverId).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygonz'))) { //edge case
+			else if ( activeDrops.has(`${serverId}_${message.channel.id}`) && (
+				   (message.content.toLowerCase() === activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase())
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'farfetch\'d' && message.content.toLowerCase() === 'farfetchd')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mr. mime' && message.content.toLowerCase() === 'mr mime')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'ho oh')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'hooh')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mime jr')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mimejr')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mimejr.')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygon z')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygonz'))) { //edge case
 				
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
 					}
-					const curMon = activeDrops.get(serverId);
+					const curMon = activeDrops.get(`${serverId}_${message.channel.id}`);
 					const curMonName = curMon.name;
 					let isShinyVar = curMon.isShiny ? 1 : 0;
 					db.get("SELECT * FROM pokemon WHERE name = ?", [curMonName], (err, pokemonRow) => {
@@ -396,7 +396,7 @@ client.on('messageCreate', (message) => {
 									if (err) {
 										console.error(err.message);
 									}
-									activeDrops.delete(serverId);
+									activeDrops.delete(`${serverId}_${message.channel.id}`);
 								});
 							} 
 							else {
@@ -408,7 +408,7 @@ client.on('messageCreate', (message) => {
 									if (err) {
 										console.error(err.message);
 									}
-									activeDrops.delete(serverId);
+									activeDrops.delete(`${serverId}_${message.channel.id}`);
 								});
 							}
 						}); 
@@ -1167,10 +1167,10 @@ client.on('messageCreate', (message) => {
 					let curMon = "";
 					let monLength = 0;
 					try {
-						curMon = activeDrops.get(serverId).name;
+						curMon = activeDrops.get(`${serverId}_${message.channel.id}`).name;
 						monLength = curMon.length;
 						let numLetters = 0;
-						let curMonHint = activeDrops.get(serverId).name;
+						let curMonHint = activeDrops.get(`${serverId}_${message.channel.id}`).name;
 						while (numLetters / monLength < 0.5) {
 							const randomInt = getRandomInt(monLength);
 							if (!(curMonHint[randomInt] === '_')) {
