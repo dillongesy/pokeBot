@@ -63,6 +63,73 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow) {
 		.setTimestamp();
 }
 
+//Helper function, leaderboard generator
+function generateLeaderboardEmbed(users, page, pageSize, title) {
+	const start = page * pageSize;
+    const end = start + pageSize;
+    const pageData = users.slice(start, end);
+	
+	return new EmbedBuilder()
+		.setColor('#0099ff')
+        .setTitle(title)
+        .setDescription(pageData.map((user, index) => `**${start + index + 1}.** ${user.name} - ${user.value}`).join('\n'))
+        .setFooter({ text: `Page ${page + 1} of ${Math.ceil(users.length / pageSize)}` })
+        .setTimestamp();
+}
+
+//Helper function, lb generator with button interactions
+async function sendLeaderboard(message, users, title) {
+	const pageSize = 20;
+	let page = 0;
+
+	const embed = generateLeaderboardEmbed(users, page, pageSize, title);
+
+	const buttonRow = new ActionRowBuilder()
+		.addComponents(
+			new ButtonBuilder()
+				.setCustomId('prevPage')
+				.setLabel('◀')
+				.setStyle(ButtonStyle.Primary),
+			new ButtonBuilder()
+				.setCustomId('nextPage')
+				.setLabel('▶')
+				.setStyle(ButtonStyle.Primary)
+		);
+
+	const sentMessage = await message.channel.send({ embeds: [embed], components: [buttonRow] });
+
+	const filter = i => i.user.id === message.author.id;
+	const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+	collector.on('collect', async i => {
+		if (i.customId === 'prevPage' && page > 0) {
+			page--;
+		} 
+		else if (i.customId === 'nextPage' && (page + 1) * pageSize < users.length) {
+			page++;
+		}
+
+		await i.update({ embeds: [generateLeaderboardEmbed(users, page, pageSize, title)] });
+	});
+
+	collector.on('end', collected => {
+		const disabledRow = new ActionRowBuilder()
+			.addComponents(
+				new ButtonBuilder()
+					.setCustomId('prevPage')
+					.setLabel('◀')
+					.setStyle(ButtonStyle.Primary)
+					.setDisabled(true),
+				new ButtonBuilder()
+					.setCustomId('nextPage')
+					.setLabel('▶')
+					.setStyle(ButtonStyle.Primary)
+					.setDisabled(true)
+			);
+		sentMessage.edit({ components: [disabledRow] });
+	});
+}
+
 //Helper function, replaces a char in a string
 String.prototype.replaceAt = function(index, char) {
     var a = this.split("");
@@ -159,6 +226,7 @@ const releaseCommandRegex = /^\.(release|r)\b/;
 const tradeCommandRegex = /^\.(trade|t)\b/;
 const dexCommandRegex = /^\.(dex)\b/;
 const forceSpawnCommandRegex = /^\.(forcespawn)\b/;
+const leaderboardCommandRegex = /^\.(leaderboard|lb)\b/;
 
 const maxDexNum = 493; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
@@ -331,7 +399,7 @@ client.on('messageCreate', (message) => {
 								)
 								.setImage(imageLink)
 								.setTimestamp()
-
+								
 							message.channel.send({ embeds: [embed] });
 						});
 					}
@@ -592,6 +660,198 @@ client.on('messageCreate', (message) => {
 							sentMessage.edit({components: [] });
 						});
 					});
+			}
+			
+			//leaderboard
+			else if (leaderboardCommandRegex.test(message.content.toLowerCase())) {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					const args = message.content.split(' ').slice(1);
+					
+					if (args.length === 0) {
+						//default, display total pokemon caught
+						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching the leaderboard.');
+								return;
+							}
+                
+							const users = await Promise.all(rows.map(async row => {
+								const user = await client.users.fetch(row.user_id).catch(() => null);
+								return {
+									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									value: JSON.parse(row.caught_pokemon).length
+								};
+							}));
+							
+							users.sort((a, b) => b.value - a.value);
+
+							sendLeaderboard(message, users, 'Total Pokémon Caught Leaderboard');
+						});
+					}
+					else if (args[0].toLowerCase() === 'c' || args[0].toLowerCase() === 'currency') {
+						//display currency leaderboard
+						dbUser.all("SELECT user_id, currency FROM user ORDER BY currency DESC", [], async (err, rows) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching the currency leaderboard.');
+								return;
+							}
+
+							const users = await Promise.all(rows.map(async row => {
+								const user = await client.users.fetch(row.user_id).catch(() => null);
+								return {
+									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									value: row.currency
+								};
+							}));
+
+							sendLeaderboard(message, users, 'Currency Leaderboard');
+						});
+					}
+					else if (args[0].toLowerCase() === 's' || args[0].toLowerCase() === 'shiny') {
+						//display shiny leaderboard
+						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching the shiny leaderboard.');
+								return;
+							}
+
+							const users = await Promise.all(rows.map(async row => {
+								const user = await client.users.fetch(row.user_id).catch(() => null);
+								const shinyCount = JSON.parse(row.caught_pokemon).filter(pokemonName => typeof pokemonName === 'string' && pokemonName.startsWith('✨')).length;
+								return {
+									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									value: shinyCount
+								};
+							}));
+
+							users.sort((a, b) => b.value - a.value);
+
+							sendLeaderboard(message, users, 'Shiny Pokémon Leaderboard');
+						});
+					}
+					else if (args[0].toLowerCase() === 'l' || args[0].toLowerCase() === 'legendary') {
+						//display legendary leaderboard
+						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching the legendary leaderboard.');
+								return;
+							}
+
+							const users = await Promise.all(rows.map(async row => {
+								const user = await client.users.fetch(row.user_id).catch(() => null);
+								const caughtPokemon = JSON.parse(row.caught_pokemon) || [];
+								
+								const legendaryCount = await Promise.all(caughtPokemon.map(async pokemonName => {
+									if (typeof pokemonName !== 'string') {
+										return 0;
+									}
+									let finalName = pokemonName.startsWith('✨') ? pokemonName.substring(1) : pokemonName;
+									return new Promise((resolve, reject) => {
+										db.get("SELECT isLM FROM pokemon WHERE name = ?", [finalName], (err, pokemonRow) => {
+											if (err) {
+												console.error('Error fetching Pokémon:', err.message);
+												reject(err);
+											}
+											resolve(pokemonRow && pokemonRow.isLM === 1 ? 1 : 0);
+										});
+									});
+								}));
+
+								return {
+									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									value: legendaryCount.reduce((acc, curr) => acc + curr, 0)
+								};
+							}));
+
+							users.sort((a, b) => b.value - a.value);
+
+							sendLeaderboard(message, users, 'Legendary Pokémon Leaderboard');
+						});
+					}
+					else if (args[0].toLowerCase() === 'm' || args[0].toLowerCase() === 'mythical') {
+						//display mythical leaderboard
+						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching the mythical leaderboard.');
+								return;
+							}
+
+							const users = await Promise.all(rows.map(async row => {
+								const user = await client.users.fetch(row.user_id).catch(() => null);
+								const caughtPokemon = JSON.parse(row.caught_pokemon) || [];
+
+								const mythicalCount = await Promise.all(caughtPokemon.map(async pokemonName => {
+									if (typeof pokemonName !== 'string') {
+										return 0;
+									}
+									let finalName = pokemonName.startsWith('✨') ? pokemonName.substring(1) : pokemonName;
+									return new Promise((resolve, reject) => {
+										db.get("SELECT isLM FROM pokemon WHERE name = ?", [finalName], (err, pokemonRow) => {
+											if (err) {
+												console.error('Error fetching Pokémon:', err.message);
+												reject(err);
+											}
+											resolve(pokemonRow && pokemonRow.isLM === 2 ? 1 : 0);
+										});
+									});
+								}));
+
+								return {
+									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									value: mythicalCount.reduce((acc, curr) => acc + curr, 0)
+								};
+							}));
+
+							users.sort((a, b) => b.value - a.value);
+
+							sendLeaderboard(message, users, 'Mythical Pokémon Leaderboard');
+						});
+					}
+					else if (args[0].toLowerCase() === 'pokedex' || args[0].toLowerCase() === 'dex') {
+						//display pokedex completeness leaderboard
+						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching the Pokédex completeness leaderboard.');
+								return;
+							}
+
+							const users = await Promise.all(rows.map(async row => {
+								const user = await client.users.fetch(row.user_id).catch(() => null);
+								const caughtPokemon = JSON.parse(row.caught_pokemon) || [];
+								
+								const uniquePokemon = new Set(caughtPokemon.map(pokemonName => {
+									if (typeof pokemonName !== 'string') {
+										return '';
+									}
+									if (pokemonName.startsWith('✨')) {
+										return `${pokemonName.substring(1)}`;
+									}
+									return pokemonName;
+								}));
+								
+								uniquePokemon.delete('');
+								
+								return {
+									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									value: uniquePokemon.size
+								};
+							}));
+							
+							users.sort((a, b) => b.value - a.value);
+
+							sendLeaderboard(message, users, 'Pokédex Completeness Leaderboard');
+						});
+					}
+				});
 			}
 			
 			//dex
@@ -1141,13 +1401,14 @@ client.on('messageCreate', (message) => {
 						.setDescription('List of available commands and how to use them:')
 						.addFields(
 							{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
-							{ name: '.party (.p)', value: 'Displays your caught Pokémon. \n Usages: .party name: <pokemon> | .party shiny | .party legendary | .party mythical | .party swap 1 10' },
+							{ name: '.party (.p)', value: 'Displays your caught Pokémon. \n Usages: .p name: <pokemon> *|* .p shiny *|* .p legendary *|* .p mythical *|* .p swap 1 10' },
 							{ name: '.view <partyNum> (.v)', value: 'Displays a pokemon from your party. \n Example: .view 1' },
-							{ name: '.dex <pokemon> (.v)', value: 'Displays a pokemon from the pokedex. \n Usages: .dex 1 | .dex bulbasaur' },
+							{ name: '.dex <pokemon>', value: 'Displays a pokemon from the pokedex. \n Usages: .dex 1 | .dex bulbasaur' },
 							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
 							{ name: '.hint (.h)', value: 'Gives a hint for the currently dropped Pokémon.' },
 							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party. \n Example: .release 1' },
 							{ name: '.trade @<user> (.t)', value: 'Initiates a trade with another user.' },
+							{ name: '.leaderboard (.lb)', value: 'Display a leaderboard. \n Usages: .lb currency *|* .lb shiny *|* .lb legendary *|* .lb mythical *|* .lb pokedex' },
 							{ name: '.setChannel: #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channel>. \n Example: .setChannel <text1> <text2>' },
 							{ name: '.resetChannels:', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
 							{ name: '.viewChannels:', value: '`ADMIN ONLY:` Posts a list of channels the server allows bot commands in' }
