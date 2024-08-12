@@ -112,7 +112,7 @@ function fixPokemonName(pokemonIdentifier, args) {
 			pokemonIdentifier = 'Mime Jr.';
 		}
 	}
-	else if (pokemonIdentifier === 'Mimejr') {
+	else if (pokemonIdentifier === 'Mimejr' || pokemonIdentifier === 'Mimejr.') {
 		pokemonIdentifier = 'Mime Jr.';
 	}
 	else if (pokemonIdentifier === 'Porygon' && args.length > 2) { //length > 2
@@ -308,7 +308,6 @@ client.on('messageCreate', (message) => {
 							if (shinyNumber < 0.00025) {
 								isShiny = true;
 							}
-							isShiny = true; //REMOVE
 							console.log('Name: ' + pokemon.name + '\nShinyNum: ' + shinyNumber + ' (<0.00025)');
 							
 							let imageLink = '';
@@ -348,6 +347,7 @@ client.on('messageCreate', (message) => {
 				|| (activeDrops.get(serverId).name.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'hooh')
 				|| (activeDrops.get(serverId).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mime jr')
 				|| (activeDrops.get(serverId).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mimejr')
+				|| (activeDrops.get(serverId).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mimejr.')
 				|| (activeDrops.get(serverId).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygon z')
 				|| (activeDrops.get(serverId).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygonz'))) { //edge case
 				
@@ -938,7 +938,7 @@ client.on('messageCreate', (message) => {
 							});
 						}
 						
-						else if (args[0].toLowerCase() === 'name:') {
+						else if (args[0].toLowerCase() === 'name:' || args[0].toLowerCase() === 'name') {
 							if (args.length > 1) {
 								let searchName = args[1].toLowerCase();
 								searchName = capitalizeFirstLetter(searchName);
@@ -1007,7 +1007,7 @@ client.on('messageCreate', (message) => {
 							}
 						}
 						else if (args[0].toLowerCase() === 'legendary') {
-							let promises = caughtPokemon.map(pokemonName => {
+							let promises = caughtPokemon.map((pokemonName, originalIndex) => {
 								if (typeof pokemonName !== 'string') {
 									return Promise.resolve(null);
 								}
@@ -1024,16 +1024,16 @@ client.on('messageCreate', (message) => {
 											console.error('Error fetching Pokémon:', err.message);
 											reject(err);
 										}
-										resolve(pokemonRow ? {...pokemonRow, isShiny } : null);
+										resolve(pokemonRow ? {...pokemonRow, isShiny, originalIndex } : null);
 									});
 								});
 							});
 							Promise.all(promises).then(results => {
 								const legendaryPokemon = results
 									.filter(p => p != null)
-									.map((p, index) => ({ 
+									.map(p => ({ 
 										name: (p.isShiny ? '✨' : '') + p.name, 
-										id: index + 1 
+										id: p.originalIndex + 1
 									}));
 								
 								if (legendaryPokemon.length === 0) {
@@ -1053,7 +1053,7 @@ client.on('messageCreate', (message) => {
 							});
 						}
 						else if (args[0].toLowerCase() === 'mythical') {
-							let promises = caughtPokemon.map(pokemonName => {
+							let promises = caughtPokemon.map((pokemonName, originalIndex) => {
 								if (typeof pokemonName !== 'string') {
 									return Promise.resolve(null);
 								}
@@ -1070,7 +1070,7 @@ client.on('messageCreate', (message) => {
 											console.error('Error fetching Pokémon:', err.message);
 											reject(err);
 										}
-										resolve(pokemonRow ? {...pokemonRow, isShiny } : null);
+										resolve(pokemonRow ? {...pokemonRow, isShiny, originalIndex } : null);
 									});
 								});
 							});
@@ -1078,9 +1078,9 @@ client.on('messageCreate', (message) => {
 							Promise.all(promises).then(results => {
 								const mythicalPokemon = results
 									.filter(p => p != null)
-									.map((p, index) => ({ 
+									.map(p => ({ 
 										name: (p.isShiny ? '✨' : '') + p.name, 
-										id: index + 1 
+										id: p.originalIndex + 1 
 									}));
 								
 								if (mythicalPokemon.length === 0) {
@@ -1141,7 +1141,7 @@ client.on('messageCreate', (message) => {
 						.setDescription('List of available commands and how to use them:')
 						.addFields(
 							{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
-							{ name: '.party (.p)', value: 'Displays your caught Pokémon. \n Usages: .party name: <pokemon> | .party shiny | .party swap 1 10' },
+							{ name: '.party (.p)', value: 'Displays your caught Pokémon. \n Usages: .party name: <pokemon> | .party shiny | .party legendary | .party mythical | .party swap 1 10' },
 							{ name: '.view <partyNum> (.v)', value: 'Displays a pokemon from your party. \n Example: .view 1' },
 							{ name: '.dex <pokemon> (.v)', value: 'Displays a pokemon from the pokedex. \n Usages: .dex 1 | .dex bulbasaur' },
 							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
@@ -1436,7 +1436,7 @@ client.on('messageCreate', (message) => {
 								});
 							}
 							else {
-								message.channel.send(`${authorUserName} added **${pokeName}** to the trade. Waiting for the other user to add their Pokémon.`);//TODO: display pokemon added
+								message.channel.send(`${authorUserName} added **${pokeName}** to the trade. Waiting for the other user to add their Pokémon.`);
 							}
 						});	
 					}
