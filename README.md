@@ -1,8 +1,5 @@
 # pokeBot
-Personal side project based off the Discord bot "Pokétwo." <br />
-For more information on Pokétwo, go to the following links: <br />
-https://github.com/poketwo/poketwo <br />
-https://poketwo.net/ <br />
+Personal side project based off Game Freak's "Pokémon" <br />
 <br />
 HOW TO INSTALL / USE THIS BOT: <br />
 1) Get the node.js v18.16.0 command prompt <br />
