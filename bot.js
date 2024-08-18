@@ -30,21 +30,45 @@ const activeDrops = new Map();	//Map<serverId_channelId, activePokemon {name, is
 const activeTrades = new Map();	//Map<serverId, {user1, user2, user1Pokemon, user2Pokemon, user1Confirmed, user2Confirmed}>
 
 //Helper function, .party Embed Generator
-function generatePartyEmbed(pokemonList, page, pageSize) {
+//isSLM: 0 = default/name, 1 = shiny, 2 = legendary, 3 = mythical
+function generatePartyEmbed(pokemonList, page, pageSize, title, isSLM) {
 	const start = page * pageSize;
 	const end = start + pageSize;
 	const pagePokemon = pokemonList.slice(start, end);
-	
-	const formattedPokemonList = pagePokemon.map((pokemon, index) => `\`\`${start + index + 1}\`\`\t${pokemon}`).join('\n');
+	let formattedPokemonList = null;
+	let color = '#0099ff';
+	if (pokemonList.length > 0) {
+		if (typeof pokemonList[0] === 'object') {
+			formattedPokemonList = pagePokemon.map((pokemon, index) => `\`\`${start + index + 1}\`\`\t${pokemon.name}`).join('\n');
+		}
+		else {
+			formattedPokemonList = pagePokemon.map((pokemon, index) => `\`\`${start + index + 1}\`\`\t${pokemon}`).join('\n');
+		}
+	}
+	if (isSLM === 1) { //shiny
+		color = '#FFD700';
+	}
+	else if (isSLM === 2) { //legendary
+		color = '#66FF00';
+	}
+	else if (isSLM === 3) { //mythical
+		color = '#FF96C5';
+	}
 	
 	const embed = new EmbedBuilder()
-		.setColor('#0099ff')
+		.setColor(color)
+		.setTitle(title)
 		.setTitle('Your Pokémon')
 		.setDescription(formattedPokemonList || 'No Pokémon Found')
 		.setFooter({ text: `Showing ${start + 1}-${end > pokemonList.length ? pokemonList.length : end} of ${pokemonList.length} Pokémon` })
 		.setTimestamp();
 		
 	return embed;
+}
+
+//Helper function, generate .party buttons
+function generatePartyButtons() {
+	//TODO
 }
 
 //Helper function, .dex Embed Generator
@@ -150,7 +174,7 @@ function getRandomInt(upperBound) {
 //Helper function, help handle some weird pokemon names that are a little weird
 //Takes in an all lowercase pokemon name, except a capitalized first letter
 function fixPokemonName(pokemonIdentifier, args) {
-	if (pokemonIdentifier === 'Farfetchd') {
+	if (pokemonIdentifier === 'Farfetchd' || pokemonIdentifier === 'Farfetch’d' || pokemonIdentifier === 'Farfetch‘d') {
 		pokemonIdentifier = 'Farfetch\'d';
 	}
 	else if (pokemonIdentifier === 'Mr' && args.length > 2) { //args.length > 2
@@ -162,6 +186,9 @@ function fixPokemonName(pokemonIdentifier, args) {
 		if (args[2].toLowerCase() === 'mime') {
 			pokemonIdentifier = 'Mr. Mime';
 		}
+	}
+	else if (pokemonIdentifier === 'Mr.mime' || pokemonIdentifier === 'Mrmime') { //length > 2
+		pokemonIdentifier = 'Mr. Mime';
 	}
 	else if (pokemonIdentifier === 'Ho' && args.length > 2) { //args.length > 2
 		if (args[2].toLowerCase() === 'oh') {
@@ -286,14 +313,14 @@ client.on('messageCreate', (message) => {
 							let randPokemon = getRandomInt(maxDexNum); 
 							let pokemon = null;
 							
-							if (isMythical) { //query the database for isLM = 2 and randomly select
+							if (isMythical) { //TODO query the database for isLM = 2 and randomly select
 								pokemon = rows[randPokemon];
 								while (pokemon.isLM !== 2) {
 									randPokemon = getRandomInt(maxDexNum);
 									pokemon = rows[randPokemon];
 								}
 							}
-							else if (isLegendary) { //query the database for isLM = 1 and randomly select
+							else if (isLegendary) { //TODO query the database for isLM = 1 and randomly select
 								pokemon = rows[randPokemon];
 								while (pokemon.isLM !== 1) {
 									randPokemon = getRandomInt(maxDexNum);
@@ -410,6 +437,8 @@ client.on('messageCreate', (message) => {
 			else if ( activeDrops.has(`${serverId}_${message.channel.id}`) && (
 				   (message.content.toLowerCase() === activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase())
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'farfetch\'d' && message.content.toLowerCase() === 'farfetchd')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'farfetch\'d' && message.content.toLowerCase() === 'farfetch’d')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'farfetch\'d' && message.content.toLowerCase() === 'farfetch‘d')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mr. mime' && message.content.toLowerCase() === 'mr mime')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'ho oh')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'hooh')
@@ -680,16 +709,21 @@ client.on('messageCreate', (message) => {
 							}
                 
 							const users = await Promise.all(rows.map(async row => {
+								if (!row.caught_pokemon) {
+									return null;
+								}
 								const user = await client.users.fetch(row.user_id).catch(() => null);
-								return {
-									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
-									value: JSON.parse(row.caught_pokemon).length
-								};
-							}));
-							
-							users.sort((a, b) => b.value - a.value);
+								const value = JSON.parse(row.caught_pokemon).length;
 
-							sendLeaderboard(message, users, 'Total Pokémon Caught Leaderboard');
+								return value > 0 ? {
+									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									value
+								} : null;
+							}));
+
+							const filteredUsers = users.filter(user => user !== null);
+							filteredUsers.sort((a, b) => b.value - a.value);
+							sendLeaderboard(message, filteredUsers, 'Total Pokémon Caught Leaderboard');
 						});
 					}
 					else if (args[0].toLowerCase() === 'c' || args[0].toLowerCase() === 'currency') {
@@ -703,15 +737,20 @@ client.on('messageCreate', (message) => {
 
 							const users = await Promise.all(rows.map(async row => {
 								const user = await client.users.fetch(row.user_id).catch(() => null);
-								return {
+								const value = row.currency || 0;
+
+								return value > 0 ? {
 									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
-									value: row.currency
-								};
+									value
+								} : null;
 							}));
 
-							sendLeaderboard(message, users, 'Currency Leaderboard');
+							const filteredUsers = users.filter(user => user !== null);
+							filteredUsers.sort((a, b) => b.value - a.value);
+							sendLeaderboard(message, filteredUsers, 'Currency Leaderboard');
 						});
 					}
+
 					else if (args[0].toLowerCase() === 's' || args[0].toLowerCase() === 'shiny') {
 						//display shiny leaderboard
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
@@ -722,19 +761,25 @@ client.on('messageCreate', (message) => {
 							}
 
 							const users = await Promise.all(rows.map(async row => {
+								if (!row.caught_pokemon) {
+									return null;
+								}
 								const user = await client.users.fetch(row.user_id).catch(() => null);
-								const shinyCount = JSON.parse(row.caught_pokemon).filter(pokemonName => typeof pokemonName === 'string' && pokemonName.startsWith('✨')).length;
-								return {
+								const shinyCount = JSON.parse(row.caught_pokemon)
+								.filter(pokemonName => typeof pokemonName === 'string' && pokemonName.startsWith('✨')).length;
+
+								return shinyCount > 0 ? {
 									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
 									value: shinyCount
-								};
+								} : null;
 							}));
 
-							users.sort((a, b) => b.value - a.value);
-
-							sendLeaderboard(message, users, 'Shiny Pokémon Leaderboard');
+							const filteredUsers = users.filter(user => user !== null);
+							filteredUsers.sort((a, b) => b.value - a.value);
+							sendLeaderboard(message, filteredUsers, 'Shiny Pokémon Leaderboard');
 						});
 					}
+
 					else if (args[0].toLowerCase() === 'l' || args[0].toLowerCase() === 'legendary') {
 						//display legendary leaderboard
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
@@ -745,6 +790,9 @@ client.on('messageCreate', (message) => {
 							}
 
 							const users = await Promise.all(rows.map(async row => {
+								if (!row.caught_pokemon) {
+									return null;
+								}
 								const user = await client.users.fetch(row.user_id).catch(() => null);
 								const caughtPokemon = JSON.parse(row.caught_pokemon) || [];
 								
@@ -753,6 +801,7 @@ client.on('messageCreate', (message) => {
 										return 0;
 									}
 									let finalName = pokemonName.startsWith('✨') ? pokemonName.substring(1) : pokemonName;
+
 									return new Promise((resolve, reject) => {
 										db.get("SELECT isLM FROM pokemon WHERE name = ?", [finalName], (err, pokemonRow) => {
 											if (err) {
@@ -764,17 +813,20 @@ client.on('messageCreate', (message) => {
 									});
 								}));
 
-								return {
+								const totalLegendaries = legendaryCount.reduce((acc, curr) => acc + curr, 0);
+
+								return totalLegendaries > 0 ? {
 									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
-									value: legendaryCount.reduce((acc, curr) => acc + curr, 0)
-								};
+									value: totalLegendaries
+								} : null;
 							}));
 
-							users.sort((a, b) => b.value - a.value);
-
-							sendLeaderboard(message, users, 'Legendary Pokémon Leaderboard');
+							const filteredUsers = users.filter(user => user !== null);
+							filteredUsers.sort((a, b) => b.value - a.value);
+							sendLeaderboard(message, filteredUsers, 'Legendary Pokémon Leaderboard');
 						});
 					}
+
 					else if (args[0].toLowerCase() === 'm' || args[0].toLowerCase() === 'mythical') {
 						//display mythical leaderboard
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
@@ -785,6 +837,9 @@ client.on('messageCreate', (message) => {
 							}
 
 							const users = await Promise.all(rows.map(async row => {
+								if (!row.caught_pokemon) {
+									return null;
+								}
 								const user = await client.users.fetch(row.user_id).catch(() => null);
 								const caughtPokemon = JSON.parse(row.caught_pokemon) || [];
 
@@ -803,18 +858,22 @@ client.on('messageCreate', (message) => {
 										});
 									});
 								}));
+								
+								const totalMythicals = mythicalCount.reduce((acc, curr) => acc + curr, 0);
 
-								return {
+								return totalMythicals > 0 ? {
 									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
-									value: mythicalCount.reduce((acc, curr) => acc + curr, 0)
-								};
+									value: totalMythicals
+								} : null;
 							}));
 
-							users.sort((a, b) => b.value - a.value);
+							const filteredUsers = users.filter(user => user !== null);
+							filteredUsers.sort((a, b) => b.value - a.value);
 
-							sendLeaderboard(message, users, 'Mythical Pokémon Leaderboard');
+							sendLeaderboard(message, filteredUsers, 'Mythical Pokémon Leaderboard');
 						});
 					}
+
 					else if (args[0].toLowerCase() === 'pokedex' || args[0].toLowerCase() === 'dex') {
 						//display pokedex completeness leaderboard
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
@@ -825,6 +884,9 @@ client.on('messageCreate', (message) => {
 							}
 
 							const users = await Promise.all(rows.map(async row => {
+								if (!row.caught_pokemon) {
+									return null;
+								}
 								const user = await client.users.fetch(row.user_id).catch(() => null);
 								const caughtPokemon = JSON.parse(row.caught_pokemon) || [];
 								
@@ -840,15 +902,17 @@ client.on('messageCreate', (message) => {
 								
 								uniquePokemon.delete('');
 								
-								return {
+								const value = uniquePokemon.size;
+
+								return value > 0 ? {
 									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
-									value: uniquePokemon.size
-								};
+									value
+								} : null;
 							}));
 							
-							users.sort((a, b) => b.value - a.value);
-
-							sendLeaderboard(message, users, 'Pokédex Completeness Leaderboard');
+							const filteredUsers = users.filter(user => user !== null);
+							filteredUsers.sort((a, b) => b.value - a.value);
+							sendLeaderboard(message, filteredUsers, 'Pokédex Completeness Leaderboard (/493)');
 						});
 					}
 				});
@@ -1116,7 +1180,7 @@ client.on('messageCreate', (message) => {
 							const pageSize = 20;
 							let page = 0;
 
-							const embed = generatePartyEmbed(caughtPokemon, page, pageSize);
+							const embed = generatePartyEmbed(caughtPokemon, page, pageSize, `Your Pokémon`, 0);
 
 							const buttonRow = new ActionRowBuilder()
 								.addComponents(
@@ -1166,7 +1230,7 @@ client.on('messageCreate', (message) => {
 										page = Math.ceil(caughtPokemon.length / pageSize) - 1;;
 									}
 
-									await i.update({ embeds: [generatePartyEmbed(caughtPokemon, page, pageSize)] });
+									await i.update({ embeds: [generatePartyEmbed(caughtPokemon, page, pageSize, `Your Pokémon`, 0)] });
 								});
 
 								collector.on('end', collected => {
@@ -1198,27 +1262,104 @@ client.on('messageCreate', (message) => {
 							});
 						}
 						
-						else if (args[0].toLowerCase() === 'name:' || args[0].toLowerCase() === 'name') {
+						else if (args[0].toLowerCase() === 'name:' || args[0].toLowerCase() === 'name' || args[0].toLowerCase() === 'n' || args[0].toLowerCase() === 'n:') {
 							if (args.length > 1) {
 								let searchName = args[1].toLowerCase();
 								searchName = capitalizeFirstLetter(searchName);
-								
 								searchName = fixPokemonName(searchName, args);
 								
-								const filteredPokemon = caughtPokemon.map((p, index) => ({name: p, id: index + 1})).filter(p => typeof p.name === 'string' && (p.name === searchName || p.name === '✨' + searchName));
+								const filteredPokemon = caughtPokemon
+									.map((p, index) => ({name: p, id: index + 1}))
+									.filter(p => typeof p.name === 'string' && (p.name === searchName || p.name === '✨' + searchName));
 								
 								if (filteredPokemon.length === 0) {
 									message.channel.send(`You do not have any Pokémon named ${args[1]}.`);
 								}
 								else {
-									const embed = new EmbedBuilder()
-										.setColor('#0099ff')
-										.setTitle(`All ${searchName} in your party:`)
-										.setDescription(filteredPokemon.map(p => ` \`\`${p.id}\`\` ${p.name} `).join('\n'))
-										.setTimestamp();
-									message.channel.send({ embeds: [embed] });
+									const pageSize = 20;
+									let page = 0;
+
+									const embed = generatePartyEmbed(filteredPokemon, page, pageSize, `All ${searchName} in your party`, 0);
+									const buttonRow = new ActionRowBuilder()
+										.addComponents(
+											new ButtonBuilder()
+												.setCustomId('rewind')
+												.setLabel('⏪')
+												.setStyle(ButtonStyle.Primary),
+											new ButtonBuilder()
+												.setCustomId('prev')
+												.setLabel('◀')
+												.setStyle(ButtonStyle.Primary),
+											new ButtonBuilder()
+												.setCustomId('next')
+												.setLabel('▶')
+												.setStyle(ButtonStyle.Primary),
+											new ButtonBuilder()
+												.setCustomId('fforward')
+												.setLabel('⏩')
+												.setStyle(ButtonStyle.Primary)
+										);
+									
+									message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+										const filter = i => i.user.id === userId;
+										const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+			
+										collector.on('collect', async i => {
+											if (i.customId === 'prev') {
+												if (page > 0) {
+													page--;
+												}
+												else {
+													page = Math.ceil(filteredPokemon.length / pageSize) - 1;;
+												}
+											} 
+											else if (i.customId === 'next') {
+												if ((page + 1) * pageSize < filteredPokemon.length) {
+													page++;
+												}
+												else {
+													page = 0;
+												}
+											}
+											else if (i.customId === 'rewind') {
+												page = 0;
+											}
+											else if (i.customId === 'fforward') {
+												page = Math.ceil(filteredPokemon.length / pageSize) - 1;;
+											}
+			
+											await i.update({ embeds: [generatePartyEmbed(filteredPokemon, page, pageSize, `All ${searchName} in your party`, 0)] });
+										});
+										collector.on('end', collected => {
+											const disabledRow = new ActionRowBuilder()
+												.addComponents(
+													new ButtonBuilder()
+														.setCustomId('rewind')
+														.setLabel('⏪')
+														.setStyle(ButtonStyle.Primary)
+														.setDisabled(true),
+													new ButtonBuilder()
+														.setCustomId('prev')
+														.setLabel('◀')
+														.setStyle(ButtonStyle.Primary)
+														.setDisabled(true),
+													new ButtonBuilder()
+														.setCustomId('next')
+														.setLabel('▶')
+														.setStyle(ButtonStyle.Primary)
+														.setDisabled(true),
+													new ButtonBuilder()
+														.setCustomId('fforward')
+														.setLabel('⏩')
+														.setStyle(ButtonStyle.Primary)
+														.setDisabled(true)
+													);
+											sentMessage.edit({ components: [disabledRow] });
+										});
+									});
 								}
 							}
+
 							else {
 								message.channel.send('Improper use of command. Example: .p name: <pokemon>');
 							}
@@ -1253,20 +1394,98 @@ client.on('messageCreate', (message) => {
 								message.channel.send('Improper use of command. Example: .p swap <partyNum> <partyNum>');
 							}
 						}
-						else if (args[0].toLowerCase() === 'shiny') {
+
+						else if (args[0].toLowerCase() === 'shiny' || args[0].toLowerCase() === 's') {
 							const shinyPokemon = caughtPokemon.map((p, index) => ({ name: p, id: index + 1 })).filter(p => typeof p.name === 'string' && p.name.startsWith('✨'));
 							if (shinyPokemon.length === 0) {
 								message.channel.send("You do not have any shiny Pokémon.");
-							} else {
-								const embed = new EmbedBuilder()
-									.setColor('#FFD700') // Gold color for shiny Pokémon
-									.setTitle('Your Shiny Pokémon')
-									.setDescription(shinyPokemon.map(p => ` \`\`${p.id}\`\` ${p.name} `).join('\n'))
-									.setTimestamp();
-								message.channel.send({ embeds: [embed] });
+							} 
+							else {
+								const pageSize = 20
+								let page = 0;
+
+								const embed = generatePartyEmbed(shinyPokemon, page, pageSize, `Your Shiny Pokémon`, 1);
+								const buttonRow = new ActionRowBuilder()
+										.addComponents(
+											new ButtonBuilder()
+												.setCustomId('rewind')
+												.setLabel('⏪')
+												.setStyle(ButtonStyle.Primary),
+											new ButtonBuilder()
+												.setCustomId('prev')
+												.setLabel('◀')
+												.setStyle(ButtonStyle.Primary),
+											new ButtonBuilder()
+												.setCustomId('next')
+												.setLabel('▶')
+												.setStyle(ButtonStyle.Primary),
+											new ButtonBuilder()
+												.setCustomId('fforward')
+												.setLabel('⏩')
+												.setStyle(ButtonStyle.Primary)
+										);
+									
+								message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+									const filter = i => i.user.id === userId;
+									const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+			
+									collector.on('collect', async i => {
+										if (i.customId === 'prev') {
+											if (page > 0) {
+												page--;
+											}
+											else {
+												page = Math.ceil(shinyPokemon.length / pageSize) - 1;;
+											}
+										} 
+										else if (i.customId === 'next') {
+											if ((page + 1) * pageSize < shinyPokemon.length) {
+												page++;
+											}
+											else {
+												page = 0;
+											}
+										}
+										else if (i.customId === 'rewind') {
+											page = 0;
+										}
+										else if (i.customId === 'fforward') {
+											page = Math.ceil(shinyPokemon.length / pageSize) - 1;;
+										}
+			
+										await i.update({ embeds: [generatePartyEmbed(shinyPokemon, page, pageSize, `Your Shiny Pokémon`, 1)] });
+									});
+									collector.on('end', collected => {
+										const disabledRow = new ActionRowBuilder()
+											.addComponents(
+												new ButtonBuilder()
+													.setCustomId('rewind')
+													.setLabel('⏪')
+													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true),
+												new ButtonBuilder()
+													.setCustomId('prev')
+													.setLabel('◀')
+													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true),
+												new ButtonBuilder()
+													.setCustomId('next')
+													.setLabel('▶')
+													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true),
+												new ButtonBuilder()
+													.setCustomId('fforward')
+													.setLabel('⏩')
+													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true)
+												);
+										sentMessage.edit({ components: [disabledRow] });
+									});
+								});
 							}
 						}
-						else if (args[0].toLowerCase() === 'legendary') {
+
+						else if (args[0].toLowerCase() === 'legendary' || args[0].toLowerCase() === 'l') {
 							let promises = caughtPokemon.map((pokemonName, originalIndex) => {
 								if (typeof pokemonName !== 'string') {
 									return Promise.resolve(null);
@@ -1288,6 +1507,7 @@ client.on('messageCreate', (message) => {
 									});
 								});
 							});
+
 							Promise.all(promises).then(results => {
 								const legendaryPokemon = results
 									.filter(p => p != null)
@@ -1300,19 +1520,91 @@ client.on('messageCreate', (message) => {
 									message.channel.send("You do not have any legendary Pokémon.");
 								}
 								else {
-									const embed = new EmbedBuilder()
-										.setColor('#0099ff')
-										.setTitle('Your Legendary Pokémon')
-										.setDescription(legendaryPokemon.map(p => ` \`\`${p.id}\`\` ${p.name} `).join('\n'))
-										.setTimestamp();
-									message.channel.send({ embeds: [embed] });
+									const pageSize = 20;
+									let page = 0;
+
+									const embed = generatePartyEmbed(legendaryPokemon, page, pageSize, `Your Legendary Pokémon`, 2);
+									const buttonRow = new ActionRowBuilder()
+										.addComponents(
+											new ButtonBuilder()
+												.setCustomId('rewind')
+												.setLabel('⏪')
+												.setStyle(ButtonStyle.Primary),
+											new ButtonBuilder()
+												.setCustomId('prev')
+												.setLabel('◀')
+												.setStyle(ButtonStyle.Primary),
+											new ButtonBuilder()
+												.setCustomId('next')
+												.setLabel('▶')
+												.setStyle(ButtonStyle.Primary),
+											new ButtonBuilder()
+												.setCustomId('fforward')
+												.setLabel('⏩')
+												.setStyle(ButtonStyle.Primary)
+										);
+
+									message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+										const filter = i => i.user.id === userId;
+										const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+										collector.on('collect', async i => {
+											if (i.customId === 'prev') {
+												if (page > 0) {
+													page--;
+												} else {
+													page = Math.ceil(legendaryPokemon.length / pageSize) - 1;
+												}
+											} else if (i.customId === 'next') {
+												if ((page + 1) * pageSize < legendaryPokemon.length) {
+													page++;
+												} else {
+													page = 0;
+												}
+											} else if (i.customId === 'rewind') {
+												page = 0;
+											} else if (i.customId === 'fforward') {
+												page = Math.ceil(legendaryPokemon.length / pageSize) - 1;
+											}
+
+											await i.update({ embeds: [generatePartyEmbed(legendaryPokemon, page, pageSize, `Your Legendary Pokémon`, 2)] });
+										});
+
+										collector.on('end', collected => {
+											const disabledRow = new ActionRowBuilder()
+												.addComponents(
+													new ButtonBuilder()
+														.setCustomId('rewind')
+														.setLabel('⏪')
+														.setStyle(ButtonStyle.Primary)
+														.setDisabled(true),
+													new ButtonBuilder()
+														.setCustomId('prev')
+														.setLabel('◀')
+														.setStyle(ButtonStyle.Primary)
+														.setDisabled(true),
+													new ButtonBuilder()
+														.setCustomId('next')
+														.setLabel('▶')
+														.setStyle(ButtonStyle.Primary)
+														.setDisabled(true),
+													new ButtonBuilder()
+														.setCustomId('fforward')
+														.setLabel('⏩')
+														.setStyle(ButtonStyle.Primary)
+														.setDisabled(true)
+												);
+											sentMessage.edit({ components: [disabledRow] });
+										});
+									});
 								}
 							}).catch(error => {
 								console.error('Error processing Pokémon:', error.message);
 								message.channel.send("An error occurred while retrieving your Pokémon.");
 							});
 						}
-						else if (args[0].toLowerCase() === 'mythical') {
+
+						else if (args[0].toLowerCase() === 'mythical' || args[0].toLowerCase() === 'm') {
 							let promises = caughtPokemon.map((pokemonName, originalIndex) => {
 								if (typeof pokemonName !== 'string') {
 									return Promise.resolve(null);
@@ -1344,15 +1636,86 @@ client.on('messageCreate', (message) => {
 									}));
 								
 								if (mythicalPokemon.length === 0) {
-									message.channel.send("You do not have any legendary Pokémon.");
+									message.channel.send("You do not have any mythical Pokémon.");
 								}
 								else {
-									const embed = new EmbedBuilder()
-										.setColor('#0099ff')
-										.setTitle('Your Legendary Pokémon')
-										.setDescription(mythicalPokemon.map(p => ` \`\`${p.id}\`\` ${p.name} `).join('\n'))
-										.setTimestamp();
-									message.channel.send({ embeds: [embed] });
+									const pageSize = 20;
+									let page = 0;
+
+									const embed = generatePartyEmbed(mythicalPokemon, page, pageSize, `Your Mythical Pokémon`, 3);
+									const buttonRow = new ActionRowBuilder()
+										.addComponents(
+											new ButtonBuilder()
+												.setCustomId('rewind')
+												.setLabel('⏪')
+												.setStyle(ButtonStyle.Primary),
+											new ButtonBuilder()
+												.setCustomId('prev')
+												.setLabel('◀')
+												.setStyle(ButtonStyle.Primary),
+											new ButtonBuilder()
+												.setCustomId('next')
+												.setLabel('▶')
+												.setStyle(ButtonStyle.Primary),
+											new ButtonBuilder()
+												.setCustomId('fforward')
+												.setLabel('⏩')
+												.setStyle(ButtonStyle.Primary)
+										);
+
+									message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+										const filter = i => i.user.id === userId;
+										const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+										collector.on('collect', async i => {
+											if (i.customId === 'prev') {
+												if (page > 0) {
+													page--;
+												} else {
+													page = Math.ceil(mythicalPokemon.length / pageSize) - 1;
+												}
+											} else if (i.customId === 'next') {
+												if ((page + 1) * pageSize < mythicalPokemon.length) {
+													page++;
+												} else {
+													page = 0;
+												}
+											} else if (i.customId === 'rewind') {
+												page = 0;
+											} else if (i.customId === 'fforward') {
+												page = Math.ceil(mythicalPokemon.length / pageSize) - 1;
+											}
+
+											await i.update({ embeds: [generatePartyEmbed(mythicalPokemon, page, pageSize, `Your Mythical Pokémon`, 3)] });
+										});
+
+										collector.on('end', collected => {
+											const disabledRow = new ActionRowBuilder()
+												.addComponents(
+													new ButtonBuilder()
+														.setCustomId('rewind')
+														.setLabel('⏪')
+														.setStyle(ButtonStyle.Primary)
+														.setDisabled(true),
+													new ButtonBuilder()
+														.setCustomId('prev')
+														.setLabel('◀')
+														.setStyle(ButtonStyle.Primary)
+														.setDisabled(true),
+													new ButtonBuilder()
+														.setCustomId('next')
+														.setLabel('▶')
+														.setStyle(ButtonStyle.Primary)
+														.setDisabled(true),
+													new ButtonBuilder()
+														.setCustomId('fforward')
+														.setLabel('⏩')
+														.setStyle(ButtonStyle.Primary)
+														.setDisabled(true)
+												);
+											sentMessage.edit({ components: [disabledRow] });
+										});
+									});
 								}
 							}).catch(error => {
 								console.error('Error processing Pokémon:', error.message);
