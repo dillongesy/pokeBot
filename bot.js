@@ -111,12 +111,20 @@ async function sendLeaderboard(message, users, title) {
 	const buttonRow = new ActionRowBuilder()
 		.addComponents(
 			new ButtonBuilder()
+				.setCustomId('rewindPage')
+				.setLabel('⏪')
+				.setStyle(ButtonStyle.Primary),
+			new ButtonBuilder()
 				.setCustomId('prevPage')
 				.setLabel('◀')
 				.setStyle(ButtonStyle.Primary),
 			new ButtonBuilder()
 				.setCustomId('nextPage')
 				.setLabel('▶')
+				.setStyle(ButtonStyle.Primary),
+			new ButtonBuilder()
+				.setCustomId('fforwardPage')
+				.setLabel('⏩')
 				.setStyle(ButtonStyle.Primary)
 		);
 
@@ -126,11 +134,27 @@ async function sendLeaderboard(message, users, title) {
 	const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
 	collector.on('collect', async i => {
-		if (i.customId === 'prevPage' && page > 0) {
-			page--;
+		if (i.customId === 'rewindPage') {
+			page = 0;
+		}
+		else if (i.customId === 'prevPage') {
+			if (page > 0) {
+				page--;
+			}
+			else {
+				page = Math.ceil(users.length / pageSize) - 1; //TEST
+			}
 		} 
-		else if (i.customId === 'nextPage' && (page + 1) * pageSize < users.length) {
-			page++;
+		else if (i.customId === 'fforwardPage') {
+			page = Math.ceil(users.length / pageSize) - 1;
+		}
+		else if (i.customId === 'nextPage') {
+			if ((page + 1) * pageSize < users.length) {
+				page++;
+			}
+			else {
+				page = 0;
+			}
 		}
 
 		await i.update({ embeds: [generateLeaderboardEmbed(users, page, pageSize, title)] });
@@ -1000,7 +1024,8 @@ client.on('messageCreate', (message) => {
 										i.update({ embeds: [embed] });
 									});
 									
-								} else if (i.customId === 'next') {
+								} 
+								else if (i.customId === 'next') {
 									let nextDexNum = pokemonRow.dexNum + 1;
 									if (nextDexNum > maxDexNum) {
 										nextDexNum = 1;
@@ -1020,7 +1045,8 @@ client.on('messageCreate', (message) => {
 										i.update({ embeds: [embed] });
 									});
 									
-								} else if (i.customId === 'shinyBtn') {
+								} 
+								else if (i.customId === 'shinyBtn') {
 									shinyImg = !shinyImg;
 									embed = updateEmbed(shinyImg, pokemonRow.dexNum, pokemonRow);
 									i.update({ embeds: [embed] });
@@ -1212,7 +1238,7 @@ client.on('messageCreate', (message) => {
 											page--;
 										}
 										else {
-											page = Math.ceil(caughtPokemon.length / pageSize) - 1;;
+											page = Math.ceil(caughtPokemon.length / pageSize) - 1;
 										}
 									} 
 									else if (i.customId === 'next') {
@@ -1552,18 +1578,23 @@ client.on('messageCreate', (message) => {
 											if (i.customId === 'prev') {
 												if (page > 0) {
 													page--;
-												} else {
+												} 
+												else {
 													page = Math.ceil(legendaryPokemon.length / pageSize) - 1;
 												}
-											} else if (i.customId === 'next') {
+											} 
+											else if (i.customId === 'next') {
 												if ((page + 1) * pageSize < legendaryPokemon.length) {
 													page++;
-												} else {
+												} 
+												else {
 													page = 0;
 												}
-											} else if (i.customId === 'rewind') {
+											} 
+											else if (i.customId === 'rewind') {
 												page = 0;
-											} else if (i.customId === 'fforward') {
+											} 
+											else if (i.customId === 'fforward') {
 												page = Math.ceil(legendaryPokemon.length / pageSize) - 1;
 											}
 
@@ -1671,18 +1702,23 @@ client.on('messageCreate', (message) => {
 											if (i.customId === 'prev') {
 												if (page > 0) {
 													page--;
-												} else {
+												} 
+												else {
 													page = Math.ceil(mythicalPokemon.length / pageSize) - 1;
 												}
-											} else if (i.customId === 'next') {
+											} 
+											else if (i.customId === 'next') {
 												if ((page + 1) * pageSize < mythicalPokemon.length) {
 													page++;
-												} else {
+												} 
+												else {
 													page = 0;
 												}
-											} else if (i.customId === 'rewind') {
+											} 
+											else if (i.customId === 'rewind') {
 												page = 0;
-											} else if (i.customId === 'fforward') {
+											} 
+											else if (i.customId === 'fforward') {
 												page = Math.ceil(mythicalPokemon.length / pageSize) - 1;
 											}
 
