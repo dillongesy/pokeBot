@@ -39,7 +39,7 @@ function generatePartyEmbed(pokemonList, page, pageSize, title, isSLM) {
 	let color = '#0099ff';
 	if (pokemonList.length > 0) {
 		if (typeof pokemonList[0] === 'object') {
-			formattedPokemonList = pagePokemon.map((pokemon, index) => `\`\`${start + index + 1}\`\`\t${pokemon.name}`).join('\n');
+			formattedPokemonList = pagePokemon.map(p => `\`\`${p.id}\`\`\t${p.name}`).join('\n');
 		}
 		else {
 			formattedPokemonList = pagePokemon.map((pokemon, index) => `\`\`${start + index + 1}\`\`\t${pokemon}`).join('\n');
@@ -66,9 +66,52 @@ function generatePartyEmbed(pokemonList, page, pageSize, title, isSLM) {
 	return embed;
 }
 
-//Helper function, generate .party buttons
-function generatePartyButtons() {
-	//TODO
+function getPartyBtns() {
+	return new ActionRowBuilder()
+	.addComponents(
+		new ButtonBuilder()
+			.setCustomId('rewind')
+			.setLabel('⏪')
+			.setStyle(ButtonStyle.Primary),
+		new ButtonBuilder()
+			.setCustomId('prev')
+			.setLabel('◀')
+			.setStyle(ButtonStyle.Primary),
+		new ButtonBuilder()
+			.setCustomId('next')
+			.setLabel('▶')
+			.setStyle(ButtonStyle.Primary),
+		new ButtonBuilder()
+			.setCustomId('fforward')
+			.setLabel('⏩')
+			.setStyle(ButtonStyle.Primary)
+	);
+}
+
+function getDisablePartyBtns() {
+	return new ActionRowBuilder()
+		.addComponents(
+			new ButtonBuilder()
+				.setCustomId('rewind')
+				.setLabel('⏪')
+				.setStyle(ButtonStyle.Primary)
+				.setDisabled(true),
+			new ButtonBuilder()
+				.setCustomId('prev')
+				.setLabel('◀')
+				.setStyle(ButtonStyle.Primary)
+				.setDisabled(true),
+			new ButtonBuilder()
+				.setCustomId('next')
+				.setLabel('▶')
+				.setStyle(ButtonStyle.Primary)
+				.setDisabled(true),
+			new ButtonBuilder()
+				.setCustomId('fforward')
+				.setLabel('⏩')
+				.setStyle(ButtonStyle.Primary)
+				.setDisabled(true)
+			);
 }
 
 //Helper function, .dex Embed Generator
@@ -164,6 +207,11 @@ async function sendLeaderboard(message, users, title) {
 		const disabledRow = new ActionRowBuilder()
 			.addComponents(
 				new ButtonBuilder()
+					.setCustomId('rewindPage')
+					.setLabel('⏪')
+					.setStyle(ButtonStyle.Primary)
+					.setDisabled(true),
+				new ButtonBuilder()
 					.setCustomId('prevPage')
 					.setLabel('◀')
 					.setStyle(ButtonStyle.Primary)
@@ -172,7 +220,12 @@ async function sendLeaderboard(message, users, title) {
 					.setCustomId('nextPage')
 					.setLabel('▶')
 					.setStyle(ButtonStyle.Primary)
-					.setDisabled(true)
+					.setDisabled(true),
+				new ButtonBuilder()
+					.setCustomId('fforwardPage')
+					.setLabel('⏩')
+					.setStyle(ButtonStyle.Primary)
+					.setDisabled(true),
 			);
 		sentMessage.edit({ components: [disabledRow] });
 	});
@@ -464,6 +517,8 @@ client.on('messageCreate', (message) => {
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'farfetch\'d' && message.content.toLowerCase() === 'farfetch’d')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'farfetch\'d' && message.content.toLowerCase() === 'farfetch‘d')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mr. mime' && message.content.toLowerCase() === 'mr mime')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mr. mime' && message.content.toLowerCase() === 'mr.mime')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mr. mime' && message.content.toLowerCase() === 'mrmime')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'ho oh')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'ho-oh' && message.content.toLowerCase() === 'hooh')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mime jr')
@@ -939,6 +994,61 @@ client.on('messageCreate', (message) => {
 							sendLeaderboard(message, filteredUsers, 'Pokédex Completeness Leaderboard (/493)');
 						});
 					}
+
+					else if (args.length > 0) {
+						//lb by pokemon name
+						let pokemonIdentifier = args[0];
+						let isNumber = !isNaN(pokemonIdentifier);
+						if (!isNumber) {
+							pokemonIdentifier = pokemonIdentifier.toLowerCase();
+							pokemonIdentifier = capitalizeFirstLetter(pokemonIdentifier);
+							let arr = args[0];
+							if (args.length > 1) {
+								arr = ['', args[0], args[1]];
+							}
+							pokemonIdentifier = fixPokemonName(pokemonIdentifier, arr);
+						}
+						else {
+							pokemonIdentifier = parseInt(pokemonIdentifier, 10);
+						}
+
+						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching the leaderboard.');
+								return;
+							}
+
+							const users = await Promise.all(rows.map(async (row) => {
+								if (!row.caught_pokemon) {
+									return null;
+								}
+								const user = await client.users.fetch(row.user_id).catch(() => null);
+								const caughtPokemon = JSON.parse(row.caught_pokemon) || [];
+								const count = caughtPokemon.filter(pokemonName => {
+									if (typeof pokemonName !== 'string') {
+										return false;
+									}
+									let finalName = pokemonName.startsWith('✨') ? pokemonName.substring(1) : pokemonName;
+									return finalName === pokemonIdentifier;
+								}).length;
+
+								return count > 0 ? {
+									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									value: count
+								} : null;
+							}));
+							const filteredUsers = users.filter(user => user !== null);
+							filteredUsers.sort((a, b) => b.value - a.value);
+
+							if (filteredUsers.length > 0) {
+								sendLeaderboard(message, filteredUsers, `Leaderboard for ${pokemonIdentifier}`);
+							}
+							else {
+								message.channel.send(`No users have caught that or they aren't registered in the pokedex.`);
+							}
+						});
+					}
 				});
 			}
 			
@@ -1207,26 +1317,7 @@ client.on('messageCreate', (message) => {
 							let page = 0;
 
 							const embed = generatePartyEmbed(caughtPokemon, page, pageSize, `Your Pokémon`, 0);
-
-							const buttonRow = new ActionRowBuilder()
-								.addComponents(
-									new ButtonBuilder()
-										.setCustomId('rewind')
-										.setLabel('⏪')
-										.setStyle(ButtonStyle.Primary),
-									new ButtonBuilder()
-										.setCustomId('prev')
-										.setLabel('◀')
-										.setStyle(ButtonStyle.Primary),
-									new ButtonBuilder()
-										.setCustomId('next')
-										.setLabel('▶')
-										.setStyle(ButtonStyle.Primary),
-									new ButtonBuilder()
-										.setCustomId('fforward')
-										.setLabel('⏩')
-										.setStyle(ButtonStyle.Primary)
-								);
+							const buttonRow = getPartyBtns();
 
 							message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
 								const filter = i => i.user.id === userId;
@@ -1260,29 +1351,7 @@ client.on('messageCreate', (message) => {
 								});
 
 								collector.on('end', collected => {
-									const disabledRow = new ActionRowBuilder()
-										.addComponents(
-											new ButtonBuilder()
-												.setCustomId('rewind')
-												.setLabel('⏪')
-												.setStyle(ButtonStyle.Primary)
-												.setDisabled(true),
-											new ButtonBuilder()
-												.setCustomId('prev')
-												.setLabel('◀')
-												.setStyle(ButtonStyle.Primary)
-												.setDisabled(true),
-											new ButtonBuilder()
-												.setCustomId('next')
-												.setLabel('▶')
-												.setStyle(ButtonStyle.Primary)
-												.setDisabled(true),
-											new ButtonBuilder()
-												.setCustomId('fforward')
-												.setLabel('⏩')
-												.setStyle(ButtonStyle.Primary)
-												.setDisabled(true)
-											);
+									const disabledRow = getDisablePartyBtns();
 									sentMessage.edit({ components: [disabledRow] });
 								});
 							});
@@ -1304,27 +1373,9 @@ client.on('messageCreate', (message) => {
 								else {
 									const pageSize = 20;
 									let page = 0;
-
+									
 									const embed = generatePartyEmbed(filteredPokemon, page, pageSize, `All ${searchName} in your party`, 0);
-									const buttonRow = new ActionRowBuilder()
-										.addComponents(
-											new ButtonBuilder()
-												.setCustomId('rewind')
-												.setLabel('⏪')
-												.setStyle(ButtonStyle.Primary),
-											new ButtonBuilder()
-												.setCustomId('prev')
-												.setLabel('◀')
-												.setStyle(ButtonStyle.Primary),
-											new ButtonBuilder()
-												.setCustomId('next')
-												.setLabel('▶')
-												.setStyle(ButtonStyle.Primary),
-											new ButtonBuilder()
-												.setCustomId('fforward')
-												.setLabel('⏩')
-												.setStyle(ButtonStyle.Primary)
-										);
+									const buttonRow = getPartyBtns(); 
 									
 									message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
 										const filter = i => i.user.id === userId;
@@ -1357,29 +1408,7 @@ client.on('messageCreate', (message) => {
 											await i.update({ embeds: [generatePartyEmbed(filteredPokemon, page, pageSize, `All ${searchName} in your party`, 0)] });
 										});
 										collector.on('end', collected => {
-											const disabledRow = new ActionRowBuilder()
-												.addComponents(
-													new ButtonBuilder()
-														.setCustomId('rewind')
-														.setLabel('⏪')
-														.setStyle(ButtonStyle.Primary)
-														.setDisabled(true),
-													new ButtonBuilder()
-														.setCustomId('prev')
-														.setLabel('◀')
-														.setStyle(ButtonStyle.Primary)
-														.setDisabled(true),
-													new ButtonBuilder()
-														.setCustomId('next')
-														.setLabel('▶')
-														.setStyle(ButtonStyle.Primary)
-														.setDisabled(true),
-													new ButtonBuilder()
-														.setCustomId('fforward')
-														.setLabel('⏩')
-														.setStyle(ButtonStyle.Primary)
-														.setDisabled(true)
-													);
+											const disabledRow = getDisablePartyBtns();
 											sentMessage.edit({ components: [disabledRow] });
 										});
 									});
@@ -1431,25 +1460,7 @@ client.on('messageCreate', (message) => {
 								let page = 0;
 
 								const embed = generatePartyEmbed(shinyPokemon, page, pageSize, `Your Shiny Pokémon`, 1);
-								const buttonRow = new ActionRowBuilder()
-										.addComponents(
-											new ButtonBuilder()
-												.setCustomId('rewind')
-												.setLabel('⏪')
-												.setStyle(ButtonStyle.Primary),
-											new ButtonBuilder()
-												.setCustomId('prev')
-												.setLabel('◀')
-												.setStyle(ButtonStyle.Primary),
-											new ButtonBuilder()
-												.setCustomId('next')
-												.setLabel('▶')
-												.setStyle(ButtonStyle.Primary),
-											new ButtonBuilder()
-												.setCustomId('fforward')
-												.setLabel('⏩')
-												.setStyle(ButtonStyle.Primary)
-										);
+								const buttonRow = getPartyBtns();
 									
 								message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
 									const filter = i => i.user.id === userId;
@@ -1482,29 +1493,7 @@ client.on('messageCreate', (message) => {
 										await i.update({ embeds: [generatePartyEmbed(shinyPokemon, page, pageSize, `Your Shiny Pokémon`, 1)] });
 									});
 									collector.on('end', collected => {
-										const disabledRow = new ActionRowBuilder()
-											.addComponents(
-												new ButtonBuilder()
-													.setCustomId('rewind')
-													.setLabel('⏪')
-													.setStyle(ButtonStyle.Primary)
-													.setDisabled(true),
-												new ButtonBuilder()
-													.setCustomId('prev')
-													.setLabel('◀')
-													.setStyle(ButtonStyle.Primary)
-													.setDisabled(true),
-												new ButtonBuilder()
-													.setCustomId('next')
-													.setLabel('▶')
-													.setStyle(ButtonStyle.Primary)
-													.setDisabled(true),
-												new ButtonBuilder()
-													.setCustomId('fforward')
-													.setLabel('⏩')
-													.setStyle(ButtonStyle.Primary)
-													.setDisabled(true)
-												);
+										const disabledRow = getDisablePartyBtns();
 										sentMessage.edit({ components: [disabledRow] });
 									});
 								});
@@ -1550,25 +1539,7 @@ client.on('messageCreate', (message) => {
 									let page = 0;
 
 									const embed = generatePartyEmbed(legendaryPokemon, page, pageSize, `Your Legendary Pokémon`, 2);
-									const buttonRow = new ActionRowBuilder()
-										.addComponents(
-											new ButtonBuilder()
-												.setCustomId('rewind')
-												.setLabel('⏪')
-												.setStyle(ButtonStyle.Primary),
-											new ButtonBuilder()
-												.setCustomId('prev')
-												.setLabel('◀')
-												.setStyle(ButtonStyle.Primary),
-											new ButtonBuilder()
-												.setCustomId('next')
-												.setLabel('▶')
-												.setStyle(ButtonStyle.Primary),
-											new ButtonBuilder()
-												.setCustomId('fforward')
-												.setLabel('⏩')
-												.setStyle(ButtonStyle.Primary)
-										);
+									const buttonRow = getPartyBtns();
 
 									message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
 										const filter = i => i.user.id === userId;
@@ -1602,29 +1573,7 @@ client.on('messageCreate', (message) => {
 										});
 
 										collector.on('end', collected => {
-											const disabledRow = new ActionRowBuilder()
-												.addComponents(
-													new ButtonBuilder()
-														.setCustomId('rewind')
-														.setLabel('⏪')
-														.setStyle(ButtonStyle.Primary)
-														.setDisabled(true),
-													new ButtonBuilder()
-														.setCustomId('prev')
-														.setLabel('◀')
-														.setStyle(ButtonStyle.Primary)
-														.setDisabled(true),
-													new ButtonBuilder()
-														.setCustomId('next')
-														.setLabel('▶')
-														.setStyle(ButtonStyle.Primary)
-														.setDisabled(true),
-													new ButtonBuilder()
-														.setCustomId('fforward')
-														.setLabel('⏩')
-														.setStyle(ButtonStyle.Primary)
-														.setDisabled(true)
-												);
+											const disabledRow = getDisablePartyBtns();
 											sentMessage.edit({ components: [disabledRow] });
 										});
 									});
@@ -1674,25 +1623,7 @@ client.on('messageCreate', (message) => {
 									let page = 0;
 
 									const embed = generatePartyEmbed(mythicalPokemon, page, pageSize, `Your Mythical Pokémon`, 3);
-									const buttonRow = new ActionRowBuilder()
-										.addComponents(
-											new ButtonBuilder()
-												.setCustomId('rewind')
-												.setLabel('⏪')
-												.setStyle(ButtonStyle.Primary),
-											new ButtonBuilder()
-												.setCustomId('prev')
-												.setLabel('◀')
-												.setStyle(ButtonStyle.Primary),
-											new ButtonBuilder()
-												.setCustomId('next')
-												.setLabel('▶')
-												.setStyle(ButtonStyle.Primary),
-											new ButtonBuilder()
-												.setCustomId('fforward')
-												.setLabel('⏩')
-												.setStyle(ButtonStyle.Primary)
-										);
+									const buttonRow = getPartyBtns();
 
 									message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
 										const filter = i => i.user.id === userId;
@@ -1726,29 +1657,7 @@ client.on('messageCreate', (message) => {
 										});
 
 										collector.on('end', collected => {
-											const disabledRow = new ActionRowBuilder()
-												.addComponents(
-													new ButtonBuilder()
-														.setCustomId('rewind')
-														.setLabel('⏪')
-														.setStyle(ButtonStyle.Primary)
-														.setDisabled(true),
-													new ButtonBuilder()
-														.setCustomId('prev')
-														.setLabel('◀')
-														.setStyle(ButtonStyle.Primary)
-														.setDisabled(true),
-													new ButtonBuilder()
-														.setCustomId('next')
-														.setLabel('▶')
-														.setStyle(ButtonStyle.Primary)
-														.setDisabled(true),
-													new ButtonBuilder()
-														.setCustomId('fforward')
-														.setLabel('⏩')
-														.setStyle(ButtonStyle.Primary)
-														.setDisabled(true)
-												);
+											const disabledRow = getDisablePartyBtns();
 											sentMessage.edit({ components: [disabledRow] });
 										});
 									});
