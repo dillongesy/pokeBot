@@ -185,7 +185,7 @@ async function sendLeaderboard(message, users, title) {
 				page--;
 			}
 			else {
-				page = Math.ceil(users.length / pageSize) - 1; //TEST
+				page = Math.ceil(users.length / pageSize) - 1;
 			}
 		} 
 		else if (i.customId === 'fforwardPage') {
@@ -332,7 +332,7 @@ const dexCommandRegex = /^\.(dex)\b/;
 const forceSpawnCommandRegex = /^\.(forcespawn)\b/;
 const leaderboardCommandRegex = /^\.(leaderboard|lb)\b/;
 
-const maxDexNum = 493; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+const maxDexNum = 649; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}`);
@@ -345,7 +345,7 @@ client.on('messageCreate', (message) => {
 			const serverId = message.guild.id;
 			const userId = message.author.id;
 			const now = Date.now();			
-			
+
 			//drop
 			if (dropCommandRegex.test(message.content.toLowerCase())) { //TODO: fix channels in 1 server interfering
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
@@ -1009,7 +1009,8 @@ client.on('messageCreate', (message) => {
 							pokemonIdentifier = fixPokemonName(pokemonIdentifier, arr);
 						}
 						else {
-							pokemonIdentifier = parseInt(pokemonIdentifier, 10);
+							message.channel.send('Pokemon must be a name!');
+							return;
 						}
 
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
@@ -1716,7 +1717,7 @@ client.on('messageCreate', (message) => {
 							{ name: '.hint (.h)', value: 'Gives a hint for the currently dropped Pokémon.' },
 							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party. \n Example: .release 1' },
 							{ name: '.trade @<user> (.t)', value: 'Initiates a trade with another user.' },
-							{ name: '.leaderboard (.lb)', value: 'Display a leaderboard. \n Usages: .lb currency *|* .lb shiny *|* .lb legendary *|* .lb mythical *|* .lb pokedex' },
+							{ name: '.leaderboard (.lb)', value: 'Display a leaderboard. \n Usages: .lb currency *|* .lb shiny *|* .lb legendary *|* .lb mythical *|* .lb pokedex *|* .lb {pokemon}' },
 							{ name: '.setChannel: #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channel>. \n Example: .setChannel <text1> <text2>' },
 							{ name: '.resetChannels:', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
 							{ name: '.viewChannels:', value: '`ADMIN ONLY:` Posts a list of channels the server allows bot commands in' }
