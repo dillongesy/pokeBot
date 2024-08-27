@@ -390,18 +390,22 @@ client.on('messageCreate', (message) => {
 							let randPokemon = getRandomInt(maxDexNum); 
 							let pokemon = null;
 							
-							if (isMythical) { //TODO query the database for isLM = 2 and randomly select
-								pokemon = rows[randPokemon];
-								while (pokemon.isLM !== 2) {
-									randPokemon = getRandomInt(maxDexNum);
-									pokemon = rows[randPokemon];
-								}
+							if (isMythical) {
+								const rowsM = rows.filter(row => row.isLM === 2);
+									if (rowsM.length > 0) {
+										pokemon = rowsM[getRandomInt(rowsM.length)];
+									}
+									else {
+										console.log("Error, no mythical pokemon!");
+									}
 							}
-							else if (isLegendary) { //TODO query the database for isLM = 1 and randomly select
-								pokemon = rows[randPokemon];
-								while (pokemon.isLM !== 1) {
-									randPokemon = getRandomInt(maxDexNum);
-									pokemon = rows[randPokemon];
+							else if (isLegendary) {
+								const rowsL = rows.filter(row => row.isLM === 1);
+								if (rowsL.length > 0) {
+									pokemon = rowsL[getRandomInt(rowsL.length)];
+								}
+								else {
+									console.log("Error, no mythical pokemon!");
 								}
 							}
 							else {
@@ -991,7 +995,7 @@ client.on('messageCreate', (message) => {
 							
 							const filteredUsers = users.filter(user => user !== null);
 							filteredUsers.sort((a, b) => b.value - a.value);
-							sendLeaderboard(message, filteredUsers, 'Pokédex Completeness Leaderboard (/493)');
+							sendLeaderboard(message, filteredUsers, 'Pokédex Completeness Leaderboard (/649)');
 						});
 					}
 
