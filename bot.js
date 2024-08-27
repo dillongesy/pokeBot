@@ -332,12 +332,16 @@ const dexCommandRegex = /^\.(dex)\b/;
 const forceSpawnCommandRegex = /^\.(forcespawn)\b/;
 const leaderboardCommandRegex = /^\.(leaderboard|lb)\b/;
 const countCommandRegex = /^\.(count)\b/;
+const shopCommandRegex = /^\.(shop|s)\b/;
+const buyCommandRegex = /^\.(buy|b)\b/;
+const inventoryCommandRegex = /^\.(inventory|i)\b/;
+const forceShinySpawnRegex = /^\.(shinydrop)\b/;
 
 const maxDexNum = 649; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}`);
-	dbUser.run("CREATE TABLE IF NOT EXISTS user (user_id TEXT PRIMARY KEY, caught_pokemon TEXT, currency INTEGER DEFAULT 0)");
+	dbUser.run("CREATE TABLE IF NOT EXISTS user (user_id TEXT PRIMARY KEY, caught_pokemon TEXT, currency INTEGER DEFAULT 0, inventory TEXT DEFAULT '[]')");
 	dbServer.run("CREATE TABLE IF NOT EXISTS server (server_id TEXT PRIMARY KEY, allowed_channels_id TEXT)")});
 
 client.on('messageCreate', (message) => {
@@ -346,6 +350,11 @@ client.on('messageCreate', (message) => {
 			const serverId = message.guild.id;
 			const userId = message.author.id;
 			const now = Date.now();			
+
+			// //updateDB
+			// if (message.content.toLowerCase().startsWith('.updatedb')) {
+			// 	dbUser.run("ALTER TABLE user ADD COLUMN inventory TEXT DEFAULT '[]'");
+			// }
 
 			//drop
 			if (dropCommandRegex.test(message.content.toLowerCase())) {
@@ -381,11 +390,11 @@ client.on('messageCreate', (message) => {
 							if (shinyNumber < 0.00025) {
 								isShiny = true;
 							}
-							if (legendaryNumber < 0.0075) {
-								isLegendary = true;
-							}
 							if (mythicalNumber < 0.005) {
 								isMythical = true;
+							}
+							else if (legendaryNumber < 0.0075) {
+								isLegendary = true;
 							}
 							
 							let randPokemon = getRandomInt(maxDexNum); 
@@ -1698,9 +1707,383 @@ client.on('messageCreate', (message) => {
 					});
 				});
 			}
+
+			//shop
+			else if (shopCommandRegex.test(message.content.toLowerCase())) {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					const shopEmbed = new EmbedBuilder()
+						.setColor('#0099ff')
+						.setTitle('Shop')
+						.setDescription('List of available items in the shop \n Use the command .buy <shopNum> to purchase an item')
+						.addFields(
+							{ name: '` 1:` **Rare Candy (500)**', value: 'Levels a pokemon up (coming soon)' },
+							{ name: '` 2:` **Fire Stone (5000)**', value: 'Fire stone (coming soon)' },
+							{ name: '` 3:` **Water Stone (5000)**', value: 'Water evolution stone (coming soon)' },
+							{ name: '` 4:` **Thunder Stone (5000)**', value: 'Electric evolution Stone (coming soon)' },
+							{ name: '` 5:` **Leaf Stone (5000)**', value: 'Grass evolution Stone (coming soon)' },
+							{ name: '` 6:` **Moon Stone (5000)**', value: 'Moon evolution Stone (coming soon)' },
+							{ name: '` 7:` **Sun Stone (5000)**', value: 'Sun evolution Stone (coming soon)' },
+							{ name: '` 8:` **Shiny Stone (5000)**', value: 'Shiny evolution Stone (coming soon)' },
+							{ name: '` 9:` **Dusk Stone (5000)**', value: 'Dusk evolution Stone (coming soon)' },
+							{ name: '`10:` **Dawn Stone (5000)**', value: 'Dawn evolution Stone (coming soon)' },
+							{ name: '`11:` **Ice Stone (5000)**', value: 'Ice evolution Stone (coming soon)' },
+							{ name: '`12:` **Shiny Drop (20000)**', value: 'Drops a shiny on command using .shinydrop \n __It is recommended to do this in a private place!__' }
+						)
+						.setTimestamp();
+
+					message.channel.send({ embeds: [shopEmbed] });
+				});
+			}
+
+			//buy
+			else if (buyCommandRegex.test(message.content.toLowerCase())) {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					const args = message.content.split(' ');
+					if (args.length < 2) {
+						message.channel.send('Please specify a valid shop number. Usage: `.buy <shopNum>`');
+						return;
+					}
+					let shopNum = args[1];
+					let isNum = !isNaN(shopNum);
+					if (!isNum || shopNum < 1 || shopNum > 12) {
+						message.channel.send('Please specify a valid shop number. Usage: `.buy <shopNum>`');
+						return;
+					}
+					dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
+						if (err) {
+							console.error(err.message);
+							message.channel.send('An error occurred while fetching your currency.');
+							return;
+						}
+						if (!row) {
+							message.channel.send('You do not have enough currency to purchase an item.');
+						}
+						let userCurrency = row.currency;
+						let boughtItem = '';
+						let amount = 0;
+						if (userCurrency < 500) {
+							message.channel.send('You do not have enough currency to purchase an item.');
+						}
+						else if (shopNum === '1' && userCurrency >= 500) {
+							userCurrency -= 500;
+							boughtItem = 'Rare Candy';
+							amount = 500;
+						}
+						else if (shopNum === '2'  && userCurrency >= 5000) {
+							userCurrency -= 5000;
+							boughtItem = 'Fire Stone';
+							amount = 5000;
+						}
+						else if (shopNum === '3'  && userCurrency >= 5000) {
+							userCurrency -= 5000;
+							boughtItem = 'Water Stone';
+							amount = 5000;
+						}
+						else if (shopNum === '4'  && userCurrency >= 5000) {
+							userCurrency -= 5000;
+							boughtItem = 'Thunder Stone';
+							amount = 5000;
+						}
+						else if (shopNum === '5'  && userCurrency >= 5000) {
+							userCurrency -= 5000;
+							boughtItem = 'Leaf Stone';
+							amount = 5000;
+						}
+						else if (shopNum === '6'  && userCurrency >= 5000) {
+							userCurrency -= 5000;
+							boughtItem = 'Moon Stone';
+							amount = 5000;
+						}
+						else if (shopNum === '7'  && userCurrency >= 5000) {
+							userCurrency -= 5000;
+							boughtItem = 'Sun Stone';
+							amount = 5000;
+						}
+						else if (shopNum === '8'  && userCurrency >= 5000) {
+							userCurrency -= 5000;
+							boughtItem = 'Shiny Stone';
+							amount = 5000;
+						}
+						else if (shopNum === '9'  && userCurrency >= 5000) {
+							userCurrency -= 5000;
+							boughtItem = 'Dusk Stone';
+							amount = 5000;
+						}
+						else if (shopNum === '10'  && userCurrency >= 5000) {
+							userCurrency -= 5000;
+							boughtItem = 'Dawn Stone';
+							amount = 5000;
+						}
+						else if (shopNum === '11'  && userCurrency >= 5000) {
+							userCurrency -= 5000;
+							boughtItem = 'Ice Stone';
+							amount = 5000;
+						}
+						else if (shopNum === '12'  && userCurrency >= 20000) {
+							userCurrency -= 20000;
+							boughtItem = 'Shiny Drop';
+							amount = 20000;
+						}
+						else {
+							message.channel.send('You do not have enough currency to purchase requested item.');
+						}
+						if (boughtItem !== '') {
+							const embed = new EmbedBuilder()
+							.setColor('#ff0000')
+							.setTitle('Buy Item')
+							.setDescription(`Really buy ${boughtItem} for ${amount}? Leftover currency after transaction: ${userCurrency}`)
+							.setTimestamp();
+
+							const buttonRow = new ActionRowBuilder()
+							.addComponents(
+							new ButtonBuilder()
+								.setCustomId('buy_yes')
+								.setLabel('Yes')
+								.setStyle(ButtonStyle.Success),
+							new ButtonBuilder()
+								.setCustomId('buy_no')
+								.setLabel('No')
+								.setStyle(ButtonStyle.Danger)
+							);
+
+							message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+								const filter = i => i.user.id === message.author.id;
+								const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+							
+								collector.on('collect', async i => {
+									if (i.customId === 'buy_yes') {
+										const userInventory = JSON.parse(row.inventory);
+										userInventory.push(boughtItem);
+										dbUser.run("UPDATE user SET inventory = ?, currency = ? WHERE user_id = ?", [JSON.stringify(userInventory), userCurrency, userId], (err) => {
+											if (err) {
+												console.error(err.message);
+											}
+											i.update({ content: `Successfully purchased ${boughtItem} for ${amount}. You have ${userCurrency} leftover.`, embeds: [], components: [] });
+										});
+									} 
+									else if (i.customId === 'buy_no') {
+										i.update({ content: 'Purchase cancelled.', embeds: [], components: [] });
+									}
+								});
+	
+								collector.on('end', collected => {
+									sentMessage.edit({components: [] });
+								});
+							});
+						}
+					});
+				});
+			}
 			
+			//inventory
+			else if (inventoryCommandRegex.test(message.content.toLowerCase())) {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
+						if (err) {
+							console.error(err.message);
+							message.channel.send('An error occurred while fetching your inventory.');
+							return;
+						}
+						if (!row || row.inventory === '[]') {
+							message.channel.send('You have not purchased any items yet.');
+							return;
+						}
+						const userInventory = JSON.parse(row.inventory);
+						const pageSize = 20;
+						let page = 0;
+						const embed = generatePartyEmbed(userInventory, page, pageSize, `Your Inventory`, 0);
+						const buttonRow = getPartyBtns();
+
+						message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+							const filter = i => i.user.id === userId;
+							const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+							collector.on('collect', async i => {
+								if (i.customId === 'prev') {
+									if (page > 0) {
+										page--;
+									}
+									else {
+										page = Math.ceil(userInventory.length / pageSize) - 1;
+									}
+								} 
+								else if (i.customId === 'next') {
+									if ((page + 1) * pageSize < userInventory.length) {
+										page++;
+									}
+									else {
+										page = 0;
+									}
+								}
+								else if (i.customId === 'rewind') {
+									page = 0;
+								}
+								else if (i.customId === 'fforward') {
+									page = Math.ceil(userInventory.length / pageSize) - 1;;
+								}
+
+								await i.update({ embeds: [generatePartyEmbed(userInventory, page, pageSize, `Your Pokémon`, 0)] });
+							});
+
+							collector.on('end', collected => {
+								const disabledRow = getDisablePartyBtns();
+								sentMessage.edit({ components: [disabledRow] });
+							});
+						});
+					});
+				});
+			}
+
+			//shinydrop
+			else if (forceShinySpawnRegex.test(message.content.toLowerCase())) {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					//check if user has a shiny drop
+					dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
+						if (err) {
+							console.error(err.message);
+							message.channel.send('An error occurred while checking your inventory.');
+							return;
+						}
+						if (!row) {
+							message.channel.send('You do not have any Shiny Drops in your inventory.');
+							return;
+						}
+						const userInventory = JSON.parse(row.inventory);
+						if (!userInventory.includes('Shiny Drop')) {
+							message.channel.send('You do not have any Shiny Drops in your inventory.');
+							return;
+						}
+
+						const confirmEmbed = new EmbedBuilder()
+							.setColor('#ff0000')
+							.setTitle('Use Shiny Drop?')
+							.setDescription('Are you sure you want to use your Shiny Drop? Other users can also see and catch this Pokémon!')
+							.setTimestamp();
+
+						const buttonRow = new ActionRowBuilder()
+							.addComponents(
+								new ButtonBuilder()
+									.setCustomId('use_yes')
+									.setLabel('Yes')
+									.setStyle(ButtonStyle.Success),
+								new ButtonBuilder()
+									.setCustomId('use_no')
+									.setLabel('No')
+									.setStyle(ButtonStyle.Danger)
+							);
+
+						message.channel.send({ embeds: [confirmEmbed], components: [buttonRow] }).then(sentMessage => {
+							const filter = i => i.user.id === message.author.id;
+							const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+						
+							collector.on('collect', async i => {
+								if (i.customId === 'use_yes') {
+									const updatedInventory = userInventory.filter(item => item !== 'Shiny Drop');
+									dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(updatedInventory), userId], (err) => {
+										if (err) {
+											console.error(err.message);
+											message.channel.send('An error occurred while updating your inventory.');
+											return;
+										}
+									});
+									db.all("SELECT * FROM pokemon", [], (err, rowsMon) => {
+										if (err) {
+											console.error(err.message);
+											message.channel.send('An error occurred while fetching Pokémon data.');
+											return;
+										}
+
+										const mythicalNumber = Math.random();
+										let isMythical = false;
+										const legendaryNumber = Math.random();
+										let isLegendary = false;
+										if (mythicalNumber < 0.025) {
+											isMythical = true;
+										}
+										else if (legendaryNumber < 0.05) {
+											isLegendary = true;
+										}
+
+										let pokemon = null;
+										if (isMythical) {
+											const rowsM = rowsMon.filter(row => row.isLM === 2); //rows = pokemon db query
+											if (rowsM.length > 0) {
+												pokemon = rowsM[getRandomInt(rowsM.length)];
+											}
+											else {
+												console.log("Error, no mythical pokemon!");
+												message.channel.send("Error: No Mythical Pokémon found!");
+												return;
+											}
+										}
+										else if (isLegendary) {
+											const rowsL = rowsMon.filter(row => row.isLM === 1); //rows = pokemon db query
+											if (rowsL.length > 0) {
+												pokemon = rowsL[getRandomInt(rowsL.length)];
+											}
+											else {
+												console.log("Error, no legendary pokemon!");
+												message.channel.send("Error: No legendary Pokémon found!");
+												return;
+											}
+										}
+										else {
+											let randPokemon = getRandomInt(maxDexNum);
+											pokemon = rowsMon[randPokemon]; 	//rows = pokemon db query
+											while (pokemon.isLM !== 0) {
+												randPokemon = getRandomInt(maxDexNum);
+												pokemon = rowsMon[randPokemon];
+											}
+										}
+
+										let imageLink = pokemon.shinyImageLink;
+										const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
+										const curMon = pokemon.name ? `${pokemon.name}` : '';
+										console.log('Current pokemon: ' + curMon + '\n' + 'MythicalNum:  ' + mythicalNumber + ' (<0.025)' + '\n' + 'LegendaryNum: ' + legendaryNumber + ' (<0.05)' +'\n');
+										const isShiny = true;
+
+										activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny });
+
+										const embed = new EmbedBuilder()
+											.setColor('#0099ff')
+											.addFields(
+												{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
+												{ name: 'Region', value: `${pokemon.region}`, inline: true }
+											)
+											.setImage(imageLink)
+											.setTimestamp()
+
+										message.channel.send({ embeds: [embed] });
+									});
+
+								} 
+								else if (i.customId === 'use_no') {
+									i.update({ content: 'Shiny drop cancelled.', embeds: [], components: [] });
+								}
+							});
+
+							collector.on('end', collected => {
+								sentMessage.edit({components: [] });
+							});
+						});
+					});
+				});
+			}
+
 			//help
-			else if(helpCommandRegex.test(message.content.toLowerCase())) {
+			else if (helpCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -1718,6 +2101,7 @@ client.on('messageCreate', (message) => {
 							{ name: '.hint (.h)', value: 'Gives a hint for the currently dropped Pokémon.' },
 							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party. \n Example: .release 1' },
 							{ name: '.trade @<user> (.t)', value: 'Initiates a trade with another user.' },
+							{ name: '.count', value: 'Displays the amount of each pokemon you\'ve caught.'},
 							{ name: '.leaderboard (.lb)', value: 'Display a leaderboard. \n Usages: .lb currency *|* .lb shiny *|* .lb legendary *|* .lb mythical *|* .lb pokedex *|* .lb {pokemon}' },
 							{ name: '.setChannel: #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channel>. \n Example: .setChannel <text1> <text2>' },
 							{ name: '.resetChannels:', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
