@@ -139,9 +139,9 @@ function generateLeaderboardEmbed(users, page, pageSize, title) {
 	return new EmbedBuilder()
 		.setColor('#0099ff')
 		.setTitle(title)
-    	.setDescription(pageData.map((user, index) => `**${start + index + 1}.** ${user.name} - ${user.value}`).join('\n'))
-    	.setFooter({ text: `Page ${page + 1} of ${Math.ceil(users.length / pageSize)}` })
-    	.setTimestamp();
+		.setDescription(pageData.map((user, index) => `**${start + index + 1}.** ${user.name} - ${user.value}`).join('\n'))
+		.setFooter({ text: `Page ${page + 1} of ${Math.ceil(users.length / pageSize)}` })
+		.setTimestamp();
 }
 
 //Helper function, lb generator with button interactions
@@ -810,7 +810,7 @@ client.on('messageCreate', (message) => {
 							sendLeaderboard(message, filteredUsers, 'Total Pokémon Caught Leaderboard');
 						});
 					}
-					else if (args[0].toLowerCase() === 'c' || args[0].toLowerCase() === 'currency') { //TODO: Make more efficient, make a single call to get all of user rows
+					else if (args[0].toLowerCase() === 'c' || args[0].toLowerCase() === 'currency') {
 						//display currency leaderboard
 						dbUser.all("SELECT user_id, currency FROM user ORDER BY currency DESC", [], async (err, rows) => {
 							if (err) {
@@ -835,7 +835,7 @@ client.on('messageCreate', (message) => {
 						});
 					}
 
-					else if (args[0].toLowerCase() === 's' || args[0].toLowerCase() === 'shiny') {//TODO: Make more efficient, make a single call to get all of user rows
+					else if (args[0].toLowerCase() === 's' || args[0].toLowerCase() === 'shiny') {
 						//display shiny leaderboard
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
 							if (err) {
@@ -864,8 +864,16 @@ client.on('messageCreate', (message) => {
 						});
 					}
 
-					else if (args[0].toLowerCase() === 'l' || args[0].toLowerCase() === 'legendary') {//TODO: Make more efficient, make a single call to get all of user rows, can make separate call for pokemon db
+					else if (args[0].toLowerCase() === 'l' || args[0].toLowerCase() === 'legendary') {
 						//display legendary leaderboard
+						//Use in-memory data to make this call a lot faster
+						const legendaryPokemon = [
+							'Articuno', 'Zapdos', 'Moltres', 'Mewtwo', 
+							'Raikou', 'Entei', 'Suicune', 'Lugia', 'Ho-Oh',
+							'Regirock', 'Regice', 'Registeel', 'Latias', 'Latios', 'Kyogre', 'Groudon', 'Rayquaza',
+							'Uxie', 'Mesprit', 'Azelf', 'Dialga', 'Palkia', 'Heatran', 'Regigigas', 'Giratina', 'Cresselia',
+							'Cobalion', 'Terrakion', 'Virizion', 'Tornadus', 'Thundurus', 'Reshiram', 'Zekrom', 'Landorus', 'Kyurem'
+						];
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
 							if (err) {
 								console.error(err.message);
@@ -879,40 +887,38 @@ client.on('messageCreate', (message) => {
 								}
 								const user = await client.users.fetch(row.user_id).catch(() => null);
 								const caughtPokemon = JSON.parse(row.caught_pokemon) || [];
-								
-								const legendaryCount = await Promise.all(caughtPokemon.map(async pokemonName => {
-									if (typeof pokemonName !== 'string') {
-										return 0;
+
+								const legendaryCount = caughtPokemon.reduce((acc, pokemonName) => {
+									if (typeof pokemonName === 'string') {
+										let finalName = pokemonName.startsWith('✨') ? pokemonName.substring(1) : pokemonName;
+										if (legendaryPokemon.includes(finalName)) {
+											acc += 1;
+										}
 									}
-									let finalName = pokemonName.startsWith('✨') ? pokemonName.substring(1) : pokemonName;
+									return acc;
+								}, 0);
 
-									return new Promise((resolve, reject) => {
-										db.get("SELECT isLM FROM pokemon WHERE name = ?", [finalName], (err, pokemonRow) => {
-											if (err) {
-												console.error('Error fetching Pokémon:', err.message);
-												reject(err);
-											}
-											resolve(pokemonRow && pokemonRow.isLM === 1 ? 1 : 0);
-										});
-									});
-								}));
-
-								const totalLegendaries = legendaryCount.reduce((acc, curr) => acc + curr, 0);
-
-								return totalLegendaries > 0 ? {
+								return legendaryCount > 0 ? {
 									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
-									value: totalLegendaries
+									value: legendaryCount
 								} : null;
 							}));
-
 							const filteredUsers = users.filter(user => user !== null);
 							filteredUsers.sort((a, b) => b.value - a.value);
 							sendLeaderboard(message, filteredUsers, 'Legendary Pokémon Leaderboard');
 						});
 					}
 
-					else if (args[0].toLowerCase() === 'm' || args[0].toLowerCase() === 'mythical') {//TODO: Make more efficient, make a single call to get all of user rows, can make separate call for pokemon db
+					else if (args[0].toLowerCase() === 'm' || args[0].toLowerCase() === 'mythical') {
 						//display mythical leaderboard
+						////Use in-memory data to make this call a lot faster
+						const mythicalPokemon = [
+							'Mew',
+							'Celebi',
+							'Jirachi', 'Deoxys',
+							'Phione', 'Manaphy', 'Darkrai', 'Shaymin', 'Arceus',
+							'Victini', 'Keldeo', 'Meloetta', 'Genesect'
+						];
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
 							if (err) {
 								console.error(err.message);
@@ -927,38 +933,28 @@ client.on('messageCreate', (message) => {
 								const user = await client.users.fetch(row.user_id).catch(() => null);
 								const caughtPokemon = JSON.parse(row.caught_pokemon) || [];
 
-								const mythicalCount = await Promise.all(caughtPokemon.map(async pokemonName => {
-									if (typeof pokemonName !== 'string') {
-										return 0;
+								const mythicalCount = caughtPokemon.reduce((acc, pokemonName) => {
+									if (typeof pokemonName === 'string') {
+										let finalName = pokemonName.startsWith('✨') ? pokemonName.substring(1) : pokemonName;
+										if (mythicalPokemon.includes(finalName)) {
+											acc += 1;
+										}
 									}
-									let finalName = pokemonName.startsWith('✨') ? pokemonName.substring(1) : pokemonName;
-									return new Promise((resolve, reject) => {
-										db.get("SELECT isLM FROM pokemon WHERE name = ?", [finalName], (err, pokemonRow) => {
-											if (err) {
-												console.error('Error fetching Pokémon:', err.message);
-												reject(err);
-											}
-											resolve(pokemonRow && pokemonRow.isLM === 2 ? 1 : 0);
-										});
-									});
-								}));
-								
-								const totalMythicals = mythicalCount.reduce((acc, curr) => acc + curr, 0);
+									return acc;
+								}, 0);
 
-								return totalMythicals > 0 ? {
+								return mythicalCount > 0 ? {
 									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
-									value: totalMythicals
+									value: mythicalCount
 								} : null;
 							}));
-
 							const filteredUsers = users.filter(user => user !== null);
 							filteredUsers.sort((a, b) => b.value - a.value);
-
 							sendLeaderboard(message, filteredUsers, 'Mythical Pokémon Leaderboard');
 						});
 					}
 
-					else if (args[0].toLowerCase() === 'pokedex' || args[0].toLowerCase() === 'dex') { //TODO: Make more efficient, make a single call to get all of user rows and use filters for caught_pokemon
+					else if (args[0].toLowerCase() === 'pokedex' || args[0].toLowerCase() === 'dex') {
 						//display pokedex completeness leaderboard
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
 							if (err) {
@@ -1000,7 +996,7 @@ client.on('messageCreate', (message) => {
 						});
 					}
 
-					else if (args.length > 0) { //just use a filter here on the user db row.caught_pokemon
+					else if (args.length > 0) {
 						//lb by pokemon name
 						let pokemonIdentifier = args[0];
 						let isNumber = !isNaN(pokemonIdentifier);
