@@ -133,15 +133,15 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow) {
 //Helper function, leaderboard generator
 function generateLeaderboardEmbed(users, page, pageSize, title) {
 	const start = page * pageSize;
-    const end = start + pageSize;
-    const pageData = users.slice(start, end);
+	const end = start + pageSize;
+	const pageData = users.slice(start, end);
 	
 	return new EmbedBuilder()
 		.setColor('#0099ff')
-        .setTitle(title)
-        .setDescription(pageData.map((user, index) => `**${start + index + 1}.** ${user.name} - ${user.value}`).join('\n'))
-        .setFooter({ text: `Page ${page + 1} of ${Math.ceil(users.length / pageSize)}` })
-        .setTimestamp();
+		.setTitle(title)
+    	.setDescription(pageData.map((user, index) => `**${start + index + 1}.** ${user.name} - ${user.value}`).join('\n'))
+    	.setFooter({ text: `Page ${page + 1} of ${Math.ceil(users.length / pageSize)}` })
+    	.setTimestamp();
 }
 
 //Helper function, lb generator with button interactions
@@ -331,6 +331,7 @@ const tradeCommandRegex = /^\.(trade|t)\b/;
 const dexCommandRegex = /^\.(dex)\b/;
 const forceSpawnCommandRegex = /^\.(forcespawn)\b/;
 const leaderboardCommandRegex = /^\.(leaderboard|lb)\b/;
+const countCommandRegex = /^\.(count)\b/;
 
 const maxDexNum = 649; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
@@ -347,7 +348,7 @@ client.on('messageCreate', (message) => {
 			const now = Date.now();			
 
 			//drop
-			if (dropCommandRegex.test(message.content.toLowerCase())) { //TODO: fix channels in 1 server interfering
+			if (dropCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -392,12 +393,12 @@ client.on('messageCreate', (message) => {
 							
 							if (isMythical) {
 								const rowsM = rows.filter(row => row.isLM === 2);
-									if (rowsM.length > 0) {
-										pokemon = rowsM[getRandomInt(rowsM.length)];
-									}
-									else {
-										console.log("Error, no mythical pokemon!");
-									}
+								if (rowsM.length > 0) {
+									pokemon = rowsM[getRandomInt(rowsM.length)];
+								}
+								else {
+									console.log("Error, no mythical pokemon!");
+								}
 							}
 							else if (isLegendary) {
 								const rowsL = rows.filter(row => row.isLM === 1);
@@ -809,7 +810,7 @@ client.on('messageCreate', (message) => {
 							sendLeaderboard(message, filteredUsers, 'Total Pokémon Caught Leaderboard');
 						});
 					}
-					else if (args[0].toLowerCase() === 'c' || args[0].toLowerCase() === 'currency') {
+					else if (args[0].toLowerCase() === 'c' || args[0].toLowerCase() === 'currency') { //TODO: Make more efficient, make a single call to get all of user rows
 						//display currency leaderboard
 						dbUser.all("SELECT user_id, currency FROM user ORDER BY currency DESC", [], async (err, rows) => {
 							if (err) {
@@ -834,7 +835,7 @@ client.on('messageCreate', (message) => {
 						});
 					}
 
-					else if (args[0].toLowerCase() === 's' || args[0].toLowerCase() === 'shiny') {
+					else if (args[0].toLowerCase() === 's' || args[0].toLowerCase() === 'shiny') {//TODO: Make more efficient, make a single call to get all of user rows
 						//display shiny leaderboard
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
 							if (err) {
@@ -863,7 +864,7 @@ client.on('messageCreate', (message) => {
 						});
 					}
 
-					else if (args[0].toLowerCase() === 'l' || args[0].toLowerCase() === 'legendary') {
+					else if (args[0].toLowerCase() === 'l' || args[0].toLowerCase() === 'legendary') {//TODO: Make more efficient, make a single call to get all of user rows, can make separate call for pokemon db
 						//display legendary leaderboard
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
 							if (err) {
@@ -910,7 +911,7 @@ client.on('messageCreate', (message) => {
 						});
 					}
 
-					else if (args[0].toLowerCase() === 'm' || args[0].toLowerCase() === 'mythical') {
+					else if (args[0].toLowerCase() === 'm' || args[0].toLowerCase() === 'mythical') {//TODO: Make more efficient, make a single call to get all of user rows, can make separate call for pokemon db
 						//display mythical leaderboard
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
 							if (err) {
@@ -957,7 +958,7 @@ client.on('messageCreate', (message) => {
 						});
 					}
 
-					else if (args[0].toLowerCase() === 'pokedex' || args[0].toLowerCase() === 'dex') {
+					else if (args[0].toLowerCase() === 'pokedex' || args[0].toLowerCase() === 'dex') { //TODO: Make more efficient, make a single call to get all of user rows and use filters for caught_pokemon
 						//display pokedex completeness leaderboard
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
 							if (err) {
@@ -999,7 +1000,7 @@ client.on('messageCreate', (message) => {
 						});
 					}
 
-					else if (args.length > 0) {
+					else if (args.length > 0) { //just use a filter here on the user db row.caught_pokemon
 						//lb by pokemon name
 						let pokemonIdentifier = args[0];
 						let isNumber = !isNaN(pokemonIdentifier);
@@ -1776,6 +1777,40 @@ client.on('messageCreate', (message) => {
 						message.channel.send('No current pokemon dropped!');
 					}
 				});				
+			}
+
+			//count
+			else if (countCommandRegex.test(message.content.toLowerCase())) {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
+						if (err) {
+							console.error(err.message);
+							message.channel.send('An error occurred while fetching your Pokémon.');
+							return;
+						}
+						if (!row || !row.caught_pokemon) {
+							message.channel.send('You have not caught any Pokémon yet.');
+							return;
+						}
+
+						const caughtPokemon = JSON.parse(row.caught_pokemon);
+						const cleanedNames = caughtPokemon.filter(name => name).map(name => name.startsWith('✨') ? name.slice(1) : name);
+
+						const nameCount = cleanedNames.reduce((acc, name) => {
+							acc[name] = (acc[name] || 0) + 1;
+							return acc;
+						}, {});
+
+						const sortedNameCounts = Object.entries(nameCount)
+  							.map(([name, value]) => ({ name, value }))
+  							.sort((a, b) => b.value - a.value);
+
+						sendLeaderboard(message, sortedNameCounts, 'Your pokemon counts');
+					});
+				});
 			}
 			
 			//release
