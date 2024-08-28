@@ -14,7 +14,16 @@ const {
 	ActionRowBuilder,
 	ButtonBuilder,
 	ButtonStyle,
+	PermissionsBitField,
 } = require('discord.js');
+
+const requiredPermissions = new PermissionsBitField([
+	'ViewChannel',
+	'SendMessages',
+	'ReadMessageHistory',
+	'EmbedLinks',
+	'UseExternalEmojis'
+]);
 
 const Discord = require('discord.js');
 const client = new Client({
@@ -247,6 +256,7 @@ function capitalizeFirstLetter(string) {
 function getRandomInt(upperBound) {
 	return Math.floor(Math.random() * upperBound);
 }
+
 //Helper function, help handle some weird pokemon names that are a little weird
 //Takes in an all lowercase pokemon name, except a capitalized first letter
 function fixPokemonName(pokemonIdentifier, args) {
@@ -316,6 +326,11 @@ function isChannelAllowed(serverId, channelId, callback) {
 	});
 }
 
+//Check Permissions
+function hasPermissions(channel, permissions) {
+	return channel.permissionsFor(channel.guild.members.me).has(permissions);
+}
+
 const dropCommandRegex = /^\.(drop|d)\b/;
 const setChannelCommandRegex = /^\.(setchannel|setchannels)\b/;
 const viewChannelCommandRegex = /^\.(viewchannels)\b/;
@@ -350,7 +365,12 @@ client.on('messageCreate', (message) => {
 		if (message.content.length > 0) {
 			const serverId = message.guild.id;
 			const userId = message.author.id;
-			const now = Date.now();			
+			const now = Date.now();	
+
+			if(!hasPermissions(message.channel, requiredPermissions)) {
+				message.author.send('I do not have the necessary permissions to operate in this channel. Please contact a server administrator to update my permissions.');
+				return;
+			}		
 			
 			//drop
 			if (dropCommandRegex.test(message.content.toLowerCase())) {
@@ -753,34 +773,34 @@ client.on('messageCreate', (message) => {
 							.setStyle(ButtonStyle.Danger)
 						);
 
-					message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
-						const filter = i => i.user.id === message.author.id;
-						const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+				message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+					const filter = i => i.user.id === message.author.id;
+					const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
-						collector.on('collect', async i => {
-							if (i.customId === 'reset_yes') {
-								dbServer.run("UPDATE server SET allowed_channels_id = NULL WHERE server_id = ?", [serverId], (err) => {
-								if (err) {
-									console.error(err.message);
-									message.channel.send('An error occurred while resetting the channels.');
-									return;
-								}
-								i.update({ content: 'Successfully reset channel configuration', embeds: [], components: [] });
-								});
-								
-							} 
-							else if (i.customId === 'reset_no') {
-								i.update({ content: 'Cancelled channel configuration reset', embeds: [], components: [] });
+					collector.on('collect', async i => {
+						if (i.customId === 'reset_yes') {
+							dbServer.run("UPDATE server SET allowed_channels_id = NULL WHERE server_id = ?", [serverId], (err) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while resetting the channels.');
+								return;
 							}
-						});
-
-						collector.on('end', collected => {
-							sentMessage.edit({components: [] });
-						});
+							i.update({ content: 'Successfully reset channel configuration', embeds: [], components: [] });
+							});
+							
+						} 
+						else if (i.customId === 'reset_no') {
+							i.update({ content: 'Cancelled channel configuration reset', embeds: [], components: [] });
+						}
 					});
+
+					collector.on('end', collected => {
+						sentMessage.edit({components: [] });
+					});
+				});
 			}
 
-			//give DEVELOPment:to be erased
+			//give DEVELOPMENT:to be erased
 			else if (giveCCmdRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
@@ -1125,7 +1145,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//dex
-			else if (dexCommandRegex.test(message.content.toLowerCase())) { //
+			else if (dexCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -1347,7 +1367,6 @@ client.on('messageCreate', (message) => {
 									message.channel.send({embeds: [embed] });
 							});
 						}
-						
 					});
 				});
 			}
@@ -1431,7 +1450,7 @@ client.on('messageCreate', (message) => {
 									.filter(p => typeof p.name === 'string' && (p.name === searchName || p.name === '✨' + searchName));
 								
 								if (filteredPokemon.length === 0) {
-									message.channel.send(`You do not have any Pokémon named ${args[1]}.`);
+									message.channel.send(`You do not have any Pokémon with that name.`);
 								}
 								else {
 									const pageSize = 20;
@@ -1733,7 +1752,6 @@ client.on('messageCreate', (message) => {
 						else {
 							message.channel.send("Invalid command usage. Use `.p` for party, `.p name: <pokemon>` to search, or `.p swap <partyNum1> <partyNum2>` to swap.");
 						}
-						
 					});
 				});
 			}
@@ -1769,7 +1787,7 @@ client.on('messageCreate', (message) => {
 					const shopEmbed = new EmbedBuilder()
 						.setColor('#0099ff')
 						.setTitle('Shop')
-						.setDescription('List of available items in the shop \n Use the command .buy <shopNum> to purchase an item')
+						.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 						.addFields(
 							{ name: '` 1:` **Rare Candy (500)**', value: 'Levels a pokemon up (coming soon)' },
 							{ name: '` 2:` **Fire Stone (5000)**', value: 'Fire stone (coming soon)' },
@@ -1782,7 +1800,7 @@ client.on('messageCreate', (message) => {
 							{ name: '` 9:` **Dusk Stone (5000)**', value: 'Dusk evolution Stone (coming soon)' },
 							{ name: '`10:` **Dawn Stone (5000)**', value: 'Dawn evolution Stone (coming soon)' },
 							{ name: '`11:` **Ice Stone (5000)**', value: 'Ice evolution Stone (coming soon)' },
-							{ name: '`12:` **Shiny Drop (20000)**', value: 'Drops a shiny on command using .shinydrop \n __It is recommended to do this in a private place!__' }
+							{ name: '`12:` **Shiny Drop (20000)**', value: 'Drops a shiny on command using .shinydrop' + '\n' + '__It is recommended to do this in a private place!__' }
 						)
 						.setTimestamp();
 
@@ -2146,21 +2164,21 @@ client.on('messageCreate', (message) => {
 						.setDescription('List of available commands and how to use them:')
 						.addFields(
 							{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
-							{ name: '.party (.p)', value: 'Displays your caught Pokémon. \n Usages: .p name: <pokémon> *|* .p shiny *|* .p legendary *|* .p mythical *|* .p swap 1 10' },
-							{ name: '.view <partyNum> (.v)', value: 'Displays a pokémon from your party. \n Example: .view 1' },
-							{ name: '.dex <pokémon>', value: 'Displays a pokémon from the pokedex. \n Usages: .dex 1 | .dex bulbasaur' },
+							{ name: '.party (.p)', value: 'Displays your caught Pokémon.' + '\n' + 'Usages: .p name: <pokémon> *|* .p shiny *|* .p legendary *|* .p mythical *|* .p swap 1 10' },
+							{ name: '.view <partyNum> (.v)', value: 'Displays a pokémon from your party.' + '\n' + 'Example: .view 1' },
+							{ name: '.dex <pokémon>', value: 'Displays a pokémon from the pokedex.' + '\n' + 'Usages: .dex 1 | .dex bulbasaur' },
 							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
 							{ name: '.inventory (.i)', value: 'Displays the items in your inventory.' },
 							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
 							{ name: '.shop (.s)', value: 'Displays the global shop.' },
-							{ name: '.buy <shopNum> (.b)', value: 'Buys an item from the shop. \n Example: .buy 1' },
+							{ name: '.buy <shopNum> (.b)', value: 'Buys an item from the shop.' + '\n' + 'Example: .buy 1' },
 							{ name: '.hint (.h)', value: 'Gives a hint for the currently dropped Pokémon.' },
-							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party. \n Example: .release 1' },
+							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party.' + '\n' + 'Example: .release 1' },
 							{ name: '.trade @<user> (.t)', value: 'Initiates a trade with another user.' },
 							{ name: '.count', value: 'Displays the amount of each pokémon you\'ve caught.'},
-							{ name: '.leaderboard (.lb)', value: 'Display a leaderboard. \n Usages: .lb currency *|* .lb shiny *|* .lb legendary *|* .lb mythical *|* .lb pokedex *|* .lb {pokémon}' },
+							{ name: '.leaderboard (.lb)', value: 'Display a leaderboard.' + '\n' + 'Usages: .lb currency *|* .lb shiny *|* .lb legendary *|* .lb mythical *|* .lb pokedex *|* .lb {pokémon}' },
 							{ name: '.shinydrop', value: 'Drops a shiny pokémon, using a Shiny Drop item in the process.' },
-							{ name: '.setChannel: #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channel>. \n Example: .setChannel <text1> <text2>' },
+							{ name: '.setChannel: #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channel>.' + '\n' + 'Example: .setChannel <text1> <text2>' },
 							{ name: '.resetChannels:', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
 							{ name: '.viewChannels:', value: '`ADMIN ONLY:` Posts a list of channels the server allows bot commands in' }
 						)
