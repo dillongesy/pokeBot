@@ -368,8 +368,13 @@ client.on('messageCreate', (message) => {
 			const now = Date.now();	
 
 			if(!hasPermissions(message.channel, requiredPermissions)) {
-				message.author.send('I do not have the necessary permissions to operate in this channel. Please contact a server administrator to update my permissions.');
-				return;
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					message.author.send('I do not have the necessary permissions to operate in this channel. Please contact a server administrator to update my permissions.');
+					return;
+				});
 			}		
 			
 			//drop
