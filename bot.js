@@ -247,7 +247,6 @@ function capitalizeFirstLetter(string) {
 function getRandomInt(upperBound) {
 	return Math.floor(Math.random() * upperBound);
 }
-
 //Helper function, help handle some weird pokemon names that are a little weird
 //Takes in an all lowercase pokemon name, except a capitalized first letter
 function fixPokemonName(pokemonIdentifier, args) {
@@ -336,6 +335,8 @@ const shopCommandRegex = /^\.(shop|s)\b/;
 const buyCommandRegex = /^\.(buy|b)\b/;
 const inventoryCommandRegex = /^\.(inventory|i)\b/;
 const forceShinySpawnRegex = /^\.(shinydrop)\b/;
+const giveCCmdRegex = /^\.(give)\b/; //For people who find bugs
+const changeLogRegex = /^\.(changelog|log)\b/;
 
 const maxDexNum = 649; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
@@ -350,12 +351,7 @@ client.on('messageCreate', (message) => {
 			const serverId = message.guild.id;
 			const userId = message.author.id;
 			const now = Date.now();			
-
-			// //updateDB
-			// if (message.content.toLowerCase().startsWith('.updatedb')) {
-			// 	dbUser.run("ALTER TABLE user ADD COLUMN inventory TEXT DEFAULT '[]'");
-			// }
-
+			
 			//drop
 			if (dropCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
@@ -783,6 +779,71 @@ client.on('messageCreate', (message) => {
 						});
 					});
 			}
+
+			//give DEVELOPment:to be erased
+			else if (giveCCmdRegex.test(message.content.toLowerCase())) {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					if (userId !== '177580797165961216') {
+						message.channel.send('User does not have permission for this command!');
+						return;
+					}
+					const args = message.content.split(' ').slice(1);
+					if (args.length < 2) {
+						message.channel.send('Requires 2 args: .give <userID> <amount>');
+						return;
+					}
+					else {
+						const userR = args[0];
+						const coinsToAdd = args[1];
+						dbUser.get("SELECT * FROM user WHERE user_id = ?", [userR], (err, row) => {
+							if (err) {
+								console.error(err.message);
+								return;
+							}
+							if (!row) {
+								message.channel.send('User not found in database.');
+								return;
+							}
+							else {
+								const newCurrency = row.currency + parseInt(coinsToAdd);
+								dbUser.run("UPDATE user SET currency = ? WHERE user_id = ?", [newCurrency, userR], (err) => {
+									if (err) {
+										console.error(err.message);
+									}
+									message.channel.send(`Successfully transfered ${coinsToAdd} to user.`);
+								});
+							}
+						});
+					}
+				});
+			}
+
+			//log
+			else if (changeLogRegex.test(message.content.toLowerCase())) { 
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					const helpEmbed = new EmbedBuilder()
+						.setColor('#0099ff')
+						.setTitle('Change Log')
+						.setDescription('Recently added Changes')
+						.addFields(
+							{ name: 'ANNOUNCEMENT:', value: 'For any bug found, you may recieve currency in the range 100-5000!' },
+							{ name: 'Shop', value: 'Added .shop' },
+							{ name: 'Inventory', value: 'Added .inventory' },
+							{ name: 'Shiny Drop', value: 'Added shiny drops, purchased from the shop' },
+							{ name: 'Items', value: 'Added evolution stones and rare candy (as well as shiny drops)' },
+							{ name: 'Bot efficiency', value: 'Code changed to make .lb m, .lb l, and .dex faster' }
+						)
+						.setTimestamp();
+
+					message.channel.send({ embeds: [helpEmbed] });
+				});
+			}
 			
 			//leaderboard
 			else if (leaderboardCommandRegex.test(message.content.toLowerCase())) {
@@ -1064,7 +1125,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//dex
-			else if (dexCommandRegex.test(message.content.toLowerCase())) {
+			else if (dexCommandRegex.test(message.content.toLowerCase())) { //
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -1077,32 +1138,44 @@ client.on('messageCreate', (message) => {
 					
 					let pokemonIdentifier = args[1];
 					let isNumber = !isNaN(pokemonIdentifier);
-					let query = '';
 					if (!isNumber) {
 						pokemonIdentifier = pokemonIdentifier.toLowerCase();
 						pokemonIdentifier = capitalizeFirstLetter(pokemonIdentifier);
 						pokemonIdentifier = fixPokemonName(pokemonIdentifier, args);
-						
-						query = "SELECT * FROM pokemon WHERE name = ?";
 					}
 					else {
 						pokemonIdentifier = parseInt(pokemonIdentifier, 10);
-						query = "SELECT * FROM pokemon WHERE dexNum = ?";
+						if (pokemonIdentifier < 1 || pokemonIdentifier > maxDexNum) {
+							message.channel.send('Please specify a valid pokemon or its pokedex number. Usage: `.dex <Pokemon>` or `.dex <PokedexNum>`');
+							return;
+						}
 					}
-					
-					db.get(query, [pokemonIdentifier], (err, pokemonRow) => {
+					db.all("SELECT * FROM pokemon", [], (err, pokeList) => {
 						if (err) {
 							console.error(err.message);
 							message.channel.send('An error occurred while fetching Pokémon information.');
 							return;
 						}
-						if (!pokemonRow) {
-							message.channel.send('Pokémon not found in the database.');
-							return;
+						let index = 0;
+						let curMon = '';
+						const result = pokeList.find(({ name }) => name === pokemonIdentifier);
+						if (!isNumber) {
+							if (result != null) {
+								index = result.dexNum;
+								curMon = pokeList[index - 1];
+							}
+							else {
+								message.channel.send('Pokémon not found in the pokedex.');
+								return;
+							}
+						}
+						else {
+							index = pokemonIdentifier;
+							curMon = pokeList[index - 1];
 						}
 						let shinyImg = false;
 						
-						let embed = updateEmbed(shinyImg, pokemonRow.dexNum, pokemonRow);
+						let embed = updateEmbed(shinyImg, curMon.dexNum, curMon);
 						
 						const buttonRow = new ActionRowBuilder()
 							.addComponents(
@@ -1119,58 +1192,37 @@ client.on('messageCreate', (message) => {
 									.setLabel('▶')
 									.setStyle(ButtonStyle.Primary)
 							);
-						
+
 						message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
 							const filter = i => i.user.id === userId;
 							const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
 							collector.on('collect', async i => {
 								if (i.customId === 'prev') {
-									let prevDexNum = pokemonRow.dexNum - 1;
-									if (prevDexNum < 1) {
-										prevDexNum = maxDexNum;
+									let prevDexNum = curMon.dexNum - 2;
+									if (prevDexNum < 0) {
+										prevDexNum = maxDexNum - 1;
 									}
-									db.get("SELECT * FROM pokemon WHERE dexNum = ?", [prevDexNum], (err, prevPokemonRow) => {
-										if (err) {
-											console.error(err.message);
-											message.channel.send('An error occurred while fetching Pokémon information.');
-											return;
-										}
-										if (!prevPokemonRow) {
-											message.channel.send('Pokémon not found in the database.');
-											return;
-										}
-										pokemonRow = prevPokemonRow;
-										embed = updateEmbed(shinyImg, prevDexNum, pokemonRow);
-										i.update({ embeds: [embed] });
-									});
+									curMon = pokeList[prevDexNum];
+									embed = updateEmbed(shinyImg, curMon.dexNum, curMon);
+									i.update({ embeds: [embed] });
 									
 								} 
 								else if (i.customId === 'next') {
-									let nextDexNum = pokemonRow.dexNum + 1;
-									if (nextDexNum > maxDexNum) {
-										nextDexNum = 1;
+									let nextDexNum = curMon.dexNum;
+									if (nextDexNum > maxDexNum - 1) {
+										nextDexNum = 0;
 									}
-									db.get("SELECT * FROM pokemon WHERE dexNum = ?", [nextDexNum], (err, nextPokemonRow) => {
-										if (err) {
-											console.error(err.message);
-											message.channel.send('An error occurred while fetching Pokémon information.');
-											return;
-										}
-										if (!nextPokemonRow) {
-											message.channel.send('Pokémon not found in the database.');
-											return;
-										}
-										pokemonRow = nextPokemonRow;
-										embed = updateEmbed(shinyImg, nextDexNum, pokemonRow);
-										i.update({ embeds: [embed] });
-									});
+									curMon = pokeList[nextDexNum];
+									embed = updateEmbed(shinyImg, curMon.dexNum, curMon);
+									i.update({ embeds: [embed] });
 									
 								} 
 								else if (i.customId === 'shinyBtn') {
 									shinyImg = !shinyImg;
-									embed = updateEmbed(shinyImg, pokemonRow.dexNum, pokemonRow);
+									embed = updateEmbed(shinyImg, curMon.dexNum, curMon);
 									i.update({ embeds: [embed] });
+									console.log("new");
 								}
 							});
 
