@@ -352,7 +352,7 @@ const inventoryCommandRegex = /^\.(inventory|i)\b/;
 const forceShinySpawnRegex = /^\.(shinydrop)\b/;
 const giveCCmdRegex = /^\.(give)\b/; //For people who find bugs
 const changeLogRegex = /^\.(changelog|log)\b/;
-const orderCommandRegex = /^\.(order)\b/;
+const orderCommandRegex = /^\.(order|sort)\b/;
 
 const maxDexNum = 649; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
@@ -859,6 +859,7 @@ client.on('messageCreate', (message) => {
 						.setDescription('Recently added Changes')
 						.addFields(
 							{ name: 'ANNOUNCEMENT:', value: 'For any bug found, you may recieve currency in the range 100-5000!' },
+							{ name: 'Order/Sort', value: 'Added reorganization of your party. Use .help for more information!' },
 							{ name: 'Shop', value: 'Added .shop' },
 							{ name: 'Inventory', value: 'Added .inventory' },
 							{ name: 'Shiny Drop', value: 'Added shiny drops, purchased from the shop' },
@@ -1775,7 +1776,7 @@ client.on('messageCreate', (message) => {
 					if (args.length > 0) {
 						const order = args[0];
 
-						if (order === 'dex') {
+						if (order.toLowerCase() === 'dex') {
 							dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, row) => {
 								if (err) {
 									console.error(err.message);
@@ -1851,7 +1852,7 @@ client.on('messageCreate', (message) => {
 								});
 							});
 						}
-						else if (order === 'countLow') {
+						else if (order.toLowerCase() === 'countlow') {
 							dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, row) => {
 								if (err) {
 									console.error(err.message);
@@ -1918,8 +1919,7 @@ client.on('messageCreate', (message) => {
 								});
 							});
 						}
-						
-						else if (order === 'countHigh') {
+						else if (order.toLowerCase() === 'counthigh') {
 							dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, row) => {
 								if (err) {
 									console.error(err.message);
@@ -1988,7 +1988,7 @@ client.on('messageCreate', (message) => {
 								});
 							});
 						}
-						else if (order === 'alphabetical'){
+						else if (order.toLowerCase() === 'alphabetical'){
 							dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, row) => {
 								if (err) {
 									console.error(err.message);
@@ -2042,7 +2042,7 @@ client.on('messageCreate', (message) => {
 								});
 							});
 						}
-						else if (order === 'flexdex') {
+						else if (order.toLowerCase() === 'flexdex') {
 							dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, row) => {
 								if (err) {
 									console.error(err.message);
@@ -2145,12 +2145,10 @@ client.on('messageCreate', (message) => {
 						}
 						else {
 							message.channel.send('Improper command usage. Orders: `flexdex`, `dex`, `count`, `alphabetical`');
-							return;
 						}
 					}
 					else {
 						message.channel.send('Improper command usage. Example: .order <order> <ignorenum>');
-						return;
 					}
 				});
 			}
@@ -2564,6 +2562,7 @@ client.on('messageCreate', (message) => {
 						.addFields(
 							{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
 							{ name: '.party (.p)', value: 'Displays your caught Pokémon.' + '\n' + 'Usages: .p name: <pokémon> *|* .p shiny *|* .p legendary *|* .p mythical *|* .p swap 1 10' },
+							{ name: '.order <order> <ignoreNum> (.sort)', value: 'Sorts your Pokémon in an order. If an ignoreNum is added, it will not rearrange the Pokémon from indices 1 -> ignoreNum.' + '\n' + 'Orders: `flexdex`, `dex`, `countLow`, `countHigh`, and `alphabetical`.' },
 							{ name: '.view <partyNum> (.v)', value: 'Displays a pokémon from your party.' + '\n' + 'Example: .view 1' },
 							{ name: '.dex <pokémon>', value: 'Displays a pokémon from the pokedex.' + '\n' + 'Usages: .dex 1 | .dex bulbasaur' },
 							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
