@@ -352,6 +352,7 @@ const inventoryCommandRegex = /^\.(inventory|i)\b/;
 const forceShinySpawnRegex = /^\.(shinydrop)\b/;
 const giveCCmdRegex = /^\.(give)\b/; //For people who find bugs
 const changeLogRegex = /^\.(changelog|log)\b/;
+const orderCommandRegex = /^\.(order)\b/;
 
 const maxDexNum = 649; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
@@ -372,7 +373,7 @@ client.on('messageCreate', (message) => {
 					if (!allowed) {
 						return;
 					}
-					message.author.send('I do not have the necessary permissions to operate in this channel. Please contact a server administrator to update my permissions.');
+					//message somewhere in the future about lacking perms, something with default .setChannels settings
 					return;
 				});
 			}		
@@ -1758,6 +1759,399 @@ client.on('messageCreate', (message) => {
 							message.channel.send("Invalid command usage. Use `.p` for party, `.p name: <pokemon>` to search, or `.p swap <partyNum1> <partyNum2>` to swap.");
 						}
 					});
+				});
+			}
+
+			//order
+			else if (orderCommandRegex.test(message.content.toLowerCase())) {
+				//.order <dex> <ignoreNum>
+				//orders: flexdex (mythical -> legendary -> dex), dex, count num, alphabetical order
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					const args = message.content.split(' ').slice(1);
+
+					if (args.length > 0) {
+						const order = args[0];
+
+						if (order === 'dex') {
+							dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, row) => {
+								if (err) {
+									console.error(err.message);
+									message.channel.send('An error occurred while fetching the user\'s Pokémon.');
+									return;
+								}
+								if (!row || !row.caught_pokemon) {
+									message.channel.send('You have no Pokémon to order.');
+                					return;
+								}
+
+								let userPokemonList = JSON.parse(row.caught_pokemon);
+
+								db.all("SELECT name, dexNum FROM pokemon", [], (error, allPokemonList) => { //test 0, userPokemonList.length, 1, userPokemonList.length + 1
+									if (error) {
+										console.error(error.message);
+                    					message.channel.send('An error occurred while fetching the Pokémon database.');
+                        				return;
+									}
+
+									let ignoreNum = 0;
+									if (args.length > 1 && !isNaN(args[1])) {
+										ignoreNum = parseInt(args[1], 10);
+										if (ignoreNum < 1 || ignoreNum > userPokemonList.length) {
+											message.channel.send('Error: provided ignore num is invalid');
+											return;
+										}
+									}
+
+									const ignoredList = userPokemonList.slice(0, ignoreNum);
+									let sortableList = userPokemonList.slice(ignoreNum);
+									sortableList = sortableList.filter(pokemonName => typeof pokemonName === 'string' && pokemonName.trim().length > 0);
+
+									const dexMap = new Map();
+									allPokemonList.forEach(pokemon => {
+										dexMap.set(pokemon.name, pokemon.dexNum);
+									});
+
+									sortableList.sort((a, b) => {
+										const nameA = a.startsWith('✨') ? a.substring(1) : a;
+										const nameB = b.startsWith('✨') ? b.substring(1) : b;
+
+										// Get Dex numbers from the map
+										const dexA = dexMap.get(nameA) || 9999; // Use a large number if not found
+										const dexB = dexMap.get(nameB) || 9999;
+
+										// Sort by Dex number
+										if (dexA !== dexB) return dexA - dexB;
+
+										// If Dex numbers are the same, sort by shiny status
+										const isShinyA = a.startsWith('✨');
+										const isShinyB = b.startsWith('✨');
+										if (isShinyA && !isShinyB) {
+											return -1;
+										}
+										if (!isShinyA && isShinyB) {
+											return 1;
+										}
+
+										// If both are shiny or both are not, maintain their order
+										return 0;
+									});
+
+									const finalList = ignoredList.concat(sortableList);
+									dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(finalList), userId], (err3) => {
+										if (err3) {
+											console.error(err3.message);
+                   							message.channel.send('An error occurred while saving your Pokémon order.');
+                    						return;
+										}
+										message.channel.send('Pokémon successfully ordered.');
+									});
+								});
+							});
+						}
+						else if (order === 'countLow') {
+							dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, row) => {
+								if (err) {
+									console.error(err.message);
+									message.channel.send('An error occurred while fetching the user\'s Pokémon.');
+									return;
+								}
+								if (!row || !row.caught_pokemon) {
+									message.channel.send('You have no Pokémon to order.');
+                					return;
+								}
+
+								let userPokemonList = JSON.parse(row.caught_pokemon);
+
+								let ignoreNum = 0;
+								if (args.length > 1 && !isNaN(args[1])) {
+									ignoreNum = parseInt(args[1], 10);
+									if (ignoreNum < 1 || ignoreNum > userPokemonList.length) {
+										message.channel.send('Error: provided ignore num is invalid');
+										return;
+									}
+								}
+
+								let ignoreList = userPokemonList.slice(0, ignoreNum);
+								let sortedList = userPokemonList.slice(ignoreNum);
+
+								let countMap = new Map();
+								sortedList.forEach(pokemon => {
+									let name = pokemon.startsWith('✨') ? pokemon.substring(1) : pokemon;
+									if (!countMap.has(name)) {
+										countMap.set(name, { count: 0, shiny: 0 });
+									}
+									let entry = countMap.get(name);
+									entry.count += 1;
+									if (pokemon.startsWith('✨')) {
+										entry.shiny += 1;
+									}
+									countMap.set(name, entry);
+								});
+
+								sortedList.sort((a, b) => {
+									let nameA = a.startsWith('✨') ? a.substring(1) : a;
+									let nameB = b.startsWith('✨') ? b.substring(1) : b;
+									let countA = countMap.get(nameA);
+									let countB = countMap.get(nameB);
+						
+									if (countA.count === countB.count) {
+										if (countA.shiny !== countB.shiny) {
+											return countB.shiny - countA.shiny; // Sort shiny first
+										}
+										return nameA.localeCompare(nameB); // Alphabetical if tied
+									}
+									return countA.count - countB.count; // Sort by count (low to high)
+								});
+
+								let finalList = ignoreList.concat(sortedList);
+
+								dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(finalList), userId], (err) => {
+									if (err) {
+										console.error(err.message);
+										message.channel.send('An error occurred while updating your Pokémon.');
+										return;
+									}
+									message.channel.send('Your Pokémon have been ordered by count (low to high).');
+								});
+							});
+						}
+						
+						else if (order === 'countHigh') {
+							dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, row) => {
+								if (err) {
+									console.error(err.message);
+									message.channel.send('An error occurred while fetching the user\'s Pokémon.');
+									return;
+								}
+								if (!row || !row.caught_pokemon) {
+									message.channel.send('You have no Pokémon to order.');
+                					return;
+								}
+
+								let userPokemonList = JSON.parse(row.caught_pokemon);
+
+								let ignoreNum = 0;
+								if (args.length > 1 && !isNaN(args[1])) {
+									ignoreNum = parseInt(args[1], 10);
+									if (ignoreNum < 1 || ignoreNum > userPokemonList.length) {
+										message.channel.send('Error: provided ignore num is invalid');
+										return;
+									}
+								}
+								let ignoreList = userPokemonList.slice(0, ignoreNum);
+								let sortedList = userPokemonList.slice(ignoreNum);
+
+								// Count Pokémon occurrences
+								let countMap = new Map();
+								sortedList.forEach(pokemon => {
+									let name = pokemon.startsWith('✨') ? pokemon.substring(1) : pokemon;
+									if (!countMap.has(name)) {
+										countMap.set(name, { count: 0, shiny: 0 });
+									}
+									let entry = countMap.get(name);
+									entry.count += 1;
+									if (pokemon.startsWith('✨')) {
+										entry.shiny += 1;
+									}
+									countMap.set(name, entry);
+								});
+
+								// Sort by count (descending), then shiny, then alphabetical
+								sortedList.sort((a, b) => {
+									let nameA = a.startsWith('✨') ? a.substring(1) : a;
+									let nameB = b.startsWith('✨') ? b.substring(1) : b;
+									let countA = countMap.get(nameA);
+									let countB = countMap.get(nameB);
+
+									if (countA.count === countB.count) {
+										if (countA.shiny !== countB.shiny) {
+											return countB.shiny - countA.shiny; // Sort shiny first
+										}
+										return nameA.localeCompare(nameB); // Alphabetical if tied
+									}
+									return countB.count - countA.count; // Sort by count (high to low)
+								});
+
+								// Final list with ignored Pokémon at the beginning
+								let finalList = ignoreList.concat(sortedList);
+								
+								dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(finalList), userId], (err3) => {
+									if (err3) {
+										console.error(err3.message);
+										   message.channel.send('An error occurred while saving your Pokémon order.');
+										return;
+									}
+									message.channel.send('Pokémon successfully ordered.');
+								});
+							});
+						}
+						else if (order === 'alphabetical'){
+							dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, row) => {
+								if (err) {
+									console.error(err.message);
+									message.channel.send('An error occurred while fetching the user\'s Pokémon.');
+									return;
+								}
+								if (!row || !row.caught_pokemon) {
+									message.channel.send('You have no Pokémon to order.');
+                					return;
+								}
+
+								let userPokemonList = JSON.parse(row.caught_pokemon);
+
+								let ignoreNum = 0;
+								if (args.length > 1 && !isNaN(args[1])) {
+									ignoreNum = parseInt(args[1], 10);
+									if (ignoreNum < 1 || ignoreNum > userPokemonList.length) {
+										message.channel.send('Error: provided ignore num is invalid');
+										return;
+									}
+								}
+
+								let ignoreList = userPokemonList.slice(0, ignoreNum);
+								let sortedList = userPokemonList.slice(ignoreNum);
+
+								sortedList.sort((a, b) => {
+									let nameA = a.startsWith('✨') ? a.substring(1) : a;
+									let nameB = b.startsWith('✨') ? b.substring(1) : b;
+						
+									// First, sort alphabetically by name
+									let nameComparison = nameA.localeCompare(nameB);
+									if (nameComparison !== 0) return nameComparison;
+						
+									// If names are the same, prioritize shiny Pokémon
+									if (a.startsWith('✨') && !b.startsWith('✨')) return -1;
+									if (!a.startsWith('✨') && b.startsWith('✨')) return 1;
+						
+									return 0; // If names and shiny status are the same
+								});
+						
+								// Combine ignored list with the sorted list
+								let finalList = ignoreList.concat(sortedList);
+
+								dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(finalList), userId], (err3) => {
+									if (err3) {
+										console.error(err3.message);
+										   message.channel.send('An error occurred while saving your Pokémon order.');
+										return;
+									}
+									message.channel.send('Pokémon successfully ordered.');
+								});
+							});
+						}
+						else if (order === 'flexdex') {
+							dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, row) => {
+								if (err) {
+									console.error(err.message);
+									message.channel.send('An error occurred while fetching the user\'s Pokémon.');
+									return;
+								}
+								if (!row || !row.caught_pokemon) {
+									message.channel.send('You have no Pokémon to order.');
+                					return;
+								}
+
+								let userPokemonList = JSON.parse(row.caught_pokemon);
+
+								db.all("SELECT name, dexNum, isLM FROM pokemon", [], (error, allPokemonList) => {
+									if (error) {
+										console.error(error.message);
+                    					message.channel.send('An error occurred while fetching the Pokémon database.');
+                        				return;
+									}
+
+									let ignoreNum = 0;
+									if (args.length > 1 && !isNaN(args[1])) {
+										ignoreNum = parseInt(args[1], 10);
+										if (ignoreNum < 1 || ignoreNum > userPokemonList.length) {
+											message.channel.send('Error: provided ignore num is invalid');
+											return;
+										}
+									}
+
+									const ignoredList = userPokemonList.slice(0, ignoreNum);
+									let sortableList = userPokemonList.slice(ignoreNum);
+									sortableList = sortableList.filter(pokemonName => typeof pokemonName === 'string' && pokemonName.trim().length > 0);
+
+									const dexMap = new Map();
+									allPokemonList.forEach(pokemon => {
+										dexMap.set(pokemon.name, {dexNum: pokemon.dexNum, isLM: pokemon.isLM});
+									});
+
+									const countMap = new Map();
+									sortableList.forEach(pokemon => {
+										let name = pokemon.startsWith('✨') ? pokemon.substring(1) : pokemon;
+										if (!countMap.has(name)) {
+											countMap.set(name, { count: 0, shiny: 0 });
+										}
+										let entry = countMap.get(name);
+										entry.count += 1;
+										if (pokemon.startsWith('✨')) {
+											entry.shiny += 1;
+										}
+										countMap.set(name, entry);
+									});
+
+									sortableList.sort((a, b) => {
+										let nameA = a.startsWith('✨') ? a.substring(1) : a;
+										let nameB = b.startsWith('✨') ? b.substring(1) : b;
+
+										let dexA = dexMap.get(nameA) || { dexNum: 9999, isLM: 0 };
+										let dexB = dexMap.get(nameB) || { dexNum: 9999, isLM: 0 };
+
+										let countA = countMap.get(nameA);
+										let countB = countMap.get(nameB);
+
+										if (a.startsWith('✨') && !b.startsWith('✨')) {
+											return -1;  // Shiny comes first
+										}
+										if (!a.startsWith('✨') && b.startsWith('✨')) {
+											return 1;   // Shiny comes first
+										}
+
+										// Sort by Mythical -> Legendary -> Regular
+										if (dexA.isLM !== dexB.isLM) {
+											return dexB.isLM - dexA.isLM;
+										}
+
+										// For Mythical and Legendary, sort by count (low to high)
+										if (dexA.isLM > 0 && countA.count !== countB.count) {
+											return countA.count - countB.count;
+										}
+
+										// For regular Pokémon, sort by dex number
+										if (dexA.isLM === 0 && dexB.isLM === 0) {
+											return dexA.dexNum - dexB.dexNum;
+										}
+
+										return nameA.localeCompare(nameB); // Alphabetical as a last resort
+									});
+
+									let finalList = ignoredList.concat(sortableList);
+
+									dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(finalList), userId], (err3) => {
+										if (err3) {
+											console.error(err3.message);
+											   message.channel.send('An error occurred while saving your Pokémon order.');
+											return;
+										}
+										message.channel.send('Pokémon successfully ordered.');
+									});
+								});
+							});
+						}
+						else {
+							message.channel.send('Improper command usage. Orders: `flexdex`, `dex`, `count`, `alphabetical`');
+							return;
+						}
+					}
+					else {
+						message.channel.send('Improper command usage. Example: .order <order> <ignorenum>');
+						return;
+					}
 				});
 			}
 			
