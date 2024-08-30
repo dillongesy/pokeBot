@@ -309,61 +309,6 @@ function fixPokemonName(pokemonIdentifier, args) {
 	return pokemonIdentifier;
 }
 
-//Helper function, sorter
-function sortUserParty(order, userId, args) {
-	if (order === 'dex') {
-		dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, userPokemonList) => {
-			if (err) {
-				console.error(err.message);
-				message.channel.send('An error occurred while fetching the user\'s Pokémon.');
-				return 'err';
-			}
-			if (userPokemonList.length > 0) {
-				db.all("SELECT * FROM pokemon", [], (error, allPokemonList) => {
-					if (error) {
-						console.error(error.message);
-						message.channel.send('An error occurred while fetching the Pokémon.');
-						return 'err';
-					}
-					if (rows.length > 0) {
-						if (args.length > 1) {
-							if (!isNaN(args[1])) {
-								if (args[1] < userPokemonList.length && args[1] > -1) {
-									//do stuff
-								}
-								else {
-									message.chann
-								}
-							}
-						}
-						else {
-
-						}
-					}
-				});
-			}
-		});
-	}
-	else if (order === 'count') {
-		dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, row) => {
-
-		});
-	}
-	else if (order === 'alphabetical'){
-		dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, row) => {
-
-		});
-	}
-	else if (order === 'flexdex') {
-		dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, row) => {
-
-		});
-	}
-	else {
-		return 'err';
-	}
-}
-
 //Helper function, checks if the bot should be posting in a configured channel
 function isChannelAllowed(serverId, channelId, callback) {
 	dbServer.get("SELECT allowed_channels_id FROM server WHERE server_id = ?", [serverId], (err, row) => {
