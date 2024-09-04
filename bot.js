@@ -35,7 +35,7 @@ const client = new Client({
 });
 
 const cooldowns = new Map(); 	//Map<serverId, cooldownEnd>
-const activeDrops = new Map();	//Map<serverId_channelId, activePokemon {name, isShiny}>
+const activeDrops = new Map();	//Map<serverId_channelId, activePokemon {name, isShiny, form}>
 const activeTrades = new Map();	//Map<serverId, {user1, user2, user1Pokemon, user2Pokemon, user1Confirmed, user2Confirmed}>
 
 //Helper function, .party Embed Generator
@@ -48,7 +48,35 @@ function generatePartyEmbed(pokemonList, page, pageSize, title, isSLM) {
 	let color = '#0099ff';
 	if (pokemonList.length > 0) {
 		if (typeof pokemonList[0] === 'object') {
-			formattedPokemonList = pagePokemon.map(p => `\`\`${p.id}\`\`\t${p.name}`).join('\n');
+			formattedPokemonList = pagePokemon.map((p, index) => {
+				let displayName = p.name;
+
+				let isShiny = false;
+				if (p.name.startsWith('✨')) {
+					displayName = `${displayName.substring(1)}`;
+					isShiny = true;
+				}
+
+				if (p.form && p.form.toLowerCase() !== 'default') {
+					const formPrefix = p.form.split(' ')[0];
+					displayName = `${formPrefix} ${displayName}`;
+					if (isShiny) {
+						displayName = `✨${displayName}`;
+					}
+				}
+				else if (isShiny) {
+					displayName = `✨${displayName}`;
+				}
+
+				if (p.gender === 'Male') {
+					displayName += ' ♂';
+				}
+				else if (p.gender === 'Female') {
+					displayName += ' ♀';
+				}
+
+				return `\`\`${start + index + 1}\`\`\t${displayName}`;
+			}).join('\n');
 		}
 		else {
 			formattedPokemonList = pagePokemon.map((pokemon, index) => `\`\`${start + index + 1}\`\`\t${pokemon}`).join('\n');
@@ -126,7 +154,12 @@ function getDisablePartyBtns() {
 //Helper function, .dex Embed Generator
 function updateEmbed(shinyImg, dexNumber, pokemonRow) {
 	const type2 = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
-	const imageLink = shinyImg ? pokemonRow.shinyImageLink : pokemonRow.imageLink;
+	const shinyImageLinks = JSON.parse(pokemonRow.shinyImageLinks);
+	const imgLinks = JSON.parse(pokemonRow.imageLinks);
+	const imageLink = shinyImg ? shinyImageLinks.default : imgLinks.default;
+
+	//const shinyImageLinks = JSON.parse(pokemon.shinyImageLinks);
+	//imageLink = shinyImageLinks[selectForm.name] || shinyImageLinks.default;
 							
 	return new EmbedBuilder()
 		.setColor('#0099ff')
@@ -306,6 +339,92 @@ function fixPokemonName(pokemonIdentifier, args) {
 	else if (pokemonIdentifier === 'Porygon-z') {
 		pokemonIdentifier = 'Porygon-Z';
 	}
+	else if (pokemonIdentifier === 'Sunny' && args.length > 2) {
+		if (args[2].toLowerCase() === 'castform') {
+			pokemonIdentifier = 'Sunny Castform';
+		}
+	}
+	else if (pokemonIdentifier === 'Rainy' && args.length > 2) {
+		if (args[2].toLowerCase() === 'castform') {
+			pokemonIdentifier = 'Rainy Castform';
+		}
+	}
+	else if (pokemonIdentifier === 'Snowy' && args.length > 2) {
+		if (args[2].toLowerCase() === 'castform') {
+			pokemonIdentifier = 'Snowy Castform';
+		}
+	}
+	else if (pokemonIdentifier === 'Sandy' && args.length > 2) {
+		if (args[2].toLowerCase() === 'wormadam') {
+			pokemonIdentifier = 'Sandy Wormadam';
+		}
+	}
+	else if (pokemonIdentifier === 'Trash' && args.length > 2) {
+		if (args[2].toLowerCase() === 'wormadam') {
+			pokemonIdentifier = 'Trash Wormadam';
+		}
+	}
+	else if (pokemonIdentifier === 'Plant' && args.length > 2) {
+		if (args[2].toLowerCase() === 'wormadam') {
+			pokemonIdentifier = 'Wormadam';
+		}
+	}
+	else if (pokemonIdentifier === 'Heat' && args.length > 2) {
+		if (args[2].toLowerCase() === 'rotom') {
+			pokemonIdentifier = 'Heat Rotom';
+		}
+	}
+	else if (pokemonIdentifier === 'Wash' && args.length > 2) {
+		if (args[2].toLowerCase() === 'rotom') {
+			pokemonIdentifier = 'Wash Rotom';
+		}
+	}
+	else if (pokemonIdentifier === 'Frost' && args.length > 2) {
+		if (args[2].toLowerCase() === 'rotom') {
+			pokemonIdentifier = 'Frost Rotom';
+		}
+	}
+	else if (pokemonIdentifier === 'Sky' && args.length > 2) {
+		if (args[2].toLowerCase() === 'shaymin') {
+			pokemonIdentifier = 'Sky Shaymin';
+		}
+	}
+	else if (pokemonIdentifier === 'Zen' && args.length > 2) {
+		if (args[2].toLowerCase() === 'darmanitan') {
+			pokemonIdentifier = 'Zen Darmanitan';
+		}
+	}
+	else if (pokemonIdentifier === 'Therian' && args.length > 2) {
+		if (args[2].toLowerCase() === 'tornadus') {
+			pokemonIdentifier = 'Therian Tornadus';
+		}
+	}
+	else if (pokemonIdentifier === 'Therian' && args.length > 2) {
+		if (args[2].toLowerCase() === 'thunderus') {
+			pokemonIdentifier = 'Therian Thunderus';
+		}
+	}
+	else if (pokemonIdentifier === 'Therian' && args.length > 2) {
+		if (args[2].toLowerCase() === 'landorus') {
+			pokemonIdentifier = 'Therian Landorus';
+		}
+	}
+	else if (pokemonIdentifier === 'White' && args.length > 2) {
+		if (args[2].toLowerCase() === 'kyurem') {
+			pokemonIdentifier = 'White Kyurem';
+		}
+	}
+	else if (pokemonIdentifier === 'Black' && args.length > 2) {
+		if (args[2].toLowerCase() === 'kyurem') {
+			pokemonIdentifier = 'Black Kyurem';
+		}
+	}
+	else if (pokemonIdentifier === 'Pirouette' && args.length > 2) {
+		if (args[2].toLowerCase() === 'meloetta') {
+			pokemonIdentifier = 'Pirouette Meloetta';
+		}
+	}
+	
 	return pokemonIdentifier;
 }
 
@@ -441,27 +560,72 @@ client.on('messageCreate', (message) => {
 								}
 							}
 							else {
-								pokemon = rows[randPokemon]; //this is fine
+								const rowsN = rows.filter(row => row.isLM !== 3);
+								pokemon = rowsN[randPokemon]; //this is fine
 								while (pokemon.isLM !== 0) {
 									randPokemon = getRandomInt(maxDexNum);
-									pokemon = rows[randPokemon];
+									pokemon = rowsN[randPokemon];
 								}
+							}
+							const genders = JSON.parse(pokemon.gender);
+							let randomPercentage = Math.random() * 100;
+							let selectGender;
+							let cumulativePercentage = 0;
+							for (const gender of genders) {
+								cumulativePercentage += gender.percentage;
+								if (randomPercentage <= cumulativePercentage) {
+									selectGender = gender;
+									break;
+								}
+							}
+
+							const forms = JSON.parse(pokemon.forms);
+							randomPercentage = Math.random() * 100;
+							let selectForm;
+							cumulativePercentage = 0;
+							for (const form of forms) {
+								cumulativePercentage += form.percentage;
+								if (randomPercentage <= cumulativePercentage) {
+									selectForm = form;
+									break;
+								}
+							}
+
+							if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
+								selectGender = {
+									name: 'Male',
+									percentage: selectGender.percentage
+								};
+							}
+							else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
+								selectForm = {
+									name: 'Default',
+									percentage: selectForm.percentage
+								};
 							}
 							
 							let imageLink = null;
-							
 							if (isShiny) {
-								imageLink = pokemon.shinyImageLink;
+								const shinyImageLinks = JSON.parse(pokemon.shinyImageLinks);
+								imageLink = shinyImageLinks[selectForm.name.toLowerCase()] || shinyImageLinks.default;
 							}
 							else {
-								imageLink = pokemon.imageLink;
+								const imageLinks = JSON.parse(pokemon.imageLinks);
+								imageLink = imageLinks[selectForm.name.toLowerCase()] || imageLinks.default;
+							}
+
+							if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
+								selectForm = {
+									name: selectForm.name.substring(0, selectForm.name.length - 4),
+									percentage: selectForm.percentage
+								};
 							}
 							
 							const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
 							const curMon = pokemon.name ? `${pokemon.name}` : '';
 							console.log('Current pokemon: ' + curMon + '\n' + 'ShinyNum:     ' + shinyNumber + ' (<0.00025)' + '\n' + 'MythicalNum:  ' + mythicalNumber + ' (<0.005)' + '\n' + 'LegendaryNum: ' + legendaryNumber + ' (<0.0075)' +'\n');
 							
-							activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny });
+							activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny, form: selectForm.name, gender: selectGender.name });
 							
 							const embed = new EmbedBuilder()
 								.setColor('#0099ff')
@@ -473,10 +637,122 @@ client.on('messageCreate', (message) => {
 								.setTimestamp()
 
 							message.channel.send({ embeds: [embed] });
-						} 
+						}
 						else {
 							message.channel.send('No Pokémon found in the database.');
 						}
+					});
+				});
+			}
+
+			//Make pokemon objects
+			else if(message.content.toLowerCase() === '.makepobj' && userId === '177580797165961216') {
+				dbUser.all("SELECT user_id, caught_pokemon FROM user", [], (err, rows) => {
+					if (err) {
+						console.error(err.message);
+						message.channel.send('An error occurred while fetching the user\'s Pokémon.');
+						return;
+					}
+
+					db.all("SELECT * FROM pokemon", [], (error, allPokemonList) => { //test 0, userPokemonList.length, 1, userPokemonList.length + 1
+						if (error) {
+							console.error(error.message);
+							message.channel.send('An error occurred while fetching the Pokémon database.');
+							return;
+						}
+						//check if string starts with ✨, if it does: make a variable "checkName" that deletes it (we still want the name to start with ✨ in the name!!!)
+						//compare "checkName" names to allPokemonList
+						//use Math.random() * 100 to roll pokemon traits for gender and form
+						//each edited entry should look something like this in the db:
+						// [{"name":"Bulbasaur","gender":"Male","form":"Default"}]
+						rows.forEach((row) => {
+							if (!row.caught_pokemon) {
+								console.log(`User ${row.user_id} has no Pokémon to order.`);
+								return;
+							}
+							let userPokemonList = JSON.parse(row.caught_pokemon);
+							let pokemonObjects = [];
+
+							for(let i = 0; i < userPokemonList.length; i++) {
+								const pkmnName = userPokemonList[i];
+								let checkName = ''
+								let isShiny = pkmnName.startsWith("✨");
+								if (isShiny) {
+									checkName = pkmnName.substring(1);
+								}
+								else {
+									checkName = pkmnName;
+								}
+								const pkmnRow = allPokemonList.find(pokemon => pokemon.name.toLowerCase() === checkName.toLowerCase());
+								if (!pkmnRow) {
+									console.error(`Pokémon ${checkName} not found in the database.`);
+									continue;
+								}
+	
+								const genders = JSON.parse(pkmnRow.gender);
+								let randomPercentage = Math.random() * 100;
+								let selectGender;
+								let cumulativePercentage = 0;
+								for (const gender of genders) {
+									cumulativePercentage += gender.percentage;
+									if (randomPercentage <= cumulativePercentage) {
+										selectGender = gender;
+										break;
+									}
+								}
+	
+								const forms = JSON.parse(pkmnRow.forms);
+								randomPercentage = Math.random() * 100;
+								let selectForm;
+								cumulativePercentage = 0;
+								for (const form of forms) {
+									cumulativePercentage += form.percentage;
+									if (randomPercentage <= cumulativePercentage) {
+										selectForm = form;
+										break;
+									}
+								}
+	
+								if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
+									selectGender = {
+										name: 'Male',
+										percentage: selectGender.percentage
+									};
+								}
+								else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
+									selectForm = {
+										name: 'Default',
+										percentage: selectForm.percentage
+									};
+								}
+	
+								if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
+									selectForm = {
+										name: selectForm.name.substring(0, selectForm.name.length - 4),
+										percentage: selectForm.percentage
+									};
+								}
+	
+								const newObj = {
+									name: pkmnName,
+									gender: selectGender.name,
+									form: selectForm.name
+								};
+								pokemonObjects.push(newObj);
+							}
+
+							dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify([pokemonObjects]), row.user_id], (err) => {
+								if (err) {
+									console.error(err.message);
+									message.channel.send('An error occurred while updating your Pokémon.');
+									return;
+								}
+								else {
+									console.log(`Pokemon successfully made into objects for user ${row.user_id}.`);
+								}
+							});
+						});
+						message.channel.send("Pokemon objects have been processed for all users.");
 					});
 				});
 			}
@@ -517,19 +793,65 @@ client.on('messageCreate', (message) => {
 								isShiny = true;
 							}
 							console.log('Name: ' + pokemon.name + '\nShinyNum: ' + shinyNumber + ' (<0.00025)');
+
+							const genders = JSON.parse(pokemon.gender);
+							let randomPercentage = Math.random() * 100;
+							let selectGender;
+							let cumulativePercentage = 0;
+							for (const gender of genders) {
+								cumulativePercentage += gender.percentage;
+								if (randomPercentage <= cumulativePercentage) {
+									selectGender = gender;
+									break;
+								}
+							}
 							
-							let imageLink = '';
+							const forms = JSON.parse(pokemon.forms);
+							randomPercentage = Math.random() * 100;
+							let selectForm;
+							cumulativePercentage = 0;
+							for (const form of forms) {
+								cumulativePercentage += form.percentage;
+								if (randomPercentage <= cumulativePercentage) {
+									selectForm = form;
+									break;
+								}
+							}
+
+							if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
+								selectGender = {
+									name: 'Male',
+									percentage: selectGender.percentage
+								};
+							}
+							else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
+								selectForm = {
+									name: 'Default',
+									percentage: selectForm.percentage
+								};
+							}
+
+							let imageLink = null;
 							if (isShiny) {
-								imageLink = pokemon.shinyImageLink;
+								const shinyImageLinks = JSON.parse(pokemon.shinyImageLinks);
+								imageLink = shinyImageLinks[selectForm.name] || shinyImageLinks.default;
 							}
 							else {
-								imageLink = pokemon.imageLink;
+								const imageLinks = JSON.parse(pokemon.imageLinks);
+   					 			imageLink = imageLinks[selectForm.name] || imageLinks.default;
+							}
+
+							if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
+								selectForm = {
+									name: selectForm.name.substring(0, selectForm.name.length - 4),
+									percentage: selectForm.percentage
+								};
 							}
 							
 							const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
 							const curMon = pokemon.name ? `${pokemon.name}` : '';
 							
-							activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny });
+							activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny, form: selectForm.name, gender: selectGender.name });
 							
 							const embed = new EmbedBuilder()
 								.setColor('#0099ff')
@@ -569,6 +891,8 @@ client.on('messageCreate', (message) => {
 					}
 					const curMon = activeDrops.get(`${serverId}_${message.channel.id}`);
 					const curMonName = curMon.name;
+					const form = curMon.form;
+					const gender = curMon.gender
 					let isShinyVar = curMon.isShiny ? 1 : 0;
 					db.get("SELECT * FROM pokemon WHERE name = ?", [curMonName], (err, pokemonRow) => {
 						if (err) {
@@ -581,7 +905,34 @@ client.on('messageCreate', (message) => {
 							return;
 						}
 						const coinsToAdd = getRandomInt(21) + 5;
-						const shinyMon = isShinyVar ? `✨${curMonName}` : curMonName;
+						let shinyMon;
+						if (isShinyVar) {
+							shinyMon = [{
+								name: `✨${curMonName}`,
+								gender: gender,
+								form: form,
+							}];
+						}
+						else {
+							shinyMon = [{
+								name: curMonName,
+								gender: gender,
+								form: form,
+							}];
+						}
+
+						let genderSymbol = '';
+						if (gender === 'Male') {
+							genderSymbol = '♂️';
+						}
+						else if (gender === 'Female') {
+							genderSymbol = '♀';
+						}
+
+						let formName = '';
+						if (form !== 'Default') {
+							formName = form + ' ';
+						}
 						
 						let userDisplayName = '';
 						if (message.guild.members.cache.get(userId).displayName.toLowerCase().includes("@everyone") || message.guild.members.cache.get(userId).displayName.toLowerCase().includes("@here")) {
@@ -592,8 +943,8 @@ client.on('messageCreate', (message) => {
 						}
 						
 						const messageText = isShinyVar
-							? `Added ✨${curMonName} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
-							: `Added ${curMonName} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
+							? `Added ✨${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
+							: `Added ${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
 						
 						message.channel.send(messageText);
 						
@@ -860,11 +1211,7 @@ client.on('messageCreate', (message) => {
 						.addFields(
 							{ name: 'ANNOUNCEMENT:', value: 'For any bug found, you may recieve currency in the range 100-5000!' },
 							{ name: 'Order/Sort', value: 'Added reorganization of your party. Use .help for more information!' },
-							{ name: 'Shop', value: 'Added .shop' },
-							{ name: 'Inventory', value: 'Added .inventory' },
-							{ name: 'Shiny Drop', value: 'Added shiny drops, purchased from the shop' },
-							{ name: 'Items', value: 'Added evolution stones and rare candy (as well as shiny drops)' },
-							{ name: 'Bot efficiency', value: 'Code changed to make .lb m, .lb l, and .dex faster' }
+							{ name: 'Detailed Pokemon', value: 'Added details to pokemon, such as gender, forms, and more!' },
 						)
 						.setTimestamp();
 
@@ -894,11 +1241,13 @@ client.on('messageCreate', (message) => {
 									return null;
 								}
 								const user = await client.users.fetch(row.user_id).catch(() => null);
-								const value = JSON.parse(row.caught_pokemon).length;
+								
+								let caughtPokemonList = JSON.parse(row.caught_pokemon).flat();
+								let totalPokemonCount = caughtPokemonList.length;
 
-								return value > 0 ? {
+								return totalPokemonCount > 0 ? {
 									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
-									value
+									value: totalPokemonCount
 								} : null;
 							}));
 
@@ -946,8 +1295,12 @@ client.on('messageCreate', (message) => {
 									return null;
 								}
 								const user = await client.users.fetch(row.user_id).catch(() => null);
-								const shinyCount = JSON.parse(row.caught_pokemon)
-								.filter(pokemonName => typeof pokemonName === 'string' && pokemonName.startsWith('✨')).length;
+
+								let caughtPokemonList = JSON.parse(row.caught_pokemon).flat();
+								const shinyCount = caughtPokemonList
+								.map(pokemon => pokemon.name)
+								.filter(pokemonName => typeof pokemonName === 'string' && pokemonName.startsWith('✨'))
+								.length;
 
 								return shinyCount > 0 ? {
 									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
@@ -983,7 +1336,8 @@ client.on('messageCreate', (message) => {
 									return null;
 								}
 								const user = await client.users.fetch(row.user_id).catch(() => null);
-								const caughtPokemon = JSON.parse(row.caught_pokemon) || [];
+
+								const caughtPokemon = JSON.parse(row.caught_pokemon).flat().map(pokemon => pokemon.name) || [];
 
 								const legendaryCount = caughtPokemon.reduce((acc, pokemonName) => {
 									if (typeof pokemonName === 'string') {
@@ -1028,7 +1382,7 @@ client.on('messageCreate', (message) => {
 									return null;
 								}
 								const user = await client.users.fetch(row.user_id).catch(() => null);
-								const caughtPokemon = JSON.parse(row.caught_pokemon) || [];
+								const caughtPokemon = JSON.parse(row.caught_pokemon).flat().map(pokemon => pokemon.name) || [];
 
 								const mythicalCount = caughtPokemon.reduce((acc, pokemonName) => {
 									if (typeof pokemonName === 'string') {
@@ -1065,7 +1419,7 @@ client.on('messageCreate', (message) => {
 									return null;
 								}
 								const user = await client.users.fetch(row.user_id).catch(() => null);
-								const caughtPokemon = JSON.parse(row.caught_pokemon) || [];
+								const caughtPokemon = JSON.parse(row.caught_pokemon).flat().map(pokemon => pokemon.name) || [];
 								
 								const uniquePokemon = new Set(caughtPokemon.map(pokemonName => {
 									if (typeof pokemonName !== 'string') {
@@ -1123,7 +1477,7 @@ client.on('messageCreate', (message) => {
 									return null;
 								}
 								const user = await client.users.fetch(row.user_id).catch(() => null);
-								const caughtPokemon = JSON.parse(row.caught_pokemon) || [];
+								const caughtPokemon = JSON.parse(row.caught_pokemon).flat().map(pokemon => pokemon.name) || [];
 								const count = caughtPokemon.filter(pokemonName => {
 									if (typeof pokemonName !== 'string') {
 										return false;
@@ -1189,6 +1543,9 @@ client.on('messageCreate', (message) => {
 						if (!isNumber) {
 							if (result != null) {
 								index = result.dexNum;
+								if (isNaN(index.substring(index.length - 1, index.length))) {
+									index = index.substring(0, index.length - 1);
+								}
 								curMon = pokeList[index - 1];
 							}
 							else {
@@ -1202,7 +1559,7 @@ client.on('messageCreate', (message) => {
 						}
 						let shinyImg = false;
 						
-						let embed = updateEmbed(shinyImg, curMon.dexNum, curMon);
+						let embed = updateEmbed(shinyImg, curMon.dexNum, result);
 						
 						const buttonRow = new ActionRowBuilder()
 							.addComponents(
@@ -1249,7 +1606,6 @@ client.on('messageCreate', (message) => {
 									shinyImg = !shinyImg;
 									embed = updateEmbed(shinyImg, curMon.dexNum, curMon);
 									i.update({ embeds: [embed] });
-									console.log("new");
 								}
 							});
 
@@ -1306,7 +1662,7 @@ client.on('messageCreate', (message) => {
 							return;
 						}
 
-						const caughtPokemon = JSON.parse(row.caught_pokemon);
+						const caughtPokemon = JSON.parse(row.caught_pokemon).flat();
 
 						if (index < 0 || index >= caughtPokemon.length) {
 							message.channel.send('Please specify a valid party number.');
@@ -1314,8 +1670,48 @@ client.on('messageCreate', (message) => {
 						}
 
 						const pokemonToDisplay = caughtPokemon[index];
+						const isShiny = pokemonToDisplay.name.startsWith('✨');
+						const pokemonName = isShiny ? pokemonToDisplay.name.slice(1) : pokemonToDisplay.name;
+						let formName = pokemonToDisplay.form;
+						db.get("SELECT * FROM pokemon WHERE name = ?", [pokemonName], (err, pokemonRow) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching Pokémon information.');
+								return;
+							}
+							if (!pokemonRow) {
+								message.channel.send('Pokémon not found in the database.');
+								return;
+							}
+
+							const type2 = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
+
+							const imageLinks = JSON.parse(isShiny ? pokemonRow.shinyImageLinks : pokemonRow.imageLinks);
+							const imageLink = imageLinks[formName] || imageLinks.default;
+
+							if (formName.toLowerCase() !== 'default') {
+								formName = formName + ' ';
+							}
+							else {
+								formName = '';
+							}
+
+							const embed = new EmbedBuilder()
+									.setColor('#0099ff')
+									.setTitle(`Your ${isShiny ? '✨' : ''}${formName}${pokemonRow.name}`)
+									.addFields(
+										{ name: 'Dex Number', value: `${pokemonRow.dexNum}`, inline: true },
+										{ name: 'Type', value: `${pokemonRow.type1}${type2}`, inline: true },
+										{ name: 'Region', value: `${pokemonRow.region}`, inline: true }
+									)
+									.setImage(imageLink)
+									.setTimestamp();
+									
+									message.channel.send({embeds: [embed] });
+						});
+
 						
-						if (pokemonToDisplay[0] === '✨') {
+						/*if (pokemonToDisplay[0] === '✨') {
 							let shinyDisplayedPokemon = pokemonToDisplay.replaceAt(0, '');
 							db.get("SELECT * FROM pokemon WHERE name = ?", [shinyDisplayedPokemon], (err, pokemonRow) => {
 								if (err) {
@@ -1373,7 +1769,7 @@ client.on('messageCreate', (message) => {
 									
 									message.channel.send({embeds: [embed] });
 							});
-						}
+						}*/
 					});
 				});
 			}
@@ -1399,7 +1795,7 @@ client.on('messageCreate', (message) => {
 							return;
 						} 
 						
-						const caughtPokemon = JSON.parse(row.caught_pokemon);
+						const caughtPokemon = JSON.parse(row.caught_pokemon).flat();
 						
 						if (args.length === 0) {
 							const pageSize = 20;
@@ -1451,10 +1847,38 @@ client.on('messageCreate', (message) => {
 								let searchName = args[1].toLowerCase();
 								searchName = capitalizeFirstLetter(searchName);
 								searchName = fixPokemonName(searchName, args);
-								
+
 								const filteredPokemon = caughtPokemon
-									.map((p, index) => ({name: p, id: index + 1}))
-									.filter(p => typeof p.name === 'string' && (p.name === searchName || p.name === '✨' + searchName));
+									.map((p, index) => {
+										let isShiny = false;
+										let fullName = '';
+										if (p.name.startsWith('✨')) {
+											isShiny = true;
+											fullName = p.name.substring(1);
+										}
+										else {
+											fullName = p.name;
+										}
+										if (isShiny) {
+											fullName = p.form !== 'Default' ? `✨${p.form} ${fullName}` : `✨${fullName}`;
+										}
+										else {
+											fullName = p.form !== 'Default' ? `${p.form} ${fullName}` : p.name;
+										}
+										
+										if (p.gender === 'Male') {
+											fullName += ' ♂';
+										}
+										else if (p.gender === 'Female') {
+											fullName += ' ♀';
+										}
+
+										return {
+											name: fullName,
+											id: index + 1
+										};
+									})
+									.filter(p => p.name.toLowerCase().includes(searchName.toLowerCase()));
 								
 								if (filteredPokemon.length === 0) {
 									message.channel.send(`You do not have any Pokémon with that name.`);
@@ -1540,7 +1964,9 @@ client.on('messageCreate', (message) => {
 						}
 
 						else if (args[0].toLowerCase() === 'shiny' || args[0].toLowerCase() === 's') {
-							const shinyPokemon = caughtPokemon.map((p, index) => ({ name: p, id: index + 1 })).filter(p => typeof p.name === 'string' && p.name.startsWith('✨'));
+							const shinyPokemon = caughtPokemon
+							.map((p, index) => ({ ...p, id: index + 1 }))
+							.filter(p => typeof p.name === 'string' && p.name.startsWith('✨'));
 							if (shinyPokemon.length === 0) {
 								message.channel.send("You do not have any shiny Pokémon.");
 							} 
@@ -1590,171 +2016,163 @@ client.on('messageCreate', (message) => {
 						}
 
 						else if (args[0].toLowerCase() === 'legendary' || args[0].toLowerCase() === 'l') {
-							let promises = caughtPokemon.map((pokemonName, originalIndex) => {
-								if (typeof pokemonName !== 'string') {
-									return Promise.resolve(null);
-								}
+							const legendaryPokemon = [
+								'Articuno', 'Zapdos', 'Moltres', 'Mewtwo', 
+								'Raikou', 'Entei', 'Suicune', 'Lugia', 'Ho-Oh',
+								'Regirock', 'Regice', 'Registeel', 'Latias', 'Latios', 'Kyogre', 'Groudon', 'Rayquaza',
+								'Uxie', 'Mesprit', 'Azelf', 'Dialga', 'Palkia', 'Heatran', 'Regigigas', 'Giratina', 'Cresselia',
+								'Cobalion', 'Terrakion', 'Virizion', 'Tornadus', 'Thundurus', 'Reshiram', 'Zekrom', 'Landorus', 'Kyurem'
+							];
+
+							const legendaryCaught = caughtPokemon
+								.map((pokemonObj, index) => {
+									let pokemonName = pokemonObj.name;
+
+									let isShiny = false;
+									if (pokemonName.startsWith('✨')) {
+										isShiny = true;
+										pokemonName = pokemonName.substring(1);
+									}
+
+									if (legendaryPokemon.includes(pokemonName)) {
+										return {
+											name: isShiny ? `✨${pokemonName}` : pokemonName,
+											id: index + 1
+										};
+									}
+									else {
+										return null;
+									}
+								})
+								.filter(p => p !== null);
 								
-								let isShiny = false;
-								let finalName = pokemonName;
-								if (pokemonName[0] === '✨') {
-									isShiny = true;
-									finalName = finalName.substring(1);
-								}
-								return new Promise((resolve, reject) => {
-									db.get("SELECT * FROM pokemon WHERE name = ? AND isLM = 1", [finalName], (err, pokemonRow) => {
-										if (err) {
-											console.error('Error fetching Pokémon:', err.message);
-											reject(err);
+							if (legendaryCaught.length === 0) {
+								message.channel.send("You do not have any legendary Pokémon.");
+							}
+							else {
+								const pageSize = 20;
+								let page = 0;
+
+								const embed = generatePartyEmbed(legendaryCaught, page, pageSize, `Your Legendary Pokémon`, 2);
+								const buttonRow = getPartyBtns();
+
+								message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+									const filter = i => i.user.id === userId;
+									const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+									collector.on('collect', async i => {
+										if (i.customId === 'prev') {
+											if (page > 0) {
+												page--;
+											} 
+											else {
+												page = Math.ceil(legendaryCaught.length / pageSize) - 1;
+											}
+										} 
+										else if (i.customId === 'next') {
+											if ((page + 1) * pageSize < legendaryCaught.length) {
+												page++;
+											} 
+											else {
+												page = 0;
+											}
+										} 
+										else if (i.customId === 'rewind') {
+											page = 0;
+										} 
+										else if (i.customId === 'fforward') {
+											page = Math.ceil(legendaryCaught.length / pageSize) - 1;
 										}
-										resolve(pokemonRow ? {...pokemonRow, isShiny, originalIndex } : null);
+
+										await i.update({ embeds: [generatePartyEmbed(legendaryCaught, page, pageSize, `Your Legendary Pokémon`, 2)] });
+									});
+
+									collector.on('end', collected => {
+										const disabledRow = getDisablePartyBtns();
+										sentMessage.edit({ components: [disabledRow] });
 									});
 								});
-							});
-
-							Promise.all(promises).then(results => {
-								const legendaryPokemon = results
-									.filter(p => p != null)
-									.map(p => ({ 
-										name: (p.isShiny ? '✨' : '') + p.name, 
-										id: p.originalIndex + 1
-									}));
-								
-								if (legendaryPokemon.length === 0) {
-									message.channel.send("You do not have any legendary Pokémon.");
-								}
-								else {
-									const pageSize = 20;
-									let page = 0;
-
-									const embed = generatePartyEmbed(legendaryPokemon, page, pageSize, `Your Legendary Pokémon`, 2);
-									const buttonRow = getPartyBtns();
-
-									message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
-										const filter = i => i.user.id === userId;
-										const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
-
-										collector.on('collect', async i => {
-											if (i.customId === 'prev') {
-												if (page > 0) {
-													page--;
-												} 
-												else {
-													page = Math.ceil(legendaryPokemon.length / pageSize) - 1;
-												}
-											} 
-											else if (i.customId === 'next') {
-												if ((page + 1) * pageSize < legendaryPokemon.length) {
-													page++;
-												} 
-												else {
-													page = 0;
-												}
-											} 
-											else if (i.customId === 'rewind') {
-												page = 0;
-											} 
-											else if (i.customId === 'fforward') {
-												page = Math.ceil(legendaryPokemon.length / pageSize) - 1;
-											}
-
-											await i.update({ embeds: [generatePartyEmbed(legendaryPokemon, page, pageSize, `Your Legendary Pokémon`, 2)] });
-										});
-
-										collector.on('end', collected => {
-											const disabledRow = getDisablePartyBtns();
-											sentMessage.edit({ components: [disabledRow] });
-										});
-									});
-								}
-							}).catch(error => {
-								console.error('Error processing Pokémon:', error.message);
-								message.channel.send("An error occurred while retrieving your Pokémon.");
-							});
+							}
 						}
 
 						else if (args[0].toLowerCase() === 'mythical' || args[0].toLowerCase() === 'm') {
-							let promises = caughtPokemon.map((pokemonName, originalIndex) => {
-								if (typeof pokemonName !== 'string') {
-									return Promise.resolve(null);
-								}
+							const mythicalPokemon = [
+								'Mew',
+								'Celebi',
+								'Jirachi', 'Deoxys',
+								'Phione', 'Manaphy', 'Darkrai', 'Shaymin', 'Arceus',
+								'Victini', 'Keldeo', 'Meloetta', 'Genesect'
+							];
+
+							const mythicalCaught = caughtPokemon
+								.map((pokemonObj, index) => {
+									 let pokemonName = pokemonObj.name;
+
+									 let isShiny = false;
+									 if (pokemonName.startsWith('✨')) {
+										isShiny = true;
+										pokemonName = pokemonName.substring(1);
+									 }
+
+									 if (legendaryPokemon.includes(pokemonName)) {
+										return {
+											name: isShiny ? `✨${pokemonName}` : pokemonName,
+											id: index + 1
+										};
+									 }
+									 else {
+										return null;
+									 }
+								})
+								.filter(p => p !== null);
 								
-								let isShiny = false;
-								let finalName = pokemonName;
-								if (pokemonName[0] === '✨') {
-									isShiny = true;
-									finalName = finalName.substring(1);
-								}
-								return new Promise((resolve, reject) => {
-									db.get("SELECT * FROM pokemon WHERE name = ? AND isLM = 2", [finalName], (err, pokemonRow) => {
-										if (err) {
-											console.error('Error fetching Pokémon:', err.message);
-											reject(err);
+							if (mythicalCaught.length === 0) {
+								message.channel.send("You do not have any mythical Pokémon.");
+							}
+							else {
+								const pageSize = 20;
+								let page = 0;
+
+								const embed = generatePartyEmbed(mythicalCaught, page, pageSize, `Your Mythical Pokémon`, 3);
+								const buttonRow = getPartyBtns();
+
+								message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+									const filter = i => i.user.id === userId;
+									const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+									collector.on('collect', async i => {
+										if (i.customId === 'prev') {
+											if (page > 0) {
+												page--;
+											} 
+											else {
+												page = Math.ceil(mythicalCaught.length / pageSize) - 1;
+											}
+										} 
+										else if (i.customId === 'next') {
+											if ((page + 1) * pageSize < mythicalCaught.length) {
+												page++;
+											} 
+											else {
+												page = 0;
+											}
+										} 
+										else if (i.customId === 'rewind') {
+											page = 0;
+										} 
+										else if (i.customId === 'fforward') {
+											page = Math.ceil(mythicalCaught.length / pageSize) - 1;
 										}
-										resolve(pokemonRow ? {...pokemonRow, isShiny, originalIndex } : null);
+
+										await i.update({ embeds: [generatePartyEmbed(mythicalCaught, page, pageSize, `Your Mythical Pokémon`, 3)] });
+									});
+
+									collector.on('end', collected => {
+										const disabledRow = getDisablePartyBtns();
+										sentMessage.edit({ components: [disabledRow] });
 									});
 								});
-							});
-							
-							Promise.all(promises).then(results => {
-								const mythicalPokemon = results
-									.filter(p => p != null)
-									.map(p => ({ 
-										name: (p.isShiny ? '✨' : '') + p.name, 
-										id: p.originalIndex + 1 
-									}));
-								
-								if (mythicalPokemon.length === 0) {
-									message.channel.send("You do not have any mythical Pokémon.");
-								}
-								else {
-									const pageSize = 20;
-									let page = 0;
-
-									const embed = generatePartyEmbed(mythicalPokemon, page, pageSize, `Your Mythical Pokémon`, 3);
-									const buttonRow = getPartyBtns();
-
-									message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
-										const filter = i => i.user.id === userId;
-										const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
-
-										collector.on('collect', async i => {
-											if (i.customId === 'prev') {
-												if (page > 0) {
-													page--;
-												} 
-												else {
-													page = Math.ceil(mythicalPokemon.length / pageSize) - 1;
-												}
-											} 
-											else if (i.customId === 'next') {
-												if ((page + 1) * pageSize < mythicalPokemon.length) {
-													page++;
-												} 
-												else {
-													page = 0;
-												}
-											} 
-											else if (i.customId === 'rewind') {
-												page = 0;
-											} 
-											else if (i.customId === 'fforward') {
-												page = Math.ceil(mythicalPokemon.length / pageSize) - 1;
-											}
-
-											await i.update({ embeds: [generatePartyEmbed(mythicalPokemon, page, pageSize, `Your Mythical Pokémon`, 3)] });
-										});
-
-										collector.on('end', collected => {
-											const disabledRow = getDisablePartyBtns();
-											sentMessage.edit({ components: [disabledRow] });
-										});
-									});
-								}
-							}).catch(error => {
-								console.error('Error processing Pokémon:', error.message);
-								message.channel.send("An error occurred while retrieving your Pokémon.");
-							});
+							}
 						}
 						else {
 							message.channel.send("Invalid command usage. Use `.p` for party, `.p name: <pokemon>` to search, or `.p swap <partyNum1> <partyNum2>` to swap.");
@@ -1788,9 +2206,9 @@ client.on('messageCreate', (message) => {
                 					return;
 								}
 
-								let userPokemonList = JSON.parse(row.caught_pokemon);
+								let userPokemonList = JSON.parse(row.caught_pokemon).flat();
 
-								db.all("SELECT name, dexNum FROM pokemon", [], (error, allPokemonList) => { //test 0, userPokemonList.length, 1, userPokemonList.length + 1
+								db.all("SELECT name, dexNum FROM pokemon", [], (error, allPokemonList) => {
 									if (error) {
 										console.error(error.message);
                     					message.channel.send('An error occurred while fetching the Pokémon database.');
@@ -1808,7 +2226,6 @@ client.on('messageCreate', (message) => {
 
 									const ignoredList = userPokemonList.slice(0, ignoreNum);
 									let sortableList = userPokemonList.slice(ignoreNum);
-									sortableList = sortableList.filter(pokemonName => typeof pokemonName === 'string' && pokemonName.trim().length > 0);
 
 									const dexMap = new Map();
 									allPokemonList.forEach(pokemon => {
@@ -1816,19 +2233,21 @@ client.on('messageCreate', (message) => {
 									});
 
 									sortableList.sort((a, b) => {
-										const nameA = a.startsWith('✨') ? a.substring(1) : a;
-										const nameB = b.startsWith('✨') ? b.substring(1) : b;
+										const nameA = a.name.startsWith('✨') ? a.name.substring(1) : a.name;
+										const nameB = b.name.startsWith('✨') ? b.name.substring(1) : b.name;
 
 										// Get Dex numbers from the map
 										const dexA = dexMap.get(nameA) || 9999; // Use a large number if not found
 										const dexB = dexMap.get(nameB) || 9999;
 
 										// Sort by Dex number
-										if (dexA !== dexB) return dexA - dexB;
+										if (dexA !== dexB) {
+											return dexA - dexB;
+										}
 
 										// If Dex numbers are the same, sort by shiny status
-										const isShinyA = a.startsWith('✨');
-										const isShinyB = b.startsWith('✨');
+										const isShinyA = a.name.startsWith('✨');
+										const isShinyB = b.name.startsWith('✨');
 										if (isShinyA && !isShinyB) {
 											return -1;
 										}
@@ -1841,6 +2260,7 @@ client.on('messageCreate', (message) => {
 									});
 
 									const finalList = ignoredList.concat(sortableList);
+
 									dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(finalList), userId], (err3) => {
 										if (err3) {
 											console.error(err3.message);
@@ -1864,7 +2284,7 @@ client.on('messageCreate', (message) => {
                 					return;
 								}
 
-								let userPokemonList = JSON.parse(row.caught_pokemon);
+								let userPokemonList = JSON.parse(row.caught_pokemon).flat();
 
 								let ignoreNum = 0;
 								if (args.length > 1 && !isNaN(args[1])) {
@@ -1880,24 +2300,24 @@ client.on('messageCreate', (message) => {
 
 								let countMap = new Map();
 								sortedList.forEach(pokemon => {
-									let name = pokemon.startsWith('✨') ? pokemon.substring(1) : pokemon;
+									let name = pokemon.name.startsWith('✨') ? pokemon.name.substring(1) : pokemon.name;
 									if (!countMap.has(name)) {
 										countMap.set(name, { count: 0, shiny: 0 });
 									}
 									let entry = countMap.get(name);
 									entry.count += 1;
-									if (pokemon.startsWith('✨')) {
+									if (pokemon.name.startsWith('✨')) {
 										entry.shiny += 1;
 									}
 									countMap.set(name, entry);
 								});
 
 								sortedList.sort((a, b) => {
-									let nameA = a.startsWith('✨') ? a.substring(1) : a;
-									let nameB = b.startsWith('✨') ? b.substring(1) : b;
+									let nameA = a.name.startsWith('✨') ? a.name.substring(1) : a.name;
+									let nameB = b.name.startsWith('✨') ? b.name.substring(1) : b.name;
 									let countA = countMap.get(nameA);
 									let countB = countMap.get(nameB);
-						
+									
 									if (countA.count === countB.count) {
 										if (countA.shiny !== countB.shiny) {
 											return countB.shiny - countA.shiny; // Sort shiny first
@@ -1931,7 +2351,7 @@ client.on('messageCreate', (message) => {
                 					return;
 								}
 
-								let userPokemonList = JSON.parse(row.caught_pokemon);
+								let userPokemonList = JSON.parse(row.caught_pokemon).flat();
 
 								let ignoreNum = 0;
 								if (args.length > 1 && !isNaN(args[1])) {
@@ -1941,19 +2361,20 @@ client.on('messageCreate', (message) => {
 										return;
 									}
 								}
+
 								let ignoreList = userPokemonList.slice(0, ignoreNum);
 								let sortedList = userPokemonList.slice(ignoreNum);
 
 								// Count Pokémon occurrences
 								let countMap = new Map();
 								sortedList.forEach(pokemon => {
-									let name = pokemon.startsWith('✨') ? pokemon.substring(1) : pokemon;
+									let name = pokemon.name.startsWith('✨') ? pokemon.name.substring(1) : pokemon.name;
 									if (!countMap.has(name)) {
 										countMap.set(name, { count: 0, shiny: 0 });
 									}
 									let entry = countMap.get(name);
 									entry.count += 1;
-									if (pokemon.startsWith('✨')) {
+									if (pokemon.name.startsWith('✨')) {
 										entry.shiny += 1;
 									}
 									countMap.set(name, entry);
@@ -1961,8 +2382,8 @@ client.on('messageCreate', (message) => {
 
 								// Sort by count (descending), then shiny, then alphabetical
 								sortedList.sort((a, b) => {
-									let nameA = a.startsWith('✨') ? a.substring(1) : a;
-									let nameB = b.startsWith('✨') ? b.substring(1) : b;
+									let nameA = a.name.startsWith('✨') ? a.name.substring(1) : a.name;
+									let nameB = b.name.startsWith('✨') ? b.name.substring(1) : b.name;
 									let countA = countMap.get(nameA);
 									let countB = countMap.get(nameB);
 
@@ -2000,7 +2421,7 @@ client.on('messageCreate', (message) => {
                 					return;
 								}
 
-								let userPokemonList = JSON.parse(row.caught_pokemon);
+								let userPokemonList = JSON.parse(row.caught_pokemon).flat();
 
 								let ignoreNum = 0;
 								if (args.length > 1 && !isNaN(args[1])) {
@@ -2015,16 +2436,20 @@ client.on('messageCreate', (message) => {
 								let sortedList = userPokemonList.slice(ignoreNum);
 
 								sortedList.sort((a, b) => {
-									let nameA = a.startsWith('✨') ? a.substring(1) : a;
-									let nameB = b.startsWith('✨') ? b.substring(1) : b;
+									let nameA = a.name.startsWith('✨') ? a.name.substring(1) : a.name;
+									let nameB = b.name.startsWith('✨') ? b.name.substring(1) : b.name;
 						
 									// First, sort alphabetically by name
 									let nameComparison = nameA.localeCompare(nameB);
 									if (nameComparison !== 0) return nameComparison;
 						
 									// If names are the same, prioritize shiny Pokémon
-									if (a.startsWith('✨') && !b.startsWith('✨')) return -1;
-									if (!a.startsWith('✨') && b.startsWith('✨')) return 1;
+									if (a.name.startsWith('✨') && !b.name.startsWith('✨')) {
+										return -1;
+									}
+									if (!a.name.startsWith('✨') && b.name.startsWith('✨')) {
+										return 1;
+									}
 						
 									return 0; // If names and shiny status are the same
 								});
@@ -2054,7 +2479,7 @@ client.on('messageCreate', (message) => {
                 					return;
 								}
 
-								let userPokemonList = JSON.parse(row.caught_pokemon);
+								let userPokemonList = JSON.parse(row.caught_pokemon).flat();
 
 								db.all("SELECT name, dexNum, isLM FROM pokemon", [], (error, allPokemonList) => {
 									if (error) {
@@ -2074,7 +2499,6 @@ client.on('messageCreate', (message) => {
 
 									const ignoredList = userPokemonList.slice(0, ignoreNum);
 									let sortableList = userPokemonList.slice(ignoreNum);
-									sortableList = sortableList.filter(pokemonName => typeof pokemonName === 'string' && pokemonName.trim().length > 0);
 
 									const dexMap = new Map();
 									allPokemonList.forEach(pokemon => {
@@ -2083,21 +2507,21 @@ client.on('messageCreate', (message) => {
 
 									const countMap = new Map();
 									sortableList.forEach(pokemon => {
-										let name = pokemon.startsWith('✨') ? pokemon.substring(1) : pokemon;
+										let name = pokemon.name.startsWith('✨') ? pokemon.name.substring(1) : pokemon.name;
 										if (!countMap.has(name)) {
 											countMap.set(name, { count: 0, shiny: 0 });
 										}
 										let entry = countMap.get(name);
 										entry.count += 1;
-										if (pokemon.startsWith('✨')) {
+										if (pokemon.name.startsWith('✨')) {
 											entry.shiny += 1;
 										}
 										countMap.set(name, entry);
 									});
 
 									sortableList.sort((a, b) => {
-										let nameA = a.startsWith('✨') ? a.substring(1) : a;
-										let nameB = b.startsWith('✨') ? b.substring(1) : b;
+										let nameA = a.name.startsWith('✨') ? a.name.substring(1) : a.name;
+										let nameB = b.name.startsWith('✨') ? b.name.substring(1) : b.name;
 
 										let dexA = dexMap.get(nameA) || { dexNum: 9999, isLM: 0 };
 										let dexB = dexMap.get(nameB) || { dexNum: 9999, isLM: 0 };
@@ -2105,10 +2529,10 @@ client.on('messageCreate', (message) => {
 										let countA = countMap.get(nameA);
 										let countB = countMap.get(nameB);
 
-										if (a.startsWith('✨') && !b.startsWith('✨')) {
+										if (a.name.startsWith('✨') && !b.name.startsWith('✨')) {
 											return -1;  // Shiny comes first
 										}
-										if (!a.startsWith('✨') && b.startsWith('✨')) {
+										if (!a.name.startsWith('✨') && b.name.startsWith('✨')) {
 											return 1;   // Shiny comes first
 										}
 
@@ -2457,8 +2881,11 @@ client.on('messageCreate', (message) => {
 						
 							collector.on('collect', async i => {
 								if (i.customId === 'use_yes') {
-									const updatedInventory = userInventory.filter(item => item !== 'Shiny Drop');
-									dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(updatedInventory), userId], (err) => {
+									const index = userInventory.indexOf('Shiny Drop');
+									if (index !== -1) {
+										userInventory.splice(index, 1);
+									}
+									dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(userInventory), userId], (err) => {
 										if (err) {
 											console.error(err.message);
 											message.channel.send('An error occurred while updating your inventory.');
@@ -2508,20 +2935,68 @@ client.on('messageCreate', (message) => {
 										}
 										else {
 											let randPokemon = getRandomInt(maxDexNum);
-											pokemon = rowsMon[randPokemon]; 	//rows = pokemon db query
+											const rowsN = rowsMon.filter(row => row.isLM !== 3);
+											pokemon = rowsN[randPokemon];
 											while (pokemon.isLM !== 0) {
 												randPokemon = getRandomInt(maxDexNum);
-												pokemon = rowsMon[randPokemon];
+												pokemon = rowsN[randPokemon];
 											}
 										}
 
-										let imageLink = pokemon.shinyImageLink;
+										const genders = JSON.parse(pokemon.gender);
+										let randomPercentage = Math.random() * 100;
+										let selectGender;
+										let cumulativePercentage = 0;
+										for (const gender of genders) {
+											cumulativePercentage += gender.percentage;
+											if (randomPercentage <= cumulativePercentage) {
+												selectGender = gender;
+												break;
+											}
+										}
+
+										const forms = JSON.parse(pokemon.forms);
+										randomPercentage = Math.random() * 100;
+										let selectForm;
+										cumulativePercentage = 0;
+										for (const form of forms) {
+											cumulativePercentage += form.percentage;
+											if (randomPercentage <= cumulativePercentage) {
+												selectForm = form;
+												break;
+											}
+										}
+
+										if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
+											selectGender = {
+												name: 'Male',
+												percentage: selectGender.percentage
+											};
+										}
+										else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
+											selectForm = {
+												name: 'Default',
+												percentage: selectForm.percentage
+											};
+										}
+										
+										let imageLink = null;
+										const shinyImageLinks = JSON.parse(pokemon.shinyImageLinks);
+										imageLink = shinyImageLinks[selectForm.name.toLowerCase()] || shinyImageLinks.default;
+			
+										if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
+											selectForm = {
+												name: selectForm.name.substring(0, selectForm.name.length - 4),
+												percentage: selectForm.percentage
+											};
+										}
+
 										const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
 										const curMon = pokemon.name ? `${pokemon.name}` : '';
 										console.log('Current pokemon: ' + curMon + '\n' + 'MythicalNum:  ' + mythicalNumber + ' (<0.025)' + '\n' + 'LegendaryNum: ' + legendaryNumber + ' (<0.05)' +'\n');
 										const isShiny = true;
 
-										activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny });
+										activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny, form: selectForm.name, gender: selectGender.name });
 
 										const embed = new EmbedBuilder()
 											.setColor('#0099ff')
@@ -2567,7 +3042,6 @@ client.on('messageCreate', (message) => {
 							{ name: '.dex <pokémon>', value: 'Displays a pokémon from the pokedex.' + '\n' + 'Usages: .dex 1 | .dex bulbasaur' },
 							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
 							{ name: '.inventory (.i)', value: 'Displays the items in your inventory.' },
-							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
 							{ name: '.shop (.s)', value: 'Displays the global shop.' },
 							{ name: '.buy <shopNum> (.b)', value: 'Buys an item from the shop.' + '\n' + 'Example: .buy 1' },
 							{ name: '.hint (.h)', value: 'Gives a hint for the currently dropped Pokémon.' },
@@ -2649,8 +3123,21 @@ client.on('messageCreate', (message) => {
 							return;
 						}
 
-						const caughtPokemon = JSON.parse(row.caught_pokemon);
-						const cleanedNames = caughtPokemon.filter(name => name).map(name => name.startsWith('✨') ? name.slice(1) : name);
+						const caughtPokemon = JSON.parse(row.caught_pokemon).flat();
+						const cleanedNames = caughtPokemon
+							.map(pokemon => {
+								let pokemonName = pokemon.name.startsWith('✨') ? pokemon.name.slice(1) : pokemon.name
+
+								if (pokemonName.toLowerCase() === 'nidoran') {
+									if (pokemon.gender === 'Male') {
+										pokemonName += '♂';
+									}
+									else if (pokemon.gender === 'Female') {
+										pokemonName += '♀'
+									}
+								}
+								return pokemonName;
+							});
 
 						const nameCount = cleanedNames.reduce((acc, name) => {
 							acc[name] = (acc[name] || 0) + 1;
@@ -2699,12 +3186,30 @@ client.on('messageCreate', (message) => {
 							return;
 						}
 
-						const pokemonToRelease = caughtPokemon[index];
+						let isShiny = false;
+						let finalName = '';
+						if (caughtPokemon[index].name.startsWith('✨')) {
+							isShiny = true;
+							finalName = caughtPokemon[index].name.substring(1);
+						}
+						else {
+							finalName = caughtPokemon[index].name;
+						}
+						let form = '';
+						if (caughtPokemon[index].form.toLowerCase() !== 'default') {
+							form = caughtPokemon[index].form + ' ';
+						}
+						if (isShiny) {
+							finalName = '✨'+ form + finalName;
+						}
+						else {
+							finalName = form + finalName;
+						}
 
 						const embed = new EmbedBuilder()
 							.setColor('#ff0000')
 							.setTitle('Release Pokémon')
-							.setDescription(`Really release #${index + 1}, ${pokemonToRelease}?`)
+							.setDescription(`Really release #${index + 1}, ${finalName}?`)
 							.setTimestamp();
 
 						const buttonRow = new ActionRowBuilder()
@@ -2730,7 +3235,7 @@ client.on('messageCreate', (message) => {
 									if (err) {
 										console.error(err.message);
 									}
-									i.update({ content: `Successfully released ${pokemonToRelease}`, embeds: [], components: [] });
+									i.update({ content: `Successfully released ${finalName}`, embeds: [], components: [] });
 									});
 								} 
 								else if (i.customId === 'release_no') {
@@ -2747,7 +3252,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//trade
-			else if (tradeCommandRegex.test(message.content.toLowerCase())) {
+			/*else if (tradeCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -2983,7 +3488,7 @@ client.on('messageCreate', (message) => {
 						return;
 					}
 				});
-			}
+			}*/
 			
 			//turn off, remove on official release
 			else if ( (message.content === '.off' || message.content === '.stop') && ((userId === '177580797165961216') || (userId === '233239544776884224'))) {
