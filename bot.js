@@ -48,7 +48,7 @@ function generatePartyEmbed(pokemonList, page, pageSize, title, isSLM) {
 	let color = '#0099ff';
 	if (pokemonList.length > 0) {
 		if (typeof pokemonList[0] === 'object') {
-			formattedPokemonList = pagePokemon.map((p, index) => {
+			formattedPokemonList = pagePokemon.map(p => {
 				let displayName = p.name;
 
 				let isShiny = false;
@@ -75,7 +75,7 @@ function generatePartyEmbed(pokemonList, page, pageSize, title, isSLM) {
 					displayName += ' ♀';
 				}
 
-				return `\`\`${start + index + 1}\`\`\t${displayName}`;
+				return `\`\`${p.id}\`\`\t${displayName}`;
 			}).join('\n');
 		}
 		else {
@@ -1798,10 +1798,15 @@ client.on('messageCreate', (message) => {
 						const caughtPokemon = JSON.parse(row.caught_pokemon).flat();
 						
 						if (args.length === 0) {
+							const pmap = caughtPokemon.map((p, index) => ({
+								...p,
+								id: index + 1
+							}));
+
 							const pageSize = 20;
 							let page = 0;
 
-							const embed = generatePartyEmbed(caughtPokemon, page, pageSize, `Your Pokémon`, 0);
+							const embed = generatePartyEmbed(pmap, page, pageSize, `Your Pokémon`, 0);
 							const buttonRow = getPartyBtns();
 
 							message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
@@ -2114,7 +2119,7 @@ client.on('messageCreate', (message) => {
 										pokemonName = pokemonName.substring(1);
 									 }
 
-									 if (legendaryPokemon.includes(pokemonName)) {
+									 if (mythicalPokemon.includes(pokemonName)) {
 										return {
 											name: isShiny ? `✨${pokemonName}` : pokemonName,
 											id: index + 1
