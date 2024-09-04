@@ -1819,11 +1819,11 @@ client.on('messageCreate', (message) => {
 											page--;
 										}
 										else {
-											page = Math.ceil(caughtPokemon.length / pageSize) - 1;
+											page = Math.ceil(pmap.length / pageSize) - 1;
 										}
 									} 
 									else if (i.customId === 'next') {
-										if ((page + 1) * pageSize < caughtPokemon.length) {
+										if ((page + 1) * pageSize < pmap.length) {
 											page++;
 										}
 										else {
@@ -1834,10 +1834,10 @@ client.on('messageCreate', (message) => {
 										page = 0;
 									}
 									else if (i.customId === 'fforward') {
-										page = Math.ceil(caughtPokemon.length / pageSize) - 1;;
+										page = Math.ceil(pmap.length / pageSize) - 1;;
 									}
 
-									await i.update({ embeds: [generatePartyEmbed(caughtPokemon, page, pageSize, `Your Pokémon`, 0)] });
+									await i.update({ embeds: [generatePartyEmbed(pmap, page, pageSize, `Your Pokémon`, 0)] });
 								});
 
 								collector.on('end', collected => {
