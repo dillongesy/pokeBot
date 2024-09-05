@@ -648,6 +648,36 @@ client.on('messageCreate', (message) => {
 				});
 			}
 
+			//flatten everyone's caught_pokemon
+			else if(message.content.toLowerCase() === '.flatten' && userId === '177580797165961216') {
+				dbUser.all("SELECT user_id, caught_pokemon FROM user", [], (err, rows) => {
+					if (err) {
+						console.error(err.message);
+						message.channel.send('An error occurred while fetching the user\'s Pokémon.');
+						return;
+					}
+					rows.forEach((row) => {
+						if (!row.caught_pokemon) {
+							console.log(`User ${row.user_id} has no Pokémon to order.`);
+							return;
+						}
+						let list = JSON.parse(row.caught_pokemon).flat();
+						dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(list), row.user_id], (err) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while updating your Pokémon.');
+								return;
+							}
+							else {
+								console.log(`Pokemon successfully made into objects for user ${row.user_id}.`);
+							}
+						});
+					});
+					//insert into back into db
+					
+				});
+			}
+
 			//Make pokemon objects
 			else if(message.content.toLowerCase() === '.makepobj' && userId === '177580797165961216') {
 				dbUser.all("SELECT user_id, caught_pokemon FROM user", [], (err, rows) => {
