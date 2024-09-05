@@ -946,8 +946,8 @@ client.on('messageCreate', (message) => {
 						}
 						
 						const messageText = isShinyVar
-							? `Added ✨${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
-							: `Added ${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
+							? `Added ✨${formName}${curMonName} ${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
+							: `Added ${formName}${curMonName} ${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
 						
 						message.channel.send(messageText);
 						
@@ -1881,6 +1881,17 @@ client.on('messageCreate', (message) => {
 						}
 
 						else if (args[0].toLowerCase() === 'swap') {
+							let isInTrade = false;
+							for (const [serverId, trade] of activeTrades.entries()) {
+								if (trade && (userId === trade.user1 || userId === trade.user2)) {
+									isInTrade = true;
+									break;
+								}
+							}
+							if (isInTrade) {
+								message.channel.send('Cannot order your pokemon while in a trade!');
+								return;
+							}
 							if (args.length > 2) {
 								const partyNum1 = parseInt(args[1], 10) - 1;
 								const partyNum2 = parseInt(args[2], 10) - 1;
@@ -2136,6 +2147,18 @@ client.on('messageCreate', (message) => {
 					if (!allowed) {
 						return;
 					}
+					let isInTrade = false;
+					for (const [serverId, trade] of activeTrades.entries()) {
+						if (trade && (userId === trade.user1 || userId === trade.user2)) {
+							isInTrade = true;
+							break;
+						}
+					}
+					if (isInTrade) {
+						message.channel.send('Cannot order your pokemon while in a trade!');
+						return;
+					}
+
 					const args = message.content.split(' ').slice(1);
 
 					if (args.length > 0) {
@@ -3199,7 +3222,7 @@ client.on('messageCreate', (message) => {
 			}
 			
 			//trade
-			/*else if (tradeCommandRegex.test(message.content.toLowerCase())) {
+			else if (tradeCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
@@ -3229,7 +3252,7 @@ client.on('messageCreate', (message) => {
 										message.channel.send('An error occurred while fetching user data.');
 										return;
 									}
-									const user1Pokemon = JSON.parse(user1Row.caught_pokemon);
+									const user1Pokemon = JSON.parse(user1Row.caught_pokemon).flat();
 									const user1TradedPokemon = user1Pokemon.splice(trade.user1Pokemon, 1)[0];
 				
 									dbUser.get("SELECT * FROM user WHERE user_id = ?", [trade.user2], (err, user2Row) => {
@@ -3238,7 +3261,7 @@ client.on('messageCreate', (message) => {
 											message.channel.send('An error occurred while fetching user data.');
 											return;
 										}
-										const user2Pokemon = JSON.parse(user2Row.caught_pokemon);
+										const user2Pokemon = JSON.parse(user2Row.caught_pokemon).flat();
 										const user2TradedPokemon = user2Pokemon.splice(trade.user2Pokemon, 1)[0];
 					
 										user1Pokemon.push(user2TradedPokemon);
@@ -3254,7 +3277,65 @@ client.on('messageCreate', (message) => {
 													console.error(err.message);
 													return;
 												}
-												message.channel.send(`Trade completed! <@!${user1Row.user_id}> traded ${user1TradedPokemon} with <@!${user2Row.user_id}> for ${user2TradedPokemon}.`);
+
+												const u1TName = user1TradedPokemon.name;
+												let isShiny = false;
+												let finalDisplayName1 = '';
+												if (u1TName.startsWith('✨')) {
+													finalDisplayName1 = `${u1TName.substring(1)}`;
+													isShiny = true;
+												}
+												else {
+													finalDisplayName1 = u1TName;
+												}
+												if (user1TradedPokemon.form.toLowerCase() !== 'default') {
+													finalDisplayName1 = `${user1TradedPokemon.form} ${finalDisplayName1}`;
+													if (isShiny) {
+														finalDisplayName1 = `✨${finalDisplayName1}`;
+													}
+												}
+												else if(isShiny) {
+													finalDisplayName1 = `✨${finalDisplayName1}`;
+												}
+
+												const maleSymbol = '`♂`';
+												const femaleSymbol = '`♀`';
+
+												if (user1TradedPokemon.gender === 'Male') {
+													finalDisplayName1 += ` ${maleSymbol}`;
+												}
+												else if (user1TradedPokemon.gender === 'Female') {
+													finalDisplayName1 += ` ${femaleSymbol}`;
+												}
+
+												const u2TName = user2TradedPokemon.name;
+												isShiny = false;
+												let finalDisplayName2 = '';
+												if (u2TName.startsWith('✨')) {
+													finalDisplayName2 = `${u2TName.substring(1)}`;
+													isShiny = true;
+												}
+												else {
+													finalDisplayName2 = u2TName;
+												}
+												if (user2TradedPokemon.form.toLowerCase() !== 'default') {
+													finalDisplayName2 = `${user2TradedPokemon.form} ${finalDisplayName2}`;
+													if (isShiny) {
+														finalDisplayName2 = `✨${finalDisplayName2}`;
+													}
+												}
+												else if(isShiny) {
+													finalDisplayName2 = `✨${finalDisplayName2}`;
+												}
+
+												if (user2TradedPokemon.gender === 'Male') {
+													finalDisplayName2 += ` ${maleSymbol}`;
+												}
+												else if (user2TradedPokemon.gender === 'Female') {
+													finalDisplayName2 += ` ${femaleSymbol}`;
+												}
+
+												message.channel.send(`Trade completed! <@!${user1Row.user_id}> traded ${finalDisplayName1} with <@!${user2Row.user_id}> for ${finalDisplayName2}.`);
 												clearTimeout(trade.timeout);
 												activeTrades.delete(serverId);
 											});
@@ -3286,7 +3367,7 @@ client.on('messageCreate', (message) => {
 								message.channel.send('An error occurred while fetching your Pokémon data.');
 								return;
 							}
-							const userPokemon = JSON.parse(row.caught_pokemon);
+							const userPokemon = JSON.parse(row.caught_pokemon).flat();
 							if (partyNum < 0 || partyNum >= userPokemon.length) {
 								message.channel.send("You do not have a Pokémon in that party slot.");
 								return;
@@ -3305,7 +3386,36 @@ client.on('messageCreate', (message) => {
 								return;
 							}
 							
-							const pokeName = userPokemon[partyNum];
+							const pokeName = userPokemon[partyNum].name;
+							let isShiny = false;
+							let finalDisplayName = '';
+							if (pokeName.startsWith('✨')) {
+								finalDisplayName = `${pokeName.substring(1)}`;
+								isShiny = true;
+							}
+							else {
+								finalDisplayName = pokeName;
+							}
+							if (userPokemon[partyNum].form.toLowerCase() !== 'default') {
+								finalDisplayName = `${userPokemon[partyNum].form} ${finalDisplayName}`;
+								if (isShiny) {
+									finalDisplayName = `✨${finalDisplayName}`;
+								}
+							}
+							else if(isShiny) {
+								finalDisplayName = `✨${finalDisplayName}`;
+							}
+
+							const maleSymbol = '`♂`';
+							const femaleSymbol = '`♀`';
+
+							if (userPokemon[partyNum].gender === 'Male') {
+								finalDisplayName += ` ${maleSymbol}`;
+							}
+							else if (userPokemon[partyNum].gender === 'Female') {
+								finalDisplayName += ` ${femaleSymbol}`;
+							}
+
 							let authorUserName = message.member.displayName;
 							if (authorUserName.toLowerCase().includes("@everyone") || authorUserName.toLowerCase().includes("@here")) {
 								authorUserName = "Someone";
@@ -3319,7 +3429,35 @@ client.on('messageCreate', (message) => {
 										message.channel.send('An error occurred while fetching user1 data.');
 										return;
 									}
-									const user1PokemonName = JSON.parse(user1Row.caught_pokemon)[trade.user1Pokemon];
+									const user1PokemonName = JSON.parse(user1Row.caught_pokemon).flat()[trade.user1Pokemon].name;
+									let isShiny = false;
+									let finalDisplayName1 = '';
+									if (user1PokemonName.startsWith('✨')) {
+										finalDisplayName1 = `${user1PokemonName.substring(1)}`;
+										isShiny = true;
+									}
+									else {
+										finalDisplayName1 = user1PokemonName;
+									}
+									if (JSON.parse(user1Row.caught_pokemon).flat()[trade.user1Pokemon].form.toLowerCase() !== 'default') {
+										finalDisplayName1 = `${JSON.parse(user1Row.caught_pokemon).flat()[trade.user1Pokemon].form} ${finalDisplayName1}`;
+										if (isShiny) {
+											finalDisplayName1 = `✨${finalDisplayName1}`;
+										}
+									}
+									else if(isShiny) {
+										finalDisplayName1 = `✨${finalDisplayName1}`;
+									}
+
+									const maleSymbol = '`♂`';
+									const femaleSymbol = '`♀`';
+
+									if (JSON.parse(user1Row.caught_pokemon).flat()[trade.user1Pokemon].gender === 'Male') {
+										finalDisplayName1 += ` ${maleSymbol}`;
+									}
+									else if (JSON.parse(user1Row.caught_pokemon).flat()[trade.user1Pokemon].gender === 'Female') {
+										finalDisplayName1 += ` ${femaleSymbol}`;
+									}
 
 									dbUser.get("SELECT * FROM user WHERE user_id = ?", [trade.user2], (err, user2Row) => {
 										if (err) {
@@ -3327,7 +3465,36 @@ client.on('messageCreate', (message) => {
 											message.channel.send('An error occurred while fetching user2 data.');
 											return;
 										}
-										const user2PokemonName = JSON.parse(user2Row.caught_pokemon)[trade.user2Pokemon];
+
+										const user2PokemonName = JSON.parse(user2Row.caught_pokemon).flat()[trade.user2Pokemon].name;
+										let isShiny = false;
+										let finalDisplayName2 = '';
+										if (user2PokemonName.startsWith('✨')) {
+											finalDisplayName2 = `${user2PokemonName.substring(1)}`;
+											isShiny = true;
+										}
+										else {
+											finalDisplayName2 = user2PokemonName;
+										}
+										if (JSON.parse(user2Row.caught_pokemon).flat()[trade.user2Pokemon].form.toLowerCase() !== 'default') {
+											finalDisplayName2 = `${JSON.parse(user2Row.caught_pokemon).flat()[trade.user2Pokemon].form} ${finalDisplayName2}`;
+											if (isShiny) {
+												finalDisplayName2 = `✨${finalDisplayName2}`;
+											}
+										}
+										else if(isShiny) {
+											finalDisplayName2 = `✨${finalDisplayName2}`;
+										}
+
+										const maleSymbol = '`♂`';
+										const femaleSymbol = '`♀`';
+
+										if (JSON.parse(user2Row.caught_pokemon).flat()[trade.user2Pokemon].gender === 'Male') {
+											finalDisplayName2 += ` ${maleSymbol}`;
+										}
+										else if (JSON.parse(user2Row.caught_pokemon).flat()[trade.user2Pokemon].gender === 'Female') {
+											finalDisplayName2 += ` ${femaleSymbol}`;
+										}
 										
 										let userDisplayName1 = '';
 										let userDisplayName2 = '';
@@ -3344,13 +3511,13 @@ client.on('messageCreate', (message) => {
 											userDisplayName2 = message.guild.members.cache.get(trade.user2).displayName;
 										}
 										message.channel.send(
-											`Trade set: **${user1PokemonName}** (added by ${userDisplayName1}) and **${user2PokemonName}** (added by ${userDisplayName2}). Type \`.trade confirm\` to confirm the trade.`
+											`Trade set: **${finalDisplayName1}** (added by ${userDisplayName1}) and **${finalDisplayName2}** (added by ${userDisplayName2}). Type \`.trade confirm\` to confirm the trade.`
 										);
 									});
 								});
 							}
 							else {
-								message.channel.send(`${authorUserName} added **${pokeName}** to the trade. Waiting for the other user to add their Pokémon.`);
+								message.channel.send(`${authorUserName} added **${finalDisplayName}** to the trade. Waiting for the other user to add their Pokémon.`);
 							}
 						});	
 					}
@@ -3435,7 +3602,7 @@ client.on('messageCreate', (message) => {
 						return;
 					}
 				});
-			}*/
+			}
 			
 			//turn off, remove on official release
 			else if ( (message.content === '.off' || message.content === '.stop') && ((userId === '177580797165961216') || (userId === '233239544776884224'))) {
