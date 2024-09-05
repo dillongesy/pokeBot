@@ -68,11 +68,14 @@ function generatePartyEmbed(pokemonList, page, pageSize, title, isSLM) {
 					displayName = `✨${displayName}`;
 				}
 
+				const maleSymbol = '`♂`';
+				const femaleSymbol = '`♀`';
+
 				if (p.gender === 'Male') {
-					displayName += ' ♂';
+					displayName += ` ${maleSymbol}`;
 				}
 				else if (p.gender === 'Female') {
-					displayName += ' ♀';
+					displayName += ` ${femaleSymbol}`;
 				}
 
 				return `\`\`${p.id}\`\`\t${displayName}`;
@@ -603,15 +606,15 @@ client.on('messageCreate', (message) => {
 									percentage: selectForm.percentage
 								};
 							}
-							
+
 							let imageLink = null;
 							if (isShiny) {
 								const shinyImageLinks = JSON.parse(pokemon.shinyImageLinks);
-								imageLink = shinyImageLinks[selectForm.name.toLowerCase()] || shinyImageLinks.default;
+								imageLink = shinyImageLinks[selectForm.name] || shinyImageLinks.default;
 							}
 							else {
 								const imageLinks = JSON.parse(pokemon.imageLinks);
-								imageLink = imageLinks[selectForm.name.toLowerCase()] || imageLinks.default;
+								imageLink = imageLinks[selectForm.name] || imageLinks.default;
 							}
 
 							if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
@@ -830,7 +833,7 @@ client.on('messageCreate', (message) => {
 									percentage: selectForm.percentage
 								};
 							}
-
+							
 							let imageLink = null;
 							if (isShiny) {
 								const shinyImageLinks = JSON.parse(pokemon.shinyImageLinks);
@@ -923,10 +926,10 @@ client.on('messageCreate', (message) => {
 
 						let genderSymbol = '';
 						if (gender === 'Male') {
-							genderSymbol = '♂️';
+							genderSymbol = '♂\u200B';//'♂️';
 						}
 						else if (gender === 'Female') {
-							genderSymbol = '♀';
+							genderSymbol = '♀\u200B';//'♀';
 						}
 
 						let formName = '';
@@ -1709,67 +1712,6 @@ client.on('messageCreate', (message) => {
 									
 									message.channel.send({embeds: [embed] });
 						});
-
-						
-						/*if (pokemonToDisplay[0] === '✨') {
-							let shinyDisplayedPokemon = pokemonToDisplay.replaceAt(0, '');
-							db.get("SELECT * FROM pokemon WHERE name = ?", [shinyDisplayedPokemon], (err, pokemonRow) => {
-								if (err) {
-									console.error(err.message);
-									message.channel.send('An error occurred while fetching Pokémon information.');
-									return;
-								}
-								if (!pokemonRow) {
-									message.channel.send('Pokémon not found in the database.');
-									return;
-								}
-								
-								const type2 = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
-								
-								
-								const embed = new EmbedBuilder()
-									.setColor('#0099ff')
-									.setTitle(`Your ✨${pokemonRow.name}`)
-									.addFields(
-										{ name: 'Dex Number', value: `${pokemonRow.dexNum}`, inline: true },
-										{ name: 'Type', value: `${pokemonRow.type1}${type2}`, inline: true },
-										{ name: 'Region', value: `${pokemonRow.region}`, inline: true }
-									)
-									.setImage(pokemonRow.shinyImageLink)
-									.setTimestamp();
-									
-									message.channel.send({embeds: [embed] });
-							});
-						}
-						else {
-							db.get("SELECT * FROM pokemon WHERE name = ?", [pokemonToDisplay], (err, pokemonRow) => {
-								if (err) {
-									console.error(err.message);
-									message.channel.send('An error occurred while fetching Pokémon information.');
-									return;
-								}
-								if (!pokemonRow) {
-									message.channel.send('Pokémon not found in the database.');
-									return;
-								}
-								
-								const type2 = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
-								
-								
-								const embed = new EmbedBuilder()
-									.setColor('#0099ff')
-									.setTitle(`Your ${pokemonRow.name}`)
-									.addFields(
-										{ name: 'Dex Number', value: `${pokemonRow.dexNum}`, inline: true },
-										{ name: 'Type', value: `${pokemonRow.type1}${type2}`, inline: true },
-										{ name: 'Region', value: `${pokemonRow.region}`, inline: true }
-									)
-									.setImage(pokemonRow.imageLink)
-									.setTimestamp();
-									
-									message.channel.send({embeds: [embed] });
-							});
-						}*/
 					});
 				});
 			}
@@ -1872,10 +1814,10 @@ client.on('messageCreate', (message) => {
 										}
 										
 										if (p.gender === 'Male') {
-											fullName += ' ♂';
+											fullName += ' ♂\u200B';
 										}
 										else if (p.gender === 'Female') {
-											fullName += ' ♀';
+											fullName += ' ♀\u200B';
 										}
 
 										return {
@@ -3135,10 +3077,10 @@ client.on('messageCreate', (message) => {
 
 								if (pokemonName.toLowerCase() === 'nidoran') {
 									if (pokemon.gender === 'Male') {
-										pokemonName += '♂';
+										pokemonName += '♂\u200B';
 									}
 									else if (pokemon.gender === 'Female') {
-										pokemonName += '♀'
+										pokemonName += '♀\u200B';
 									}
 								}
 								return pokemonName;
