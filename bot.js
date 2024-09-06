@@ -155,7 +155,6 @@ function getDisablePartyBtns() {
 
 //Helper function, .dex Embed Generator
 function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList) {
-	//const type2 = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
 	const shinyImageLinks = JSON.parse(pokemonRow.shinyImageLinks);
 	const imgLinks = JSON.parse(pokemonRow.imageLinks);
 
@@ -375,91 +374,6 @@ function fixPokemonName(pokemonIdentifier, args) {
 	}
 	else if (pokemonIdentifier === 'Porygon-z') {
 		pokemonIdentifier = 'Porygon-Z';
-	}
-	else if (pokemonIdentifier === 'Sunny' && args.length > 2) {
-		if (args[2].toLowerCase() === 'castform') {
-			pokemonIdentifier = 'Sunny Castform';
-		}
-	}
-	else if (pokemonIdentifier === 'Rainy' && args.length > 2) {
-		if (args[2].toLowerCase() === 'castform') {
-			pokemonIdentifier = 'Rainy Castform';
-		}
-	}
-	else if (pokemonIdentifier === 'Snowy' && args.length > 2) {
-		if (args[2].toLowerCase() === 'castform') {
-			pokemonIdentifier = 'Snowy Castform';
-		}
-	}
-	else if (pokemonIdentifier === 'Sandy' && args.length > 2) {
-		if (args[2].toLowerCase() === 'wormadam') {
-			pokemonIdentifier = 'Sandy Wormadam';
-		}
-	}
-	else if (pokemonIdentifier === 'Trash' && args.length > 2) {
-		if (args[2].toLowerCase() === 'wormadam') {
-			pokemonIdentifier = 'Trash Wormadam';
-		}
-	}
-	else if (pokemonIdentifier === 'Plant' && args.length > 2) {
-		if (args[2].toLowerCase() === 'wormadam') {
-			pokemonIdentifier = 'Wormadam';
-		}
-	}
-	else if (pokemonIdentifier === 'Heat' && args.length > 2) {
-		if (args[2].toLowerCase() === 'rotom') {
-			pokemonIdentifier = 'Heat Rotom';
-		}
-	}
-	else if (pokemonIdentifier === 'Wash' && args.length > 2) {
-		if (args[2].toLowerCase() === 'rotom') {
-			pokemonIdentifier = 'Wash Rotom';
-		}
-	}
-	else if (pokemonIdentifier === 'Frost' && args.length > 2) {
-		if (args[2].toLowerCase() === 'rotom') {
-			pokemonIdentifier = 'Frost Rotom';
-		}
-	}
-	else if (pokemonIdentifier === 'Sky' && args.length > 2) {
-		if (args[2].toLowerCase() === 'shaymin') {
-			pokemonIdentifier = 'Sky Shaymin';
-		}
-	}
-	else if (pokemonIdentifier === 'Zen' && args.length > 2) {
-		if (args[2].toLowerCase() === 'darmanitan') {
-			pokemonIdentifier = 'Zen Darmanitan';
-		}
-	}
-	else if (pokemonIdentifier === 'Therian' && args.length > 2) {
-		if (args[2].toLowerCase() === 'tornadus') {
-			pokemonIdentifier = 'Therian Tornadus';
-		}
-	}
-	else if (pokemonIdentifier === 'Therian' && args.length > 2) {
-		if (args[2].toLowerCase() === 'thunderus') {
-			pokemonIdentifier = 'Therian Thunderus';
-		}
-	}
-	else if (pokemonIdentifier === 'Therian' && args.length > 2) {
-		if (args[2].toLowerCase() === 'landorus') {
-			pokemonIdentifier = 'Therian Landorus';
-		}
-	}
-	else if (pokemonIdentifier === 'White' && args.length > 2) {
-		if (args[2].toLowerCase() === 'kyurem') {
-			pokemonIdentifier = 'White Kyurem';
-		}
-	}
-	else if (pokemonIdentifier === 'Black' && args.length > 2) {
-		if (args[2].toLowerCase() === 'kyurem') {
-			pokemonIdentifier = 'Black Kyurem';
-		}
-	}
-	else if (pokemonIdentifier === 'Pirouette' && args.length > 2) {
-		if (args[2].toLowerCase() === 'meloetta') {
-			pokemonIdentifier = 'Pirouette Meloetta';
-		}
 	}
 	
 	return pokemonIdentifier;
@@ -688,6 +602,66 @@ client.on('messageCreate', (message) => {
 				});
 			}
 
+			//fix pokemon's objects (default -> male)
+			else if (message.content.toLowerCase() === '.fixmon' && userId === '177580797165961216') {
+				dbUser.all("SELECT user_id, caught_pokemon FROM user", [], (err, rows) => {
+					if (err) {
+						console.error(err.message);
+						message.channel.send('An error occurred while fetching your Pokémon.');
+						return;
+					}
+					db.all("SELECT * FROM pokemon", [], (err, allPokemonList) => {
+						if (err) {
+							console.error(err.message);
+							message.channel.send('An error occurred while fetching Pokémon data.');
+							return;
+						}
+						rows.forEach((row) => {
+							if (!row.caught_pokemon) {
+								console.log(`User ${row.user_id} has no Pokémon to fix.`);
+								return;
+							}
+							//get list of all user's pokemon
+							let userPokemonList = JSON.parse(row.caught_pokemon);
+							//filter list by form = 'Default'
+							//get dexNum of the filtered list
+							let defaultFormPokemon = userPokemonList.filter(pokemon => pokemon.form.toLowerCase() === 'default');
+							
+							for (let i = 0; i < defaultFormPokemon.length; i++) {
+								let curNMame = defaultFormPokemon[i].name;
+								let filteredList = allPokemonList.filter(pokemon => pokemon.name === curNMame);
+								if (filteredList.length > 0) {
+									let forms = JSON.parse(filteredList[0].forms);
+									let hasDefault = forms.some(form => form.name.toLowerCase() === 'default');
+									// let hasDefault = false;
+									// for (let j = 0; j < forms.length; j++) {
+									// 	if (forms[j].name.toLowerCase() === 'default') {
+									// 		hasDefault = true;
+									// 	}
+									// }
+									if (!hasDefault) {
+										defaultFormPokemon[i].form = 'Male';
+									}
+								}
+							}
+							dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(userPokemonList), row.user_id], (err) => {
+								if (err) {
+									console.error(`Error updating Pokémon for user ${row.user_id}:`, err.message);
+								} else {
+									console.log(`Successfully updated Pokémon for user ${row.user_id}`);
+								}
+							});
+						});
+						message.channel.send('Finished fixing Pokémon forms for all users.');
+					});
+				});
+				
+				
+				//query database for all pokemon
+				//for all of the dexNums[], check if the corresponding row has forms = 'Default'
+				//if it doesn't, make the form "Male"
+			}
+
 			//flatten everyone's caught_pokemon
 			else if(message.content.toLowerCase() === '.flatten' && userId === '177580797165961216') {
 				dbUser.all("SELECT user_id, caught_pokemon FROM user", [], (err, rows) => {
@@ -827,6 +801,8 @@ client.on('messageCreate', (message) => {
 					});
 				});
 			}
+
+			//
 			
 			//force a spawn
 			else if (forceSpawnCommandRegex.test(message.content.toLowerCase()) && userId === '177580797165961216') {
@@ -1432,7 +1408,7 @@ client.on('messageCreate', (message) => {
 						});
 					}
 
-					else if (args[0].toLowerCase() === 'm' || args[0].toLowerCase() === 'mythical') {
+					else if (args[0].toLowerCase() === 'm' || args[0].toLowerCase() === 'mythical' || args[0].toLowerCase() === 'mythic') {
 						//display mythical leaderboard
 						////Use in-memory data to make this call a lot faster
 						const mythicalPokemon = [
@@ -1651,7 +1627,7 @@ client.on('messageCreate', (message) => {
 							.setCustomId('formSelect')
 							.setPlaceholder('Select a Form')
 							.addOptions(
-								forms.map(form => ({
+								forms.slice(0, 25).map(form => ({
 									label: form.name,
 									value: form.name,
 								}))
@@ -1704,7 +1680,7 @@ client.on('messageCreate', (message) => {
 										.setCustomId('formSelect')
 										.setPlaceholder('Select a Form')
 										.addOptions(
-											forms.map(form => ({
+											forms.slice(0, 25).map(form => ({
 												label: form.name,
 												value: form.name,
 											}))
@@ -1734,7 +1710,7 @@ client.on('messageCreate', (message) => {
 										.setCustomId('formSelect')
 										.setPlaceholder('Select a Form')
 										.addOptions(
-											forms.map(form => ({
+											forms.slice(0, 25).map(form => ({
 												label: form.name,
 												value: form.name,
 											}))
