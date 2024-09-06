@@ -544,7 +544,6 @@ client.on('messageCreate', (message) => {
 							let randPokemon = getRandomInt(maxDexNum); 
 							let pokemon = null;
 							let embedColor = '#0099FF';
-							isShiny = true;
 
 							if (isMythical) {
 								const rowsM = rows.filter(row => row.isLM === 2);
