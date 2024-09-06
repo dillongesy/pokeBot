@@ -920,6 +920,7 @@ client.on('messageCreate', (message) => {
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mime jr')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mimejr')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mimejr.')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'spoink' && message.content.toLowerCase() === 'boingo')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygon z')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygonz'))) { //edge case
 				
