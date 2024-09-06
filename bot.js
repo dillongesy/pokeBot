@@ -98,7 +98,6 @@ function generatePartyEmbed(pokemonList, page, pageSize, title, isSLM) {
 	const embed = new EmbedBuilder()
 		.setColor(color)
 		.setTitle(title)
-		.setTitle('Your Pokémon')
 		.setDescription(formattedPokemonList || 'No Pokémon Found')
 		.setFooter({ text: `Showing ${start + 1}-${end > pokemonList.length ? pokemonList.length : end} of ${pokemonList.length} Pokémon` })
 		.setTimestamp();
@@ -155,24 +154,59 @@ function getDisablePartyBtns() {
 }
 
 //Helper function, .dex Embed Generator
-function updateEmbed(shinyImg, dexNumber, pokemonRow) {
-	const type2 = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
+function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList) {
+	//const type2 = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
 	const shinyImageLinks = JSON.parse(pokemonRow.shinyImageLinks);
 	const imgLinks = JSON.parse(pokemonRow.imageLinks);
-	const imageLink = shinyImg ? shinyImageLinks.default : imgLinks.default;
 
-	//const shinyImageLinks = JSON.parse(pokemon.shinyImageLinks);
-	//imageLink = shinyImageLinks[selectForm.name] || shinyImageLinks.default;
+	const imageLink = shinyImg ? shinyImageLinks[selectedForm] || shinyImageLinks.default : imgLinks[selectedForm] || imgLinks.default;
+
+	const formTypes = getFormTypes(pokemonRow.name, selectedForm, pokeList);
+	let type1Field = '';
+	let type2Field = '';
+	if (formTypes.formFound === true) {
+		type1Field = formTypes.type1;
+		type2Field = formTypes.type2 ? ` / ${formTypes.type2}` : '';
+	}
+	else {
+		type1Field = pokemonRow.type1;
+		type2Field = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
+	}
+	if (selectedForm.toLowerCase() !== 'default' && selectedForm.toLowerCase() !== '') {
+		selectedForm = `(${selectedForm})`;
+	}
 							
 	return new EmbedBuilder()
 		.setColor('#0099ff')
-		.setTitle(`${pokemonRow.name} - #${dexNumber}`)
+		.setTitle(`${pokemonRow.name} - #${dexNumber} ${selectedForm}`)
 		.addFields(
-			{ name: 'Type', value: `${pokemonRow.type1}${type2}`, inline: true },
+			{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
 			{ name: 'Region', value: `${pokemonRow.region}`, inline: true }
 		)
 		.setImage(imageLink)
 		.setTimestamp();
+}
+
+//Helper function, query for form + name to get typings
+function getFormTypes(name, form, pokeList) {
+	const dexEntry = `${form} ${name}`.trim();
+	//filter by: pokeList[i].isLM = 3 && pokeList[i].name = dexEntry\
+	const filteredList = pokeList.filter(pokemon => pokemon.isLM === 3 && pokemon.name === dexEntry);
+	if (filteredList.length > 0) {
+		const foundPokemon = filteredList[0];
+		return {
+			formFound: true,
+			type1: foundPokemon.type1,
+			type2: foundPokemon.type2
+		};
+	}
+	else {
+		return {
+			formFound: false,
+			type1: '',
+			type2: ''
+		};
+	}
 }
 
 //Helper function, leaderboard generator
@@ -574,6 +608,7 @@ client.on('messageCreate', (message) => {
 									pokemon = rowsN[randPokemon];
 								}
 							}
+
 							const genders = JSON.parse(pokemon.gender);
 							let randomPercentage = Math.random() * 100;
 							let selectGender;
@@ -605,8 +640,15 @@ client.on('messageCreate', (message) => {
 								};
 							}
 							else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
+								selectGender = {
+									name: 'Female',
+									percentage: selectForm.percentage
+								};
+							}
+
+							if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
 								selectForm = {
-									name: 'Default',
+									name: selectForm.name.substring(0, selectForm.name.length - 4),
 									percentage: selectForm.percentage
 								};
 							}
@@ -620,13 +662,6 @@ client.on('messageCreate', (message) => {
 							else {
 								const imageLinks = JSON.parse(pokemon.imageLinks);
 								imageLink = imageLinks[selectForm.name] || imageLinks.default;
-							}
-
-							if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
-								selectForm = {
-									name: selectForm.name.substring(0, selectForm.name.length - 4),
-									percentage: selectForm.percentage
-								};
 							}
 							
 							const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
@@ -678,8 +713,6 @@ client.on('messageCreate', (message) => {
 							}
 						});
 					});
-					//insert into back into db
-					
 				});
 			}
 
@@ -758,8 +791,8 @@ client.on('messageCreate', (message) => {
 									};
 								}
 								else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
-									selectForm = {
-										name: 'Default',
+									selectGender = {
+										name: 'Female',
 										percentage: selectForm.percentage
 									};
 								}
@@ -868,6 +901,13 @@ client.on('messageCreate', (message) => {
 									percentage: selectGender.percentage
 								};
 							}
+
+							if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
+								selectForm = {
+									name: selectForm.name.substring(0, selectForm.name.length - 4),
+									percentage: selectForm.percentage
+								};
+							}
 							
 							let imageLink = null;
 							if (isShiny) {
@@ -877,13 +917,6 @@ client.on('messageCreate', (message) => {
 							else {
 								const imageLinks = JSON.parse(pokemon.imageLinks);
    					 			imageLink = imageLinks[selectForm.name] || imageLinks.default;
-							}
-
-							if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
-								selectForm = {
-									name: selectForm.name.substring(0, selectForm.name.length - 4),
-									percentage: selectForm.percentage
-								};
 							}
 							
 							const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
@@ -1004,9 +1037,9 @@ client.on('messageCreate', (message) => {
 							else {
 								// User is in the database, update their caught Pokémon & currency
 								const caughtPokemon = JSON.parse(row.caught_pokemon);
-								caughtPokemon.push(shinyMon);
+								let newList = caughtPokemon.concat(shinyMon);
 								const newCurrency = row.currency + coinsToAdd;
-								dbUser.run("UPDATE user SET caught_pokemon = ?, currency = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), newCurrency, userId], (err) => {
+								dbUser.run("UPDATE user SET caught_pokemon = ?, currency = ? WHERE user_id = ?", [JSON.stringify(newList), newCurrency, userId], (err) => {
 									if (err) {
 										console.error(err.message);
 									}
@@ -1592,19 +1625,41 @@ client.on('messageCreate', (message) => {
 								return;
 							}
 						}
-						else if (!result) {
-							message.channel.send('Pokémon not found in the pokedex.');
-							return;
-						}
 						else {
 							index = pokemonIdentifier;
 							curMon = pokeList[index - 1];
 						}
+
+						if (!curMon) {
+							message.channel.send('Syntax error occurred, try again.');
+							return;
+						}
 						let shinyImg = false;
+
+						let selectedForm = 'default'; // Default form selection
+						let forms = JSON.parse(curMon.forms);
+
+						if (forms.length > 0) {
+							if (forms[0].name.toLowerCase() !== 'default') {
+								selectedForm = forms[0].name;
+							}
+							else {
+								selectedForm = '';
+							}
+						}
+						let formSelectMenu = new Discord.StringSelectMenuBuilder()
+							.setCustomId('formSelect')
+							.setPlaceholder('Select a Form')
+							.addOptions(
+								forms.map(form => ({
+									label: form.name,
+									value: form.name,
+								}))
+							);
 						
-						let embed = updateEmbed(shinyImg, curMon.dexNum, result);
+						let embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
 						
-						const buttonRow = new ActionRowBuilder()
+						let buttonRow = new ActionRowBuilder()
 							.addComponents(
 								new ButtonBuilder()
 									.setCustomId('prev')
@@ -1620,7 +1675,10 @@ client.on('messageCreate', (message) => {
 									.setStyle(ButtonStyle.Primary)
 							);
 
-						message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+						message.channel.send({ 
+							embeds: [embed], 
+							components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow],
+						}).then(sentMessage => {
 							const filter = i => i.user.id === userId;
 							const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
@@ -1631,8 +1689,29 @@ client.on('messageCreate', (message) => {
 										prevDexNum = maxDexNum - 1;
 									}
 									curMon = pokeList[prevDexNum];
-									embed = updateEmbed(shinyImg, curMon.dexNum, curMon);
-									i.update({ embeds: [embed] });
+
+									forms = JSON.parse(curMon.forms);
+									if (forms.length > 0) {
+										if (forms[0].name.toLowerCase() !== 'default') {
+											selectedForm = forms[0].name;
+										}
+										else {
+											selectedForm = '';
+										}
+									}
+
+									formSelectMenu = new Discord.StringSelectMenuBuilder()
+										.setCustomId('formSelect')
+										.setPlaceholder('Select a Form')
+										.addOptions(
+											forms.map(form => ({
+												label: form.name,
+												value: form.name,
+											}))
+										);
+
+									embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
+									i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
 									
 								} 
 								else if (i.customId === 'next') {
@@ -1641,13 +1720,42 @@ client.on('messageCreate', (message) => {
 										nextDexNum = 0;
 									}
 									curMon = pokeList[nextDexNum];
-									embed = updateEmbed(shinyImg, curMon.dexNum, curMon);
-									i.update({ embeds: [embed] });
-									
+
+									forms = JSON.parse(curMon.forms);
+									if (forms.length > 0) {
+										if (forms[0].name.toLowerCase() !== 'default') {
+											selectedForm = forms[0].name;
+										}
+										else {
+											selectedForm = '';
+										}
+
+										formSelectMenu = new Discord.StringSelectMenuBuilder()
+										.setCustomId('formSelect')
+										.setPlaceholder('Select a Form')
+										.addOptions(
+											forms.map(form => ({
+												label: form.name,
+												value: form.name,
+											}))
+										);
+
+									}
+
+									embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
+									i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
 								} 
 								else if (i.customId === 'shinyBtn') {
 									shinyImg = !shinyImg;
-									embed = updateEmbed(shinyImg, curMon.dexNum, curMon);
+									embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
+									i.update({ embeds: [embed] });
+								}
+								else if (i.customId === 'formSelect') {
+									selectedForm = i.values[0];
+									if (selectedForm.toLowerCase() === 'default') {
+										selectedForm = '';
+									}
+									embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
 									i.update({ embeds: [embed] });
 								}
 							});
@@ -1716,21 +1824,38 @@ client.on('messageCreate', (message) => {
 						const isShiny = pokemonToDisplay.name.startsWith('✨');
 						const pokemonName = isShiny ? pokemonToDisplay.name.slice(1) : pokemonToDisplay.name;
 						let formName = pokemonToDisplay.form;
-						db.get("SELECT * FROM pokemon WHERE name = ?", [pokemonName], (err, pokemonRow) => {
+						db.all("SELECT * FROM pokemon", [], (err, pokemonRows) => {
 							if (err) {
 								console.error(err.message);
 								message.channel.send('An error occurred while fetching Pokémon information.');
 								return;
 							}
-							if (!pokemonRow) {
+							if (!pokemonRows) {
+								message.channel.send('Pokémon not found in the database.');
+								return;
+							}
+							const defaultMon = pokemonRows.filter(pokemon => pokemon.isLM !== 3 && pokemon.name === pokemonName)[0];
+							if (defaultMon.length < 1){ 
 								message.channel.send('Pokémon not found in the database.');
 								return;
 							}
 
-							const type2 = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
+							const shinyImageLinks = JSON.parse(defaultMon.shinyImageLinks);
+							const imgLinks = JSON.parse(defaultMon.imageLinks);
+							//const imageLinks = JSON.parse(isShiny ? defaultMon.shinyImageLinks : defaultMon.imageLinks);
+							const imageLink = isShiny ? shinyImageLinks[formName] || shinyImageLinks.default : imgLinks[formName] || imgLinks.default;
 
-							const imageLinks = JSON.parse(isShiny ? pokemonRow.shinyImageLinks : pokemonRow.imageLinks);
-							const imageLink = imageLinks[formName] || imageLinks.default;
+							const curForm = getFormTypes(pokemonName, formName, pokemonRows);
+							let type1Field = '';
+							let type2Field = '';
+							if (curForm.formFound) {
+								type1Field = curForm.type1;
+								type2Field = curForm.type2 ? ` / ${curForm.type2}` : '';
+							}
+							else {
+								type1Field = defaultMon.type1;
+								type2Field = defaultMon.type2 ? ` / ${defaultMon.type2}` : '';
+							}
 
 							if (formName.toLowerCase() !== 'default') {
 								formName = formName + ' ';
@@ -1741,11 +1866,11 @@ client.on('messageCreate', (message) => {
 
 							const embed = new EmbedBuilder()
 									.setColor('#0099ff')
-									.setTitle(`Your ${isShiny ? '✨' : ''}${formName}${pokemonRow.name}`)
+									.setTitle(`Your ${isShiny ? '✨' : ''}${formName}${defaultMon.name}`)
 									.addFields(
-										{ name: 'Dex Number', value: `${pokemonRow.dexNum}`, inline: true },
-										{ name: 'Type', value: `${pokemonRow.type1}${type2}`, inline: true },
-										{ name: 'Region', value: `${pokemonRow.region}`, inline: true }
+										{ name: 'Dex Number', value: `${defaultMon.dexNum}`, inline: true },
+										{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
+										{ name: 'Region', value: `${defaultMon.region}`, inline: true }
 									)
 									.setImage(imageLink)
 									.setTimestamp();
@@ -2578,7 +2703,7 @@ client.on('messageCreate', (message) => {
 							});
 						}
 						else {
-							message.channel.send('Improper command usage. Orders: `flexdex`, `dex`, `count`, `alphabetical`');
+							message.channel.send('Improper command usage. Orders: `flexdex`, `dex`, `countHigh`, `countLow` `alphabetical`');
 						}
 					}
 					else {
