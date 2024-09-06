@@ -543,11 +543,14 @@ client.on('messageCreate', (message) => {
 							
 							let randPokemon = getRandomInt(maxDexNum); 
 							let pokemon = null;
-							
+							let embedColor = '#0099FF';
+							isShiny = true;
+
 							if (isMythical) {
 								const rowsM = rows.filter(row => row.isLM === 2);
 								if (rowsM.length > 0) {
 									pokemon = rowsM[getRandomInt(rowsM.length)];
+									embedColor = '#FF96C5';
 								}
 								else {
 									console.log("Error, no mythical pokemon!");
@@ -557,6 +560,7 @@ client.on('messageCreate', (message) => {
 								const rowsL = rows.filter(row => row.isLM === 1);
 								if (rowsL.length > 0) {
 									pokemon = rowsL[getRandomInt(rowsL.length)];
+									embedColor = '#66FF00';
 								}
 								else {
 									console.log("Error, no mythical pokemon!");
@@ -565,6 +569,7 @@ client.on('messageCreate', (message) => {
 							else {
 								const rowsN = rows.filter(row => row.isLM !== 3);
 								pokemon = rowsN[randPokemon]; //this is fine
+								embedColor = '#0099FF';
 								while (pokemon.isLM !== 0) {
 									randPokemon = getRandomInt(maxDexNum);
 									pokemon = rowsN[randPokemon];
@@ -609,6 +614,7 @@ client.on('messageCreate', (message) => {
 
 							let imageLink = null;
 							if (isShiny) {
+								embedColor = '#FFD700';
 								const shinyImageLinks = JSON.parse(pokemon.shinyImageLinks);
 								imageLink = shinyImageLinks[selectForm.name] || shinyImageLinks.default;
 							}
@@ -631,7 +637,7 @@ client.on('messageCreate', (message) => {
 							activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny, form: selectForm.name, gender: selectGender.name });
 							
 							const embed = new EmbedBuilder()
-								.setColor('#0099ff')
+								.setColor(embedColor)
 								.addFields(
 									{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
 									{ name: 'Region', value: `${pokemon.region}`, inline: true }
@@ -858,9 +864,9 @@ client.on('messageCreate', (message) => {
 								};
 							}
 							else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
-								selectForm = {
-									name: 'Default',
-									percentage: selectForm.percentage
+								selectGender = {
+									name: 'Female',
+									percentage: selectGender.percentage
 								};
 							}
 							
@@ -956,10 +962,10 @@ client.on('messageCreate', (message) => {
 
 						let genderSymbol = '';
 						if (gender === 'Male') {
-							genderSymbol = '♂\u200B';//'♂️';
+							genderSymbol = '♂\u200B ';//'♂️';
 						}
 						else if (gender === 'Female') {
-							genderSymbol = '♀\u200B';//'♀';
+							genderSymbol = '♀\u200B ';//'♀';
 						}
 
 						let formName = '';
@@ -976,8 +982,8 @@ client.on('messageCreate', (message) => {
 						}
 						
 						const messageText = isShinyVar
-							? `Added ✨${formName}${curMonName} ${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
-							: `Added ${formName}${curMonName} ${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
+							? `Added ✨${formName}${curMonName} ${genderSymbol}to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
+							: `Added ${formName}${curMonName} ${genderSymbol}to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
 						
 						message.channel.send(messageText);
 						
@@ -2974,9 +2980,9 @@ client.on('messageCreate', (message) => {
 											};
 										}
 										else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
-											selectForm = {
-												name: 'Default',
-												percentage: selectForm.percentage
+											selectGender = {
+												name: 'Female',
+												percentage: selectGender.percentage
 											};
 										}
 										
