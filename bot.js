@@ -1592,6 +1592,10 @@ client.on('messageCreate', (message) => {
 								return;
 							}
 						}
+						else if (!result) {
+							message.channel.send('Pokémon not found in the pokedex.');
+							return;
+						}
 						else {
 							index = pokemonIdentifier;
 							curMon = pokeList[index - 1];
