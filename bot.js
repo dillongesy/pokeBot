@@ -174,6 +174,10 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList) {
 	if (selectedForm.toLowerCase() !== 'default' && selectedForm.toLowerCase() !== '') {
 		selectedForm = `(${selectedForm})`;
 	}
+
+	if (selectedForm.toLowerCase().includes('(f)') || selectedForm.toLowerCase().includes('(m)')) {
+		selectedForm = `${selectedForm.substring(0, selectedForm.length - 5)})`;
+	}
 							
 	return new EmbedBuilder()
 		.setColor('#0099ff')
@@ -436,7 +440,7 @@ client.on('messageCreate', (message) => {
 		if (message.content.length > 0) {
 			const serverId = message.guild.id;
 			const userId = message.author.id;
-			const now = Date.now();	
+			const now = Date.now();
 
 			if(!hasPermissions(message.channel, requiredPermissions)) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
@@ -446,7 +450,7 @@ client.on('messageCreate', (message) => {
 					//message somewhere in the future about lacking perms, something with default .setChannels settings
 					return;
 				});
-			}		
+			}
 			
 			//drop
 			if (dropCommandRegex.test(message.content.toLowerCase())) {
@@ -1454,20 +1458,29 @@ client.on('messageCreate', (message) => {
 									return null;
 								}
 								const user = await client.users.fetch(row.user_id).catch(() => null);
-								const caughtPokemon = JSON.parse(row.caught_pokemon).flat().map(pokemon => pokemon.name) || [];
-								
-								const uniquePokemon = new Set(caughtPokemon.map(pokemonName => {
-									if (typeof pokemonName !== 'string') {
+								const caughtPokemon = JSON.parse(row.caught_pokemon).flat() || [];
+
+								const uniquePokemon = new Set(caughtPokemon.map(pokemon => {
+									if (typeof pokemon !== 'object' || !pokemon.name) {
 										return '';
 									}
+									let pokemonName = pokemon.name;
+
 									if (pokemonName.startsWith('✨')) {
-										return `${pokemonName.substring(1)}`;
+										pokemonName = pokemonName.substring(1);
+									}
+
+									if (pokemonName === 'Nidoran' && pokemon.gender) {
+										if (pokemon.gender === 'Male') {
+											return 'Nidoran♂';
+										}
+										else if (pokemon.gender === 'Female') {
+											return 'Nidoran♀';
+										}
 									}
 									return pokemonName;
 								}));
-								
 								uniquePokemon.delete('');
-								
 								const value = uniquePokemon.size;
 
 								return value > 0 ? {
@@ -1878,7 +1891,7 @@ client.on('messageCreate', (message) => {
 
 							const embed = generatePartyEmbed(pmap, page, pageSize, `Your Pokémon`, 0);
 							const buttonRow = getPartyBtns();
-
+							
 							message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
 								const filter = i => i.user.id === userId;
 								const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
