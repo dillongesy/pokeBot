@@ -259,57 +259,75 @@ async function sendLeaderboard(message, users, title) {
 	const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
 	collector.on('collect', async i => {
-		if (i.customId === 'rewindPage') {
-			page = 0;
-		}
-		else if (i.customId === 'prevPage') {
-			if (page > 0) {
-				page--;
-			}
-			else {
-				page = Math.ceil(users.length / pageSize) - 1;
-			}
-		} 
-		else if (i.customId === 'fforwardPage') {
-			page = Math.ceil(users.length / pageSize) - 1;
-		}
-		else if (i.customId === 'nextPage') {
-			if ((page + 1) * pageSize < users.length) {
-				page++;
-			}
-			else {
+		try {
+			if (i.customId === 'rewindPage') {
 				page = 0;
 			}
+			else if (i.customId === 'prevPage') {
+				if (page > 0) {
+					page--;
+				}
+				else {
+					page = Math.ceil(users.length / pageSize) - 1;
+				}
+			} 
+			else if (i.customId === 'fforwardPage') {
+				page = Math.ceil(users.length / pageSize) - 1;
+			}
+			else if (i.customId === 'nextPage') {
+				if ((page + 1) * pageSize < users.length) {
+					page++;
+				}
+				else {
+					page = 0;
+				}
+			}
+	
+			await i.update({ embeds: [generateLeaderboardEmbed(users, page, pageSize, title)] });
+		} catch (error) {
+			if (error.code === 10008) {
+				console.log('Failed gracefully.');
+			}
+			else {
+				console.error('An unexpected error occurred:', error);
+			}
 		}
-
-		await i.update({ embeds: [generateLeaderboardEmbed(users, page, pageSize, title)] });
 	});
 
-	collector.on('end', collected => {
-		const disabledRow = new ActionRowBuilder()
-			.addComponents(
-				new ButtonBuilder()
-					.setCustomId('rewindPage')
-					.setLabel('⏪')
-					.setStyle(ButtonStyle.Primary)
-					.setDisabled(true),
-				new ButtonBuilder()
-					.setCustomId('prevPage')
-					.setLabel('◀')
-					.setStyle(ButtonStyle.Primary)
-					.setDisabled(true),
-				new ButtonBuilder()
-					.setCustomId('nextPage')
-					.setLabel('▶')
-					.setStyle(ButtonStyle.Primary)
-					.setDisabled(true),
-				new ButtonBuilder()
-					.setCustomId('fforwardPage')
-					.setLabel('⏩')
-					.setStyle(ButtonStyle.Primary)
-					.setDisabled(true),
-			);
-		sentMessage.edit({ components: [disabledRow] });
+	collector.on('end', async () => {
+		try {
+			const disabledRow = new ActionRowBuilder()
+				.addComponents(
+					new ButtonBuilder()
+						.setCustomId('rewindPage')
+						.setLabel('⏪')
+						.setStyle(ButtonStyle.Primary)
+						.setDisabled(true),
+					new ButtonBuilder()
+						.setCustomId('prevPage')
+						.setLabel('◀')
+						.setStyle(ButtonStyle.Primary)
+						.setDisabled(true),
+					new ButtonBuilder()
+						.setCustomId('nextPage')
+						.setLabel('▶')
+						.setStyle(ButtonStyle.Primary)
+						.setDisabled(true),
+					new ButtonBuilder()
+						.setCustomId('fforwardPage')
+						.setLabel('⏩')
+						.setStyle(ButtonStyle.Primary)
+						.setDisabled(true),
+				);
+			await sentMessage.edit({ components: [disabledRow] });
+		} catch (error) {
+			if (error.code === 10008) {
+				console.log('Failed gracefully.');
+			}
+			else {
+				console.error('An unexpected error occurred:', error);
+			}
+		}
 	});
 }
 
@@ -1174,25 +1192,45 @@ client.on('messageCreate', (message) => {
 					const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
 					collector.on('collect', async i => {
-						if (i.customId === 'reset_yes') {
-							dbServer.run("UPDATE server SET allowed_channels_id = NULL WHERE server_id = ?", [serverId], (err) => {
-							if (err) {
-								console.error(err.message);
-								message.channel.send('An error occurred while resetting the channels.');
-								return;
+						try {
+							if (i.customId === 'reset_yes') {
+								dbServer.run("UPDATE server SET allowed_channels_id = NULL WHERE server_id = ?", [serverId], (err) => {
+								if (err) {
+									console.error(err.message);
+									message.channel.send('An error occurred while resetting the channels.');
+									return;
+								}
+								i.update({ content: 'Successfully reset channel configuration', embeds: [], components: [] });
+								});
+								
+							} 
+							else if (i.customId === 'reset_no') {
+								i.update({ content: 'Cancelled channel configuration reset', embeds: [], components: [] });
 							}
-							i.update({ content: 'Successfully reset channel configuration', embeds: [], components: [] });
-							});
-							
-						} 
-						else if (i.customId === 'reset_no') {
-							i.update({ content: 'Cancelled channel configuration reset', embeds: [], components: [] });
+						} catch (error) {
+							if (error.code === 10008) {
+								console.log('Failed gracefully.');
+							}
+							else {
+								console.error('AN unexpected error occurred:', error);
+							}
 						}
 					});
 
-					collector.on('end', collected => {
-						sentMessage.edit({components: [] });
+					collector.on('end', async () => {
+						try {
+							await sentMessage.edit({components: [] });
+						} catch (error) {
+							if (error.code === 10008) {
+								console.log('Failed gracefully.');
+							}
+							else {
+								console.error('AN unexpected error occurred:', error);
+							}
+						}
 					});
+				}).catch(err => {
+					console.error('Error sending the reset channels message:', err);
 				});
 			}
 
@@ -1659,105 +1697,124 @@ client.on('messageCreate', (message) => {
 							const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
 							collector.on('collect', async i => {
-								if (i.customId === 'prev') {
-									let prevDexNum = curMon.dexNum - 2;
-									if (prevDexNum < 0) {
-										prevDexNum = maxDexNum - 1;
-									}
-									curMon = pokeList[prevDexNum];
-
-									forms = JSON.parse(curMon.forms);
-									if (forms.length > 0) {
-										if (forms[0].name.toLowerCase() !== 'default') {
-											selectedForm = forms[0].name;
+								try {
+									if (i.customId === 'prev') {
+										let prevDexNum = curMon.dexNum - 2;
+										if (prevDexNum < 0) {
+											prevDexNum = maxDexNum - 1;
 										}
-										else {
-											selectedForm = '';
+										curMon = pokeList[prevDexNum];
+	
+										forms = JSON.parse(curMon.forms);
+										if (forms.length > 0) {
+											if (forms[0].name.toLowerCase() !== 'default') {
+												selectedForm = forms[0].name;
+											}
+											else {
+												selectedForm = '';
+											}
 										}
-									}
-
-									formSelectMenu = new Discord.StringSelectMenuBuilder()
-										.setCustomId('formSelect')
-										.setPlaceholder('Select a Form')
-										.addOptions(
-											forms.slice(0, 25).map(form => ({
-												label: form.name,
-												value: form.name,
-											}))
-										);
-
-									embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
-									i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
-									
-								} 
-								else if (i.customId === 'next') {
-									let nextDexNum = curMon.dexNum;
-									if (nextDexNum > maxDexNum - 1) {
-										nextDexNum = 0;
-									}
-									curMon = pokeList[nextDexNum];
-
-									forms = JSON.parse(curMon.forms);
-									if (forms.length > 0) {
-										if (forms[0].name.toLowerCase() !== 'default') {
-											selectedForm = forms[0].name;
-										}
-										else {
-											selectedForm = '';
-										}
-
+	
 										formSelectMenu = new Discord.StringSelectMenuBuilder()
-										.setCustomId('formSelect')
-										.setPlaceholder('Select a Form')
-										.addOptions(
-											forms.slice(0, 25).map(form => ({
-												label: form.name,
-												value: form.name,
-											}))
-										);
-
-									}
-
-									embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
-									i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
-								} 
-								else if (i.customId === 'shinyBtn') {
-									shinyImg = !shinyImg;
-									embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
-									i.update({ embeds: [embed] });
-								}
-								else if (i.customId === 'formSelect') {
-									selectedForm = i.values[0];
-									if (selectedForm.toLowerCase() === 'default') {
-										selectedForm = '';
-									}
-									embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
-									i.update({ embeds: [embed] });
-								}
-							});
-
-							collector.on('end', collected => {
-								const disabledRow = new ActionRowBuilder()
-									.addComponents(
-										new ButtonBuilder()
-											.setCustomId('prev')
-											.setLabel('◀')
-											.setStyle(ButtonStyle.Primary)
-											.setDisabled(true),
-										new ButtonBuilder()
-											.setCustomId('shinyBtn')
-											.setLabel('✨')
-											.setStyle(ButtonStyle.Primary)
-											.setDisabled(true),
-										new ButtonBuilder()
-											.setCustomId('next')
-											.setLabel('▶')
-											.setStyle(ButtonStyle.Primary)
-											.setDisabled(true)
+											.setCustomId('formSelect')
+											.setPlaceholder('Select a Form')
+											.addOptions(
+												forms.slice(0, 25).map(form => ({
+													label: form.name,
+													value: form.name,
+												}))
+											);
+	
+										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
+										i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
 										
-									);
-								sentMessage.edit({ components: [disabledRow] });
+									} 
+									else if (i.customId === 'next') {
+										let nextDexNum = curMon.dexNum;
+										if (nextDexNum > maxDexNum - 1) {
+											nextDexNum = 0;
+										}
+										curMon = pokeList[nextDexNum];
+	
+										forms = JSON.parse(curMon.forms);
+										if (forms.length > 0) {
+											if (forms[0].name.toLowerCase() !== 'default') {
+												selectedForm = forms[0].name;
+											}
+											else {
+												selectedForm = '';
+											}
+	
+											formSelectMenu = new Discord.StringSelectMenuBuilder()
+											.setCustomId('formSelect')
+											.setPlaceholder('Select a Form')
+											.addOptions(
+												forms.slice(0, 25).map(form => ({
+													label: form.name,
+													value: form.name,
+												}))
+											);
+										}
+	
+										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
+										i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
+									} 
+									else if (i.customId === 'shinyBtn') {
+										shinyImg = !shinyImg;
+										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
+										i.update({ embeds: [embed] });
+									}
+									else if (i.customId === 'formSelect') {
+										selectedForm = i.values[0];
+										if (selectedForm.toLowerCase() === 'default') {
+											selectedForm = '';
+										}
+										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
+										i.update({ embeds: [embed] });
+									}
+								} catch (error) {
+									if (error.code === 10008) {
+										console.log('The message was deleted before the interaction was handled.');
+									}
+									else {
+										console.error('An unexpected error occurred:', error);
+									}
+								}
 							});
+
+							collector.on('end', async () => {
+								try {
+									const disabledRow = new ActionRowBuilder()
+										.addComponents(
+											new ButtonBuilder()
+												.setCustomId('prev')
+												.setLabel('◀')
+												.setStyle(ButtonStyle.Primary)
+												.setDisabled(true),
+											new ButtonBuilder()
+												.setCustomId('shinyBtn')
+												.setLabel('✨')
+												.setStyle(ButtonStyle.Primary)
+												.setDisabled(true),
+											new ButtonBuilder()
+												.setCustomId('next')
+												.setLabel('▶')
+												.setStyle(ButtonStyle.Primary)
+												.setDisabled(true)
+											
+										);
+									await sentMessage.edit({ components: [disabledRow] });
+								} catch (error) {
+									if (error.code === 10008) {
+										console.log('The message was deleted before the interaction was handled.');
+									}
+									else {
+										console.error('An unexpected error occurred:', error);
+									}
+								}
+							});
+						}).catch (err => {
+							console.error('Error sending the dex message:', err);
 						});
 					});
 				});
@@ -1897,36 +1954,55 @@ client.on('messageCreate', (message) => {
 								const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
 								collector.on('collect', async i => {
-									if (i.customId === 'prev') {
-										if (page > 0) {
-											page--;
+									try {
+										if (i.customId === 'prev') {
+											if (page > 0) {
+												page--;
+											}
+											else {
+												page = Math.ceil(pmap.length / pageSize) - 1;
+											}
+										} 
+										else if (i.customId === 'next') {
+											if ((page + 1) * pageSize < pmap.length) {
+												page++;
+											}
+											else {
+												page = 0;
+											}
 										}
-										else {
-											page = Math.ceil(pmap.length / pageSize) - 1;
-										}
-									} 
-									else if (i.customId === 'next') {
-										if ((page + 1) * pageSize < pmap.length) {
-											page++;
-										}
-										else {
+										else if (i.customId === 'rewind') {
 											page = 0;
 										}
+										else if (i.customId === 'fforward') {
+											page = Math.ceil(pmap.length / pageSize) - 1;;
+										}
+										await i.update({ embeds: [generatePartyEmbed(pmap, page, pageSize, `Your Pokémon`, 0)] });
+									} catch (error) {
+										if (error.code === 10008) {
+											console.log('The message was deleted before the interaction was handled.');
+										}
+										else {
+											console.error('An unexpected error occurred:', error);
+										}
 									}
-									else if (i.customId === 'rewind') {
-										page = 0;
-									}
-									else if (i.customId === 'fforward') {
-										page = Math.ceil(pmap.length / pageSize) - 1;;
-									}
-
-									await i.update({ embeds: [generatePartyEmbed(pmap, page, pageSize, `Your Pokémon`, 0)] });
 								});
 
-								collector.on('end', collected => {
-									const disabledRow = getDisablePartyBtns();
-									sentMessage.edit({ components: [disabledRow] });
+								collector.on('end', async () => {
+									try {
+										const disabledRow = getDisablePartyBtns();
+										await sentMessage.edit({ components: [disabledRow] });
+									} catch (error) {
+										if (error.code === 10008) {
+											console.log('The message was deleted before the interaction was handled.');
+										}
+										else {
+											console.error('An unexpected error occurred:', error);
+										}
+									}
 								});
+							}).catch(err => {
+								console.error('Error sending the help message:', err);
 							});
 						}
 						
@@ -1983,35 +2059,54 @@ client.on('messageCreate', (message) => {
 										const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 			
 										collector.on('collect', async i => {
-											if (i.customId === 'prev') {
-												if (page > 0) {
-													page--;
+											try {
+												if (i.customId === 'prev') {
+													if (page > 0) {
+														page--;
+													}
+													else {
+														page = Math.ceil(filteredPokemon.length / pageSize) - 1;;
+													}
+												} 
+												else if (i.customId === 'next') {
+													if ((page + 1) * pageSize < filteredPokemon.length) {
+														page++;
+													}
+													else {
+														page = 0;
+													}
 												}
-												else {
-													page = Math.ceil(filteredPokemon.length / pageSize) - 1;;
-												}
-											} 
-											else if (i.customId === 'next') {
-												if ((page + 1) * pageSize < filteredPokemon.length) {
-													page++;
-												}
-												else {
+												else if (i.customId === 'rewind') {
 													page = 0;
 												}
+												else if (i.customId === 'fforward') {
+													page = Math.ceil(filteredPokemon.length / pageSize) - 1;;
+												}
+												await i.update({ embeds: [generatePartyEmbed(filteredPokemon, page, pageSize, `All ${searchName} in your party`, 0)] });
+											} catch (error) {
+												if (error.code === 10008) {
+													console.log('The message was deleted before the interaction was handled.');
+												}
+												else {
+													console.error('An unexpected error occurred:', error);
+												}
 											}
-											else if (i.customId === 'rewind') {
-												page = 0;
-											}
-											else if (i.customId === 'fforward') {
-												page = Math.ceil(filteredPokemon.length / pageSize) - 1;;
-											}
-			
-											await i.update({ embeds: [generatePartyEmbed(filteredPokemon, page, pageSize, `All ${searchName} in your party`, 0)] });
 										});
-										collector.on('end', collected => {
-											const disabledRow = getDisablePartyBtns();
-											sentMessage.edit({ components: [disabledRow] });
+										collector.on('end', async () => {
+											try {
+												const disabledRow = getDisablePartyBtns();
+												await sentMessage.edit({ components: [disabledRow] });
+											} catch (error) {
+												if (error.code === 10008) {
+													console.log('The message was deleted before the interaction was handled.');
+												}
+												else {
+													console.error('An unexpected error occurred:', error);
+												}
+											}
 										});
+									}).catch(err => {
+										console.error('Error sending the party message:', err);
 									});
 								}
 							}
@@ -2081,35 +2176,55 @@ client.on('messageCreate', (message) => {
 									const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 			
 									collector.on('collect', async i => {
-										if (i.customId === 'prev') {
-											if (page > 0) {
-												page--;
+										try {
+											if (i.customId === 'prev') {
+												if (page > 0) {
+													page--;
+												}
+												else {
+													page = Math.ceil(shinyPokemon.length / pageSize) - 1;;
+												}
+											} 
+											else if (i.customId === 'next') {
+												if ((page + 1) * pageSize < shinyPokemon.length) {
+													page++;
+												}
+												else {
+													page = 0;
+												}
 											}
-											else {
-												page = Math.ceil(shinyPokemon.length / pageSize) - 1;;
-											}
-										} 
-										else if (i.customId === 'next') {
-											if ((page + 1) * pageSize < shinyPokemon.length) {
-												page++;
-											}
-											else {
+											else if (i.customId === 'rewind') {
 												page = 0;
 											}
+											else if (i.customId === 'fforward') {
+												page = Math.ceil(shinyPokemon.length / pageSize) - 1;;
+											}
+				
+											await i.update({ embeds: [generatePartyEmbed(shinyPokemon, page, pageSize, `Your Shiny Pokémon`, 1)] });
+										} catch (error) {
+											if (error.code === 10008) {
+												console.log('The message was deleted before the interaction was handled.');
+											}
+											else {
+												console.error('An unexpected error occurred:', error);
+											}
 										}
-										else if (i.customId === 'rewind') {
-											page = 0;
-										}
-										else if (i.customId === 'fforward') {
-											page = Math.ceil(shinyPokemon.length / pageSize) - 1;;
-										}
-			
-										await i.update({ embeds: [generatePartyEmbed(shinyPokemon, page, pageSize, `Your Shiny Pokémon`, 1)] });
 									});
-									collector.on('end', collected => {
-										const disabledRow = getDisablePartyBtns();
-										sentMessage.edit({ components: [disabledRow] });
+									collector.on('end', async () => {
+										try {
+											const disabledRow = getDisablePartyBtns();
+											await sentMessage.edit({ components: [disabledRow] });
+										} catch (error) {
+											if (error.code === 10008) {
+												console.log('The message was deleted before the interaction was handled.');
+											}
+											else {
+												console.error('An unexpected error occurred:', error);
+											}
+										}
 									});
+								}).catch(err => {
+									console.error('Error sending the party message:', err);
 								});
 							}
 						}
@@ -2160,36 +2275,56 @@ client.on('messageCreate', (message) => {
 									const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
 									collector.on('collect', async i => {
-										if (i.customId === 'prev') {
-											if (page > 0) {
-												page--;
+										try {
+											if (i.customId === 'prev') {
+												if (page > 0) {
+													page--;
+												} 
+												else {
+													page = Math.ceil(legendaryCaught.length / pageSize) - 1;
+												}
 											} 
-											else {
+											else if (i.customId === 'next') {
+												if ((page + 1) * pageSize < legendaryCaught.length) {
+													page++;
+												} 
+												else {
+													page = 0;
+												}
+											} 
+											else if (i.customId === 'rewind') {
+												page = 0;
+											} 
+											else if (i.customId === 'fforward') {
 												page = Math.ceil(legendaryCaught.length / pageSize) - 1;
 											}
-										} 
-										else if (i.customId === 'next') {
-											if ((page + 1) * pageSize < legendaryCaught.length) {
-												page++;
-											} 
-											else {
-												page = 0;
+	
+											await i.update({ embeds: [generatePartyEmbed(legendaryCaught, page, pageSize, `Your Legendary Pokémon`, 2)] });
+										} catch (error) {
+											if (error.code === 10008) {
+												console.log('The message was deleted before the interaction was handled.');
 											}
-										} 
-										else if (i.customId === 'rewind') {
-											page = 0;
-										} 
-										else if (i.customId === 'fforward') {
-											page = Math.ceil(legendaryCaught.length / pageSize) - 1;
+											else {
+												console.error('An unexpected error occurred:', error);
+											}
 										}
-
-										await i.update({ embeds: [generatePartyEmbed(legendaryCaught, page, pageSize, `Your Legendary Pokémon`, 2)] });
 									});
 
-									collector.on('end', collected => {
-										const disabledRow = getDisablePartyBtns();
-										sentMessage.edit({ components: [disabledRow] });
+									collector.on('end', async () => {
+										try {
+											const disabledRow = getDisablePartyBtns();
+											await sentMessage.edit({ components: [disabledRow] });
+										} catch (error) {
+											if (error.code === 10008) {
+												console.log('The message was deleted before the interaction was handled.');
+											}
+											else {
+												console.error('An unexpected error occurred:', error);
+											}
+										}
 									});
+								}).catch(err => {
+									console.error('Error sending the party message:', err);
 								});
 							}
 						}
@@ -2240,36 +2375,56 @@ client.on('messageCreate', (message) => {
 									const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
 									collector.on('collect', async i => {
-										if (i.customId === 'prev') {
-											if (page > 0) {
-												page--;
+										try {
+											if (i.customId === 'prev') {
+												if (page > 0) {
+													page--;
+												} 
+												else {
+													page = Math.ceil(mythicalCaught.length / pageSize) - 1;
+												}
 											} 
-											else {
+											else if (i.customId === 'next') {
+												if ((page + 1) * pageSize < mythicalCaught.length) {
+													page++;
+												} 
+												else {
+													page = 0;
+												}
+											} 
+											else if (i.customId === 'rewind') {
+												page = 0;
+											} 
+											else if (i.customId === 'fforward') {
 												page = Math.ceil(mythicalCaught.length / pageSize) - 1;
 											}
-										} 
-										else if (i.customId === 'next') {
-											if ((page + 1) * pageSize < mythicalCaught.length) {
-												page++;
-											} 
-											else {
-												page = 0;
+	
+											await i.update({ embeds: [generatePartyEmbed(mythicalCaught, page, pageSize, `Your Mythical Pokémon`, 3)] });
+										} catch (error) {
+											if (error.code === 10008) {
+												console.log('The message was deleted before the interaction was handled.');
 											}
-										} 
-										else if (i.customId === 'rewind') {
-											page = 0;
-										} 
-										else if (i.customId === 'fforward') {
-											page = Math.ceil(mythicalCaught.length / pageSize) - 1;
+											else {
+												console.error('An unexpected error occurred:', error);
+											}
 										}
-
-										await i.update({ embeds: [generatePartyEmbed(mythicalCaught, page, pageSize, `Your Mythical Pokémon`, 3)] });
 									});
 
-									collector.on('end', collected => {
-										const disabledRow = getDisablePartyBtns();
-										sentMessage.edit({ components: [disabledRow] });
+									collector.on('end', async () => {
+										try {
+											const disabledRow = getDisablePartyBtns();
+											await sentMessage.edit({ components: [disabledRow] });
+										} catch (error) {
+											if (error.code === 10008) {
+												console.log('The message was deleted before the interaction was handled.');
+											}
+											else {
+												console.error('An unexpected error occurred:', error);
+											}
+										}
 									});
+								}).catch(err => {
+									console.error('Error sending the party message:', err);
 								});
 							}
 						}
@@ -2679,7 +2834,7 @@ client.on('messageCreate', (message) => {
 							});
 						}
 						else {
-							message.channel.send('Improper command usage. Orders: `flexdex`, `dex`, `countHigh`, `countLow` `alphabetical`');
+							message.channel.send('Improper command usage. Orders: `flexdex`, `dex`, `countHigh`, `countLow`, and `alphabetical`');
 						}
 					}
 					else {
@@ -2716,27 +2871,116 @@ client.on('messageCreate', (message) => {
 					if (!allowed) {
 						return;
 					}
-					const shopEmbed = new EmbedBuilder()
-						.setColor('#0099ff')
-						.setTitle('Shop')
-						.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
-						.addFields(
-							{ name: '` 1:` **Rare Candy (500)**', value: 'Levels a pokemon up (coming soon)' },
-							{ name: '` 2:` **Fire Stone (5000)**', value: 'Fire stone (coming soon)' },
-							{ name: '` 3:` **Water Stone (5000)**', value: 'Water evolution stone (coming soon)' },
-							{ name: '` 4:` **Thunder Stone (5000)**', value: 'Electric evolution Stone (coming soon)' },
-							{ name: '` 5:` **Leaf Stone (5000)**', value: 'Grass evolution Stone (coming soon)' },
-							{ name: '` 6:` **Moon Stone (5000)**', value: 'Moon evolution Stone (coming soon)' },
-							{ name: '` 7:` **Sun Stone (5000)**', value: 'Sun evolution Stone (coming soon)' },
-							{ name: '` 8:` **Shiny Stone (5000)**', value: 'Shiny evolution Stone (coming soon)' },
-							{ name: '` 9:` **Dusk Stone (5000)**', value: 'Dusk evolution Stone (coming soon)' },
-							{ name: '`10:` **Dawn Stone (5000)**', value: 'Dawn evolution Stone (coming soon)' },
-							{ name: '`11:` **Ice Stone (5000)**', value: 'Ice evolution Stone (coming soon)' },
-							{ name: '`12:` **Shiny Drop (20000)**', value: 'Drops a shiny on command using .shinydrop' + '\n' + '__It is recommended to do this in a private place!__' }
-						)
-						.setTimestamp();
+					const shopPages = [
+						new EmbedBuilder()
+							.setColor('#0099ff')
+							.setTitle('Shop (Page 1)')
+							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+							.addFields(
+								{ name: '` 1:` **Rare Candy (500)**', value: 'Levels a pokemon up (coming soon)' },
+								{ name: '` 2:` **Shiny Drop (20000)**', value: 'Drops a shiny on command using .shinydrop' + '\n' + '__It is recommended to do this in a private place!__' }
+								
+							)
+							.setTimestamp(),
+						new EmbedBuilder()
+							.setColor('#0099ff')
+							.setTitle('Shop (Page 2)')
+							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+							.addFields(
+								{ name: '` 3:` **Fire Stone (5000)**', value: 'Fire stone (coming soon)' },
+								{ name: '` 4:` **Water Stone (5000)**', value: 'Water evolution stone (coming soon)' },
+								{ name: '` 5:` **Thunder Stone (5000)**', value: 'Electric evolution Stone (coming soon)' },
+								{ name: '` 6:` **Leaf Stone (5000)**', value: 'Grass evolution Stone (coming soon)' },
+								{ name: '` 7:` **Moon Stone (5000)**', value: 'Moon evolution Stone (coming soon)' }
+							)
+							.setTimestamp(),
+						new EmbedBuilder()
+							.setColor('#0099ff')
+							.setTitle('Shop (Page 3)')
+							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+							.addFields(
+								{ name: '` 8:` **Sun Stone (5000)**', value: 'Sun evolution Stone (coming soon)' },
+								{ name: '` 9:` **Shiny Stone (5000)**', value: 'Shiny evolution Stone (coming soon)' },
+								{ name: '`10:` **Dusk Stone (5000)**', value: 'Dusk evolution Stone (coming soon)' },
+								{ name: '`11:` **Dawn Stone (5000)**', value: 'Dawn evolution Stone (coming soon)' },
+								{ name: '`12:` **Ice Stone (5000)**', value: 'Ice evolution Stone (coming soon)' }
+							)
+							.setTimestamp()
+					]
 
-					message.channel.send({ embeds: [shopEmbed] });
+					let page = 0;
+					const totalPages = shopPages.length;
+
+					const buttonRow = new ActionRowBuilder()
+						.addComponents(
+							new ButtonBuilder()
+								.setCustomId('prevPage')
+								.setLabel('◀')
+								.setStyle(ButtonStyle.Primary),
+							new ButtonBuilder()
+								.setCustomId('nextPage')
+								.setLabel('▶')
+								.setStyle(ButtonStyle.Primary)
+						);
+
+					message.channel.send({ embeds: [shopPages[page]], components: [buttonRow] }).then(sentMessage => {
+						const filter = i => i.user.id === message.author.id;
+           				const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+						collector.on('collect', async i => {
+							try {
+								if (i.customId === 'prevPage') {
+									page = page - 1;
+									if (page < 0) {
+										page = totalPages - 1;
+									}
+								}
+								else if (i.customId === 'nextPage') {
+									page = page + 1;
+									if (page > totalPages - 1) {
+										page = 0;
+									}
+								}
+			
+								await i.update({ embeds: [shopPages[page]], components: [buttonRow] });
+							} catch (error) {
+								if (error.code === 10008) {
+									console.log('The message was deleted before the interaction was handled.');
+								}
+								else {
+									console.error('An unexpected error occurred:', error);
+								}
+							}
+						});
+
+						collector.on('end', async () => {
+							try {
+								const disabledRow = new ActionRowBuilder()
+									.addComponents(
+										new ButtonBuilder()
+											.setCustomId('prevPage')
+											.setLabel('◀')
+											.setStyle(ButtonStyle.Primary)
+											.setDisabled(true),
+										new ButtonBuilder()
+											.setCustomId('nextPage')
+											.setLabel('▶')
+											.setStyle(ButtonStyle.Primary)
+											.setDisabled(true)
+									);
+								await sentMessage.edit({ components: [disabledRow] });
+							} catch (error) {
+								if (error.code === 10008) {
+									console.log('The message was deleted before the interaction was handled.');
+								}
+								else {
+									console.error('An unexpected error occurred:', error);
+								}
+							}
+						});
+					}).catch(err => {
+						console.error('Error sending the shop message:', err);
+					})
 				});
 			}
 
@@ -2777,60 +3021,60 @@ client.on('messageCreate', (message) => {
 							boughtItem = 'Rare Candy';
 							amount = 500;
 						}
-						else if (shopNum === '2'  && userCurrency >= 5000) {
+						else if (shopNum === '2'  && userCurrency >= 20000) {
+							userCurrency -= 20000;
+							boughtItem = 'Shiny Drop';
+							amount = 20000;
+						}
+						else if (shopNum === '3'  && userCurrency >= 5000) {
 							userCurrency -= 5000;
 							boughtItem = 'Fire Stone';
 							amount = 5000;
 						}
-						else if (shopNum === '3'  && userCurrency >= 5000) {
+						else if (shopNum === '4'  && userCurrency >= 5000) {
 							userCurrency -= 5000;
 							boughtItem = 'Water Stone';
 							amount = 5000;
 						}
-						else if (shopNum === '4'  && userCurrency >= 5000) {
+						else if (shopNum === '5'  && userCurrency >= 5000) {
 							userCurrency -= 5000;
 							boughtItem = 'Thunder Stone';
 							amount = 5000;
 						}
-						else if (shopNum === '5'  && userCurrency >= 5000) {
+						else if (shopNum === '6'  && userCurrency >= 5000) {
 							userCurrency -= 5000;
 							boughtItem = 'Leaf Stone';
 							amount = 5000;
 						}
-						else if (shopNum === '6'  && userCurrency >= 5000) {
+						else if (shopNum === '7'  && userCurrency >= 5000) {
 							userCurrency -= 5000;
 							boughtItem = 'Moon Stone';
 							amount = 5000;
 						}
-						else if (shopNum === '7'  && userCurrency >= 5000) {
+						else if (shopNum === '8'  && userCurrency >= 5000) {
 							userCurrency -= 5000;
 							boughtItem = 'Sun Stone';
 							amount = 5000;
 						}
-						else if (shopNum === '8'  && userCurrency >= 5000) {
+						else if (shopNum === '9'  && userCurrency >= 5000) {
 							userCurrency -= 5000;
 							boughtItem = 'Shiny Stone';
 							amount = 5000;
 						}
-						else if (shopNum === '9'  && userCurrency >= 5000) {
+						else if (shopNum === '10'  && userCurrency >= 5000) {
 							userCurrency -= 5000;
 							boughtItem = 'Dusk Stone';
 							amount = 5000;
 						}
-						else if (shopNum === '10'  && userCurrency >= 5000) {
+						else if (shopNum === '11'  && userCurrency >= 5000) {
 							userCurrency -= 5000;
 							boughtItem = 'Dawn Stone';
 							amount = 5000;
 						}
-						else if (shopNum === '11'  && userCurrency >= 5000) {
+						else if (shopNum === '12'  && userCurrency >= 5000) {
 							userCurrency -= 5000;
 							boughtItem = 'Ice Stone';
 							amount = 5000;
-						}
-						else if (shopNum === '12'  && userCurrency >= 20000) {
-							userCurrency -= 20000;
-							boughtItem = 'Shiny Drop';
-							amount = 20000;
 						}
 						else {
 							message.channel.send('You do not have enough currency to purchase requested item.');
@@ -2859,24 +3103,44 @@ client.on('messageCreate', (message) => {
 								const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 							
 								collector.on('collect', async i => {
-									if (i.customId === 'buy_yes') {
-										const userInventory = JSON.parse(row.inventory);
-										userInventory.push(boughtItem);
-										dbUser.run("UPDATE user SET inventory = ?, currency = ? WHERE user_id = ?", [JSON.stringify(userInventory), userCurrency, userId], (err) => {
-											if (err) {
-												console.error(err.message);
-											}
-											i.update({ content: `Successfully purchased ${boughtItem} for ${amount}. You have ${userCurrency} leftover.`, embeds: [], components: [] });
-										});
-									} 
-									else if (i.customId === 'buy_no') {
-										i.update({ content: 'Purchase cancelled.', embeds: [], components: [] });
+									try {
+										if (i.customId === 'buy_yes') {
+											const userInventory = JSON.parse(row.inventory);
+											userInventory.push(boughtItem);
+											dbUser.run("UPDATE user SET inventory = ?, currency = ? WHERE user_id = ?", [JSON.stringify(userInventory), userCurrency, userId], (err) => {
+												if (err) {
+													console.error(err.message);
+												}
+												i.update({ content: `Successfully purchased ${boughtItem} for ${amount}. You have ${userCurrency} leftover.`, embeds: [], components: [] });
+											});
+										} 
+										else if (i.customId === 'buy_no') {
+											i.update({ content: 'Purchase cancelled.', embeds: [], components: [] });
+										}
+									} catch (error) {
+										if (error.code === 10008) {
+											console.log('The message was deleted before the interaction was handled.');
+										}
+										else {
+											console.error('An unexpected error occurred:', error);
+										}
 									}
 								});
 	
-								collector.on('end', collected => {
-									sentMessage.edit({components: [] });
+								collector.on('end', async () => {
+									try {
+										await sentMessage.edit({components: [] });
+									} catch (error) {
+										if (error.code === 10008) {
+											console.log('The message was deleted before the interaction was handled.');
+										}
+										else {
+											console.error('An unexpected error occurred:', error);
+										}
+									}
 								});
+							}).catch(err => {
+								console.error('Error sending the confirm item message', err);
 							});
 						}
 					});
@@ -2910,36 +3174,56 @@ client.on('messageCreate', (message) => {
 							const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
 							collector.on('collect', async i => {
-								if (i.customId === 'prev') {
-									if (page > 0) {
-										page--;
+								try {
+									if (i.customId === 'prev') {
+										if (page > 0) {
+											page--;
+										}
+										else {
+											page = Math.ceil(userInventory.length / pageSize) - 1;
+										}
+									} 
+									else if (i.customId === 'next') {
+										if ((page + 1) * pageSize < userInventory.length) {
+											page++;
+										}
+										else {
+											page = 0;
+										}
 									}
-									else {
-										page = Math.ceil(userInventory.length / pageSize) - 1;
-									}
-								} 
-								else if (i.customId === 'next') {
-									if ((page + 1) * pageSize < userInventory.length) {
-										page++;
-									}
-									else {
+									else if (i.customId === 'rewind') {
 										page = 0;
 									}
+									else if (i.customId === 'fforward') {
+										page = Math.ceil(userInventory.length / pageSize) - 1;;
+									}
+	
+									await i.update({ embeds: [generatePartyEmbed(userInventory, page, pageSize, `Your Pokémon`, 0)] });
+								} catch (error) {
+									if (error.code === 10008) {
+										console.log('The message was deleted before the interaction was handled.');
+									}
+									else {
+										console.error('An unexpected error occurred:', error);
+									}
 								}
-								else if (i.customId === 'rewind') {
-									page = 0;
-								}
-								else if (i.customId === 'fforward') {
-									page = Math.ceil(userInventory.length / pageSize) - 1;;
-								}
-
-								await i.update({ embeds: [generatePartyEmbed(userInventory, page, pageSize, `Your Pokémon`, 0)] });
 							});
 
-							collector.on('end', collected => {
-								const disabledRow = getDisablePartyBtns();
-								sentMessage.edit({ components: [disabledRow] });
+							collector.on('end', async () => {
+								try {
+									const disabledRow = getDisablePartyBtns();
+									await sentMessage.edit({ components: [disabledRow] });
+								} catch (error) {
+									if (error.code === 10008) {
+										console.log('The message was deleted before the interaction was handled.');
+									}
+									else {
+										console.error('An unexpected error occurred:', error);
+									}
+								}
 							});
+						}).catch(err => {
+							console.error('Error sending the inventory message:', err);
 						});
 					});
 				});
@@ -2991,146 +3275,165 @@ client.on('messageCreate', (message) => {
 							const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 						
 							collector.on('collect', async i => {
-								if (i.customId === 'use_yes') {
-									const index = userInventory.indexOf('Shiny Drop');
-									if (index !== -1) {
-										userInventory.splice(index, 1);
-									}
-									dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(userInventory), userId], (err) => {
-										if (err) {
-											console.error(err.message);
-											message.channel.send('An error occurred while updating your inventory.');
-											return;
+								try {
+									if (i.customId === 'use_yes') {
+										const index = userInventory.indexOf('Shiny Drop');
+										if (index !== -1) {
+											userInventory.splice(index, 1);
 										}
-									});
-									db.all("SELECT * FROM pokemon", [], (err, rowsMon) => {
-										if (err) {
-											console.error(err.message);
-											message.channel.send('An error occurred while fetching Pokémon data.');
-											return;
-										}
-
-										const mythicalNumber = Math.random();
-										let isMythical = false;
-										const legendaryNumber = Math.random();
-										let isLegendary = false;
-										if (mythicalNumber < 0.025) {
-											isMythical = true;
-										}
-										else if (legendaryNumber < 0.05) {
-											isLegendary = true;
-										}
-
-										let pokemon = null;
-										if (isMythical) {
-											const rowsM = rowsMon.filter(row => row.isLM === 2); //rows = pokemon db query
-											if (rowsM.length > 0) {
-												pokemon = rowsM[getRandomInt(rowsM.length)];
-											}
-											else {
-												console.log("Error, no mythical pokemon!");
-												message.channel.send("Error: No Mythical Pokémon found!");
+										dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(userInventory), userId], (err) => {
+											if (err) {
+												console.error(err.message);
+												message.channel.send('An error occurred while updating your inventory.');
 												return;
 											}
-										}
-										else if (isLegendary) {
-											const rowsL = rowsMon.filter(row => row.isLM === 1); //rows = pokemon db query
-											if (rowsL.length > 0) {
-												pokemon = rowsL[getRandomInt(rowsL.length)];
-											}
-											else {
-												console.log("Error, no legendary pokemon!");
-												message.channel.send("Error: No legendary Pokémon found!");
+										});
+										db.all("SELECT * FROM pokemon", [], (err, rowsMon) => {
+											if (err) {
+												console.error(err.message);
+												message.channel.send('An error occurred while fetching Pokémon data.');
 												return;
 											}
-										}
-										else {
-											let randPokemon = getRandomInt(maxDexNum);
-											const rowsN = rowsMon.filter(row => row.isLM !== 3);
-											pokemon = rowsN[randPokemon];
-											while (pokemon.isLM !== 0) {
-												randPokemon = getRandomInt(maxDexNum);
+	
+											const mythicalNumber = Math.random();
+											let isMythical = false;
+											const legendaryNumber = Math.random();
+											let isLegendary = false;
+											if (mythicalNumber < 0.025) {
+												isMythical = true;
+											}
+											else if (legendaryNumber < 0.05) {
+												isLegendary = true;
+											}
+	
+											let pokemon = null;
+											if (isMythical) {
+												const rowsM = rowsMon.filter(row => row.isLM === 2); //rows = pokemon db query
+												if (rowsM.length > 0) {
+													pokemon = rowsM[getRandomInt(rowsM.length)];
+												}
+												else {
+													console.log("Error, no mythical pokemon!");
+													message.channel.send("Error: No Mythical Pokémon found!");
+													return;
+												}
+											}
+											else if (isLegendary) {
+												const rowsL = rowsMon.filter(row => row.isLM === 1); //rows = pokemon db query
+												if (rowsL.length > 0) {
+													pokemon = rowsL[getRandomInt(rowsL.length)];
+												}
+												else {
+													console.log("Error, no legendary pokemon!");
+													message.channel.send("Error: No legendary Pokémon found!");
+													return;
+												}
+											}
+											else {
+												let randPokemon = getRandomInt(maxDexNum);
+												const rowsN = rowsMon.filter(row => row.isLM !== 3);
 												pokemon = rowsN[randPokemon];
+												while (pokemon.isLM !== 0) {
+													randPokemon = getRandomInt(maxDexNum);
+													pokemon = rowsN[randPokemon];
+												}
 											}
-										}
-
-										const genders = JSON.parse(pokemon.gender);
-										let randomPercentage = Math.random() * 100;
-										let selectGender;
-										let cumulativePercentage = 0;
-										for (const gender of genders) {
-											cumulativePercentage += gender.percentage;
-											if (randomPercentage <= cumulativePercentage) {
-												selectGender = gender;
-												break;
+	
+											const genders = JSON.parse(pokemon.gender);
+											let randomPercentage = Math.random() * 100;
+											let selectGender;
+											let cumulativePercentage = 0;
+											for (const gender of genders) {
+												cumulativePercentage += gender.percentage;
+												if (randomPercentage <= cumulativePercentage) {
+													selectGender = gender;
+													break;
+												}
 											}
-										}
-
-										const forms = JSON.parse(pokemon.forms);
-										randomPercentage = Math.random() * 100;
-										let selectForm;
-										cumulativePercentage = 0;
-										for (const form of forms) {
-											cumulativePercentage += form.percentage;
-											if (randomPercentage <= cumulativePercentage) {
-												selectForm = form;
-												break;
+	
+											const forms = JSON.parse(pokemon.forms);
+											randomPercentage = Math.random() * 100;
+											let selectForm;
+											cumulativePercentage = 0;
+											for (const form of forms) {
+												cumulativePercentage += form.percentage;
+												if (randomPercentage <= cumulativePercentage) {
+													selectForm = form;
+													break;
+												}
 											}
-										}
-
-										if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
-											selectGender = {
-												name: 'Male',
-												percentage: selectGender.percentage
-											};
-										}
-										else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
-											selectGender = {
-												name: 'Female',
-												percentage: selectGender.percentage
-											};
-										}
-										
-										let imageLink = null;
-										const shinyImageLinks = JSON.parse(pokemon.shinyImageLinks);
-										imageLink = shinyImageLinks[selectForm.name.toLowerCase()] || shinyImageLinks.default;
-			
-										if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
-											selectForm = {
-												name: selectForm.name.substring(0, selectForm.name.length - 4),
-												percentage: selectForm.percentage
-											};
-										}
-
-										const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
-										const curMon = pokemon.name ? `${pokemon.name}` : '';
-										console.log('Current pokemon: ' + curMon + '\n' + 'MythicalNum:  ' + mythicalNumber + ' (<0.025)' + '\n' + 'LegendaryNum: ' + legendaryNumber + ' (<0.05)' +'\n');
-										const isShiny = true;
-
-										activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny, form: selectForm.name, gender: selectGender.name });
-
-										const embed = new EmbedBuilder()
-											.setColor('#0099ff')
-											.addFields(
-												{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
-												{ name: 'Region', value: `${pokemon.region}`, inline: true }
-											)
-											.setImage(imageLink)
-											.setTimestamp()
-
-										message.channel.send({ embeds: [embed] });
-									});
-
-								} 
-								else if (i.customId === 'use_no') {
-									i.update({ content: 'Shiny drop cancelled.', embeds: [], components: [] });
+	
+											if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
+												selectGender = {
+													name: 'Male',
+													percentage: selectGender.percentage
+												};
+											}
+											else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
+												selectGender = {
+													name: 'Female',
+													percentage: selectGender.percentage
+												};
+											}
+											
+											let imageLink = null;
+											const shinyImageLinks = JSON.parse(pokemon.shinyImageLinks);
+											imageLink = shinyImageLinks[selectForm.name.toLowerCase()] || shinyImageLinks.default;
+				
+											if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
+												selectForm = {
+													name: selectForm.name.substring(0, selectForm.name.length - 4),
+													percentage: selectForm.percentage
+												};
+											}
+	
+											const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
+											const curMon = pokemon.name ? `${pokemon.name}` : '';
+											console.log('Current pokemon: ' + curMon + '\n' + 'MythicalNum:  ' + mythicalNumber + ' (<0.025)' + '\n' + 'LegendaryNum: ' + legendaryNumber + ' (<0.05)' +'\n');
+											const isShiny = true;
+	
+											activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny, form: selectForm.name, gender: selectGender.name });
+	
+											const embed = new EmbedBuilder()
+												.setColor('#0099ff')
+												.addFields(
+													{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
+													{ name: 'Region', value: `${pokemon.region}`, inline: true }
+												)
+												.setImage(imageLink)
+												.setTimestamp()
+	
+											message.channel.send({ embeds: [embed] });
+										});
+									} 
+									else if (i.customId === 'use_no') {
+										i.update({ content: 'Shiny drop cancelled.', embeds: [], components: [] });
+									}
+								} catch (error) {
+									if (error.code === 10008) {
+										console.log('The message was deleted before the interaction was handled.');
+									}
+									else {
+										console.error('An unexpected error occurred:', error);
+									}
 								}
 							});
 
-							collector.on('end', collected => {
-								sentMessage.edit({components: [] });
+							collector.on('end', async () => {
+								try {
+									await sentMessage.edit({components: [] });
+								} catch (error) {
+									if (error.code === 10008) {
+										console.log('The message was deleted before the interaction was handled.');
+									}
+									else {
+										console.error('An unexpected error occurred:', error);
+									}
+								}
 							});
-						});
+						}).catch(err => {
+							console.error('Error sending the shinydrop message:', err);
+						})
 					});
 				});
 			}
@@ -3141,7 +3444,71 @@ client.on('messageCreate', (message) => {
 					if (!allowed) {
 						return;
 					}
-					const helpEmbed = new EmbedBuilder()
+					const helpPages = [
+					 new EmbedBuilder()
+						.setColor('#0099ff')
+						.setTitle('Help (Page 1)')
+						.setDescription('List of available commands:')
+						.addFields(
+							{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
+							{ name: '.party (.p)', value: 'Displays your caught Pokémon.' + '\n' + 'Usages: .p name: <pokémon> *|* .p shiny *|* .p legendary *|* .p mythical *|* .p swap 1 10' },
+							{ name: '.order <order> <ignoreNum> (.sort)', value: 'Sorts your Pokémon in an order. If an ignoreNum is added, it will not rearrange the Pokémon from indices 1 -> ignoreNum.' + '\n' + 'Orders: `flexdex`, `dex`, `countLow`, `countHigh`, and `alphabetical`.' },
+							{ name: '.view <partyNum> (.v)', value: 'Displays a pokémon from your party.' + '\n' + 'Example: .view 1' },
+							{ name: '.dex <pokémon>', value: 'Displays a pokémon from the pokedex.' + '\n' + 'Usages: .dex 1 | .dex bulbasaur' }
+						)
+						.setTimestamp(),
+					new EmbedBuilder()
+						.setColor('#0099ff')
+						.setTitle('Help (Page 2)')
+						.setDescription('List of available commands:')
+						.addFields(
+							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
+							{ name: '.inventory (.i)', value: 'Displays the items in your inventory.' },
+							{ name: '.shop (.s)', value: 'Displays the global shop.' },
+							{ name: '.buy <shopNum> (.b)', value: 'Buys an item from the shop.' + '\n' + 'Example: .buy 1' },
+							{ name: '.hint (.h)', value: 'Gives a hint for the currently dropped Pokémon.' }
+						)
+						.setTimestamp(),
+					new EmbedBuilder()
+						.setColor('#0099ff')
+						.setTitle('Help (Page 3)')
+						.setDescription('List of available commands:')
+						.addFields(
+							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party.' + '\n' + 'Example: .release 1' },
+							{ name: '.trade @<user> (.t)', value: 'Initiates a trade with another user.' },
+							{ name: '.count', value: 'Displays the amount of each pokémon you\'ve caught.'},
+							{ name: '.leaderboard (.lb)', value: 'Display a leaderboard.' + '\n' + 'Usages: .lb currency *|* .lb shiny *|* .lb legendary *|* .lb mythical *|* .lb pokedex *|* .lb {pokémon}' }
+						)
+						.setTimestamp(),
+					new EmbedBuilder()
+						.setColor('#0099ff')
+						.setTitle('Help (Page 4)')
+						.setDescription('List of available commands:')
+						.addFields(
+							{ name: '.shinydrop', value: 'Drops a shiny pokémon, using a Shiny Drop item in the process.' },
+							{ name: '.setChannel: #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channel>.' + '\n' + 'Example: .setChannel <text1> <text2>' },
+							{ name: '.resetChannels:', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
+							{ name: '.viewChannels:', value: '`ADMIN ONLY:` Posts a list of channels the server allows bot commands in' }
+						)
+						.setTimestamp()
+					]
+
+					let page = 0;
+					const totalPages = helpPages.length;
+
+					const buttonRow = new ActionRowBuilder()
+						.addComponents(
+							new ButtonBuilder()
+								.setCustomId('prevPage')
+								.setLabel('◀')
+								.setStyle(ButtonStyle.Primary),
+							new ButtonBuilder()
+								.setCustomId('nextPage')
+								.setLabel('▶')
+								.setStyle(ButtonStyle.Primary)
+						);
+
+					/*const helpEmbed = new EmbedBuilder()
 						.setColor('#0099ff')
 						.setTitle('Help')
 						.setDescription('List of available commands and how to use them:')
@@ -3165,9 +3532,63 @@ client.on('messageCreate', (message) => {
 							{ name: '.resetChannels:', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
 							{ name: '.viewChannels:', value: '`ADMIN ONLY:` Posts a list of channels the server allows bot commands in' }
 						)
-						.setTimestamp();
+						.setTimestamp();*/
 
-					message.channel.send({ embeds: [helpEmbed] });
+					message.channel.send({ embeds: [helpPages[page]], components: [buttonRow] }).then(sentMessage => {
+						const filter = i => i.user.id === message.author.id;
+						const collector = sentMessage.createMessageComponentCollector({filter, time: 60000});
+
+						collector.on('collect', async i => {
+							try {
+								if (i.customId === 'prevPage') {
+									page = page - 1;
+									if (page < 0) {
+										page = totalPages - 1;
+									}
+								}
+								else if (i.customId === 'nextPage') {
+									page = page + 1;
+									if (page > totalPages - 1) {
+										page = 0;
+									}
+								}
+								await i.update({ embeds: [helpPages[page]], compoents: [buttonRow]});
+							} catch (error) {
+								if (error.code === 10008) {
+									console.log('The message was deleted before the interaction was handled.');
+								} else {
+									console.error('An unexpected error occurred:', error);
+								}
+							}
+						});
+
+						collector.on('end', async () => {
+							try {
+								const disabledRow = new ActionRowBuilder()
+									.addComponents(
+										new ButtonBuilder()
+											.setCustomId('prevPage')
+											.setLabel('◀')
+											.setStyle(ButtonStyle.Primary)
+											.setDisabled(true),
+										new ButtonBuilder()
+											.setCustomId('nextPage')
+											.setLabel('▶')
+											.setStyle(ButtonStyle.Primary)
+											.setDisabled(true)
+									);
+								await sentMessage.edit({ components: [disabledRow] });
+							} catch (error) {
+								if (error.code === 10008) {
+									console.log('Failed Gracefully.');
+								} else {
+									console.error('An unexpected error occurred while editing:', error);
+								}
+							}
+						});
+					}).catch(err => {
+						console.error('Error sending the help message:', err);
+					});
 				});
 			}
 			
@@ -3340,23 +3761,41 @@ client.on('messageCreate', (message) => {
 							const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
 							collector.on('collect', async i => {
-								if (i.customId === 'release_yes') {
-									caughtPokemon.splice(index, 1);
-									dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), userId], (err) => {
-									if (err) {
-										console.error(err.message);
+								try {
+									if (i.customId === 'release_yes') {
+										caughtPokemon.splice(index, 1);
+										dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), userId], (err) => {
+										if (err) {
+											console.error(err.message);
+										}
+										i.update({ content: `Successfully released ${finalName}`, embeds: [], components: [] });
+										});
+									} 
+									else if (i.customId === 'release_no') {
+										i.update({ content: 'Release cancelled.', embeds: [], components: [] });
 									}
-									i.update({ content: `Successfully released ${finalName}`, embeds: [], components: [] });
-									});
-								} 
-								else if (i.customId === 'release_no') {
-									i.update({ content: 'Release cancelled.', embeds: [], components: [] });
+								} catch (error) {
+									if (error.code === 10008) {
+										console.log('Failed Gracefully.');
+									} else {
+										console.error('An unexpected error occurred while editing:', error);
+									}
 								}
 							});
 
-							collector.on('end', collected => {
-								sentMessage.edit({components: [] });
+							collector.on('end', async () => {
+								try {
+									await sentMessage.edit({components: [] });
+								} catch (error) {
+									if (error.code === 10008) {
+										console.log('Failed Gracefully.');
+									} else {
+										console.error('An unexpected error occurred while editing:', error);
+									}
+								}
 							});
+						}).catch(err => {
+							console.error('Error sending the release message:', err);
 						});
 					});
 				});
@@ -3712,30 +4151,48 @@ client.on('messageCreate', (message) => {
 							const filter = i => i.user.id === targetUser.id;
 							const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 							collector.on('collect', async i => {
-								if (i.customId === 'accept_trade') {
-									activeTrades.set(serverId, {
-										user1: userId,
-										user2: targetUser.id,
-										user1Pokemon: null,
-										user2Pokemon: null,
-										user1Confirmed: false,
-										user2Confirmed: false,
-										timeout: setTimeout(() => {
-											activeTrades.delete(serverId);
-											message.channel.send("Trade has timed out due to inactivity.");
-										}, 300000)
-									});
-									await i.update({ content: `Trade accepted. Both users, please add your Pokémon to the trade using \`.trade add <partyNum>\``, embeds: [], components: [] });
-								}
-								else if (i.customId === 'decline_trade') {
-									await i.update({ content: `Trade declined by ${targetUser}`, embeds: [], components: [] });
+								try {
+									if (i.customId === 'accept_trade') {
+										activeTrades.set(serverId, {
+											user1: userId,
+											user2: targetUser.id,
+											user1Pokemon: null,
+											user2Pokemon: null,
+											user1Confirmed: false,
+											user2Confirmed: false,
+											timeout: setTimeout(() => {
+												activeTrades.delete(serverId);
+												message.channel.send("Trade has timed out due to inactivity.");
+											}, 300000)
+										});
+										await i.update({ content: `Trade accepted. Both users, please add your Pokémon to the trade using \`.trade add <partyNum>\``, embeds: [], components: [] });
+									}
+									else if (i.customId === 'decline_trade') {
+										await i.update({ content: `Trade declined by ${targetUser}`, embeds: [], components: [] });
+									}
+								} catch (error) {
+									if (error.code === 10008) {
+										console.log('Failed Gracefully.');
+									} else {
+										console.error('An unexpected error occurred while editing:', error);
+									}
 								}
 							});
-							collector.on('end', collected => {
-								if (collected.size === 0) {
-									sentMessage.edit({ content: `Trade request timed out.`, embeds: [], components: [] });
+							collector.on('end', async (collected) => {
+								try {
+									if (collected.size === 0) {
+										await sentMessage.edit({ content: `Trade request timed out.`, embeds: [], components: [] });
+									}
+								} catch (error) {
+									if (error.code === 10008) {
+										console.log('Failed Gracefully.');
+									} else {
+										console.error('An unexpected error occurred while editing:', error);
+									}
 								}
 							});
+						}).catch(err => {
+							console.error('Error sending the trade message:', err);
 						});
 					}
 					else if (args.length === 1) {
