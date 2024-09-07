@@ -634,17 +634,17 @@ client.on('messageCreate', (message) => {
 									let forms = JSON.parse(filteredList[0].forms);
 									let hasDefault = forms.some(form => form.name.toLowerCase() === 'default');
 									if (!hasDefault) {
-										defaultFormPokemon[i].form = forms[0];
+										defaultFormPokemon[i].form = forms[0].name;
 									}
 								}
 							}
-							/*dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(userPokemonList), row.user_id], (err) => {
+							dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(userPokemonList), row.user_id], (err) => {
 								if (err) {
 									console.error(`Error updating Pokémon for user ${row.user_id}:`, err.message);
 								} else {
 									console.log(`Successfully updated Pokémon for user ${row.user_id}`);
 								}
-							});*/
+							});
 						});
 						message.channel.send('Finished fixing Pokémon forms for all users.');
 					});
