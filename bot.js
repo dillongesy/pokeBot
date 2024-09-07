@@ -450,7 +450,7 @@ const maxDexNum = 649; //number x is max pokedex entry - EDIT WHEN ADDING MORE P
 
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}`);
-	dbUser.run("CREATE TABLE IF NOT EXISTS user (user_id TEXT PRIMARY KEY, caught_pokemon TEXT, currency INTEGER DEFAULT 0, inventory TEXT DEFAULT '[]')");
+	dbUser.run("CREATE TABLE IF NOT EXISTS user (user_id TEXT PRIMARY KEY, caught_pokemon TEXT, currency INTEGER DEFAULT 0, inventory TEXT DEFAULT '[]', servers TEXT DEFAULT '[]')");
 	dbServer.run("CREATE TABLE IF NOT EXISTS server (server_id TEXT PRIMARY KEY, allowed_channels_id TEXT)")});
 
 client.on('messageCreate', (message) => {
@@ -621,6 +621,46 @@ client.on('messageCreate', (message) => {
 							message.channel.send('No Pokémon found in the database.');
 						}
 					});
+				});
+			}
+
+			else if (message.content.toLowerCase() === '.makeservercolumn' && userId === '177580797165961216') {
+				//add a column to user's database called servers
+					//servers is an object that stores strings of serverIds
+				//when a user catches a pokemon, add the serverId to the list
+				//if the user catches a pokemon in a different server, add it to the list
+					//if the user already has the serverId in their list, don't add the same one
+				dbUser.run("ALTER TABLE user ADD COLUMN servers TEXT", (err) => {
+					if (err) {
+						if (err.message.includes('duplicate column name')) {
+							message.channel.send('The servers column already exists.');
+							return;
+						}
+						else {
+							console.error(err.message);
+							message.channel.send('An error occurred while adding the servers column');
+							return;
+						}
+					}
+					message.channel.send('Servers column added successfully');
+				});
+
+				dbUser.run("UPDATE user SET servers = '[]' WHERE servers IS NULL", (err) => {
+					if (err) {
+						console.error(err.message);
+						message.channel.send('An error occurred while initializing the servers column.');
+						return;
+					}
+					message.channel.send('Servers column initialized for all users.');
+				});
+			}
+
+			else if (message.content.toLowerCase() === '.serverlb') {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+
 				});
 			}
 
@@ -1012,7 +1052,7 @@ client.on('messageCreate', (message) => {
 							}
 							if (!row) {
 								// User isn't in the database, add them
-								dbUser.run("INSERT INTO user (user_id, caught_pokemon, currency) VALUES (?, ?, ?)", [userId, JSON.stringify(shinyMon), coinsToAdd], (err) => {
+								dbUser.run("INSERT INTO user (user_id, caught_pokemon, currency, servers) VALUES (?, ?, ?, ?)", [userId, JSON.stringify(shinyMon), coinsToAdd, JSON.stringify(serverId)], (err) => {
 									if (err) {
 										console.error(err.message);
 									}
@@ -1024,7 +1064,11 @@ client.on('messageCreate', (message) => {
 								const caughtPokemon = JSON.parse(row.caught_pokemon);
 								let newList = caughtPokemon.concat(shinyMon);
 								const newCurrency = row.currency + coinsToAdd;
-								dbUser.run("UPDATE user SET caught_pokemon = ?, currency = ? WHERE user_id = ?", [JSON.stringify(newList), newCurrency, userId], (err) => {
+								let serverList = JSON.parse(row.servers);
+								if (!serverList.includes(serverId)) {
+									serverList.push(serverId);
+								}
+								dbUser.run("UPDATE user SET caught_pokemon = ?, currency = ?, servers = ? WHERE user_id = ?", [JSON.stringify(newList), newCurrency, JSON.stringify(serverList), userId], (err) => {
 									if (err) {
 										console.error(err.message);
 									}
@@ -1388,6 +1432,44 @@ client.on('messageCreate', (message) => {
 							const filteredUsers = users.filter(user => user !== null);
 							filteredUsers.sort((a, b) => b.value - a.value);
 							sendLeaderboard(message, filteredUsers, 'Shiny Pokémon Leaderboard');
+						});
+					}
+
+					else if(args[0].toLowerCase() === 'server') {
+						dbUser.all("SELECT user_id, caught_pokemon, servers FROM user", [], async (err, rows) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching the shiny leaderboard.');
+								return;
+							}
+
+							const users = await Promise.all(rows.map(async row => {
+								if (!row.caught_pokemon || !row.servers) {
+									return null;
+								}
+					
+								// Parse the servers field to check if the user belongs to the current server
+								const userServers = JSON.parse(row.servers);
+								if (!userServers.includes(serverId)) {
+									return null; // Skip users not part of this server
+								}
+					
+								const user = await client.users.fetch(row.user_id).catch(() => null);
+					
+								// Process the caught Pokémon list
+								let caughtPokemonList = JSON.parse(row.caught_pokemon).flat();
+								let totalPokemonCount = caughtPokemonList.length;
+					
+								// Return the user and total Pokémon count, or null if none caught
+								return totalPokemonCount > 0 ? {
+									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									value: totalPokemonCount
+								} : null;
+							}));
+
+							const filteredUsers = users.filter(user => user !== null);
+							filteredUsers.sort((a, b) => b.value - a.value);
+							sendLeaderboard(message, filteredUsers, 'Total Pokémon Caught Leaderboard');
 						});
 					}
 
@@ -3395,7 +3477,7 @@ client.on('messageCreate', (message) => {
 											activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny, form: selectForm.name, gender: selectGender.name });
 	
 											const embed = new EmbedBuilder()
-												.setColor('#0099ff')
+												.setColor('#FFD700')
 												.addFields(
 													{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
 													{ name: 'Region', value: `${pokemon.region}`, inline: true }
