@@ -633,33 +633,22 @@ client.on('messageCreate', (message) => {
 								if (filteredList.length > 0) {
 									let forms = JSON.parse(filteredList[0].forms);
 									let hasDefault = forms.some(form => form.name.toLowerCase() === 'default');
-									// let hasDefault = false;
-									// for (let j = 0; j < forms.length; j++) {
-									// 	if (forms[j].name.toLowerCase() === 'default') {
-									// 		hasDefault = true;
-									// 	}
-									// }
 									if (!hasDefault) {
-										defaultFormPokemon[i].form = 'Male';
+										defaultFormPokemon[i].form = forms[0];
 									}
 								}
 							}
-							dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(userPokemonList), row.user_id], (err) => {
+							/*dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(userPokemonList), row.user_id], (err) => {
 								if (err) {
 									console.error(`Error updating Pokémon for user ${row.user_id}:`, err.message);
 								} else {
 									console.log(`Successfully updated Pokémon for user ${row.user_id}`);
 								}
-							});
+							});*/
 						});
 						message.channel.send('Finished fixing Pokémon forms for all users.');
 					});
 				});
-				
-				
-				//query database for all pokemon
-				//for all of the dexNums[], check if the corresponding row has forms = 'Default'
-				//if it doesn't, make the form "Male"
 			}
 
 			//flatten everyone's caught_pokemon
@@ -801,8 +790,6 @@ client.on('messageCreate', (message) => {
 					});
 				});
 			}
-
-			//
 			
 			//force a spawn
 			else if (forceSpawnCommandRegex.test(message.content.toLowerCase()) && userId === '177580797165961216') {
@@ -1003,7 +990,7 @@ client.on('messageCreate', (message) => {
 							}
 							if (!row) {
 								// User isn't in the database, add them
-								dbUser.run("INSERT INTO user (user_id, caught_pokemon, currency) VALUES (?, ?, ?)", [userId, JSON.stringify([shinyMon]), coinsToAdd], (err) => {
+								dbUser.run("INSERT INTO user (user_id, caught_pokemon, currency) VALUES (?, ?, ?)", [userId, JSON.stringify(shinyMon), coinsToAdd], (err) => {
 									if (err) {
 										console.error(err.message);
 									}
