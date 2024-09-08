@@ -1943,7 +1943,7 @@ client.on('messageCreate', (message) => {
 						return;
 					}
 					
-					const index = parseInt(args[1], 10) - 1;
+					let index = parseInt(args[1], 10) - 1;
 					
 					dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
 						if (err) {
@@ -1964,9 +1964,9 @@ client.on('messageCreate', (message) => {
 							return;
 						}
 
-						const pokemonToDisplay = caughtPokemon[index];
-						const isShiny = pokemonToDisplay.name.startsWith('✨');
-						const pokemonName = isShiny ? pokemonToDisplay.name.slice(1) : pokemonToDisplay.name;
+						let pokemonToDisplay = caughtPokemon[index];
+						let isShiny = pokemonToDisplay.name.startsWith('✨');
+						let pokemonName = isShiny ? pokemonToDisplay.name.slice(1) : pokemonToDisplay.name;
 						let formName = pokemonToDisplay.form;
 						db.all("SELECT * FROM pokemon", [], (err, pokemonRows) => {
 							if (err) {
@@ -1978,18 +1978,17 @@ client.on('messageCreate', (message) => {
 								message.channel.send('Pokémon not found in the database.');
 								return;
 							}
-							const defaultMon = pokemonRows.filter(pokemon => pokemon.isLM !== 3 && pokemon.name === pokemonName)[0];
+							let defaultMon = pokemonRows.filter(pokemon => pokemon.isLM !== 3 && pokemon.name === pokemonName)[0];
 							if (defaultMon.length < 1){ 
 								message.channel.send('Pokémon not found in the database.');
 								return;
 							}
 
-							const shinyImageLinks = JSON.parse(defaultMon.shinyImageLinks);
-							const imgLinks = JSON.parse(defaultMon.imageLinks);
-							//const imageLinks = JSON.parse(isShiny ? defaultMon.shinyImageLinks : defaultMon.imageLinks);
-							const imageLink = isShiny ? shinyImageLinks[formName] || shinyImageLinks.default : imgLinks[formName] || imgLinks.default;
+							let shinyImageLinks = JSON.parse(defaultMon.shinyImageLinks);
+							let imgLinks = JSON.parse(defaultMon.imageLinks);
+							let imageLink = isShiny ? shinyImageLinks[formName] || shinyImageLinks.default : imgLinks[formName] || imgLinks.default;
 
-							const curForm = getFormTypes(pokemonName, formName, pokemonRows);
+							let curForm = getFormTypes(pokemonName, formName, pokemonRows);
 							let type1Field = '';
 							let type2Field = '';
 							if (curForm.formFound) {
@@ -2018,8 +2017,166 @@ client.on('messageCreate', (message) => {
 									)
 									.setImage(imageLink)
 									.setTimestamp();
+							
+							const buttonRow = new ActionRowBuilder()
+								.addComponents(
+									new ButtonBuilder()
+										.setCustomId('prev')
+										.setLabel('◀')
+										.setStyle(ButtonStyle.Primary),
+									new ButtonBuilder()
+										.setCustomId('next')
+										.setLabel('▶')
+										.setStyle(ButtonStyle.Primary)
+								);
+							
 									
-									message.channel.send({embeds: [embed] });
+							message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+								const filter = i => i.user.id === userId;
+								const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+								collector.on('collect', async i => {
+									try {
+										if (i.customId === 'prev') {
+											//TODO: go back one in the user's party
+											index = index - 1;
+											if (index < 0) {
+												index = caughtPokemon.length - 1;
+											}
+											pokemonToDisplay = caughtPokemon[index];
+											isShiny = pokemonToDisplay.name.startsWith('✨');
+											pokemonName = isShiny ? pokemonToDisplay.name.slice(1) : pokemonToDisplay.name;
+											formName = pokemonToDisplay.form;
+											defaultMon = pokemonRows.filter(pokemon => pokemon.isLM !== 3 && pokemon.name === pokemonName)[0];
+											if (defaultMon.length < 1) {
+												message.channel('Error getting requested pokémon.');
+												return;
+											}
+											shinyImageLinks = JSON.parse(defaultMon.shinyImageLinks);
+											imgLinks = JSON.parse(defaultMon.imageLinks);
+											imageLink = isShiny ? shinyImageLinks[formName] || shinyImageLinks.default : imgLinks[formName] || imgLinks.default;
+
+											curForm = getFormTypes(pokemonName, formName, pokemonRows);
+											let type1Field = '';
+											let type2Field = '';
+											if (curForm.formFound) {
+												type1Field = curForm.type1;
+												type2Field = curForm.type2 ? ` / ${curForm.type2}` : '';
+											}
+											else {
+												type1Field = defaultMon.type1;
+												type2Field = defaultMon.type2 ? ` / ${defaultMon.type2}` : '';
+											}
+
+											if (formName.toLowerCase() !== 'default') {
+												formName = formName + ' ';
+											}
+											else {
+												formName = '';
+											}
+
+											const embedPrev = new EmbedBuilder()
+												.setColor('#0099ff')
+												.setTitle(`Your ${isShiny ? '✨' : ''}${formName}${defaultMon.name}`)
+												.addFields(
+													{ name: 'Dex Number', value: `${defaultMon.dexNum}`, inline: true },
+													{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
+													{ name: 'Region', value: `${defaultMon.region}`, inline: true }
+												)
+												.setImage(imageLink)
+												.setTimestamp();
+
+											i.update({ embeds: [embedPrev], components: [buttonRow] });
+										}
+										else if (i.customId === 'next') {
+											//TODO: go forward one in the user's party
+											index = index + 1;
+											if (index > caughtPokemon.length - 1) {
+												index = 0;
+											}
+											pokemonToDisplay = caughtPokemon[index];
+											isShiny = pokemonToDisplay.name.startsWith('✨');
+											pokemonName = isShiny ? pokemonToDisplay.name.slice(1) : pokemonToDisplay.name;
+											formName = pokemonToDisplay.form;
+											defaultMon = pokemonRows.filter(pokemon => pokemon.isLM !== 3 && pokemon.name === pokemonName)[0];
+											if (defaultMon.length < 1) {
+												message.channel('Error getting requested pokémon.');
+												return;
+											}
+											shinyImageLinks = JSON.parse(defaultMon.shinyImageLinks);
+											imgLinks = JSON.parse(defaultMon.imageLinks);
+											imageLink = isShiny ? shinyImageLinks[formName] || shinyImageLinks.default : imgLinks[formName] || imgLinks.default;
+
+											curForm = getFormTypes(pokemonName, formName, pokemonRows);
+											let type1Field = '';
+											let type2Field = '';
+											if (curForm.formFound) {
+												type1Field = curForm.type1;
+												type2Field = curForm.type2 ? ` / ${curForm.type2}` : '';
+											}
+											else {
+												type1Field = defaultMon.type1;
+												type2Field = defaultMon.type2 ? ` / ${defaultMon.type2}` : '';
+											}
+
+											if (formName.toLowerCase() !== 'default') {
+												formName = formName + ' ';
+											}
+											else {
+												formName = '';
+											}
+
+											const embedPrev = new EmbedBuilder()
+												.setColor('#0099ff')
+												.setTitle(`Your ${isShiny ? '✨' : ''}${formName}${defaultMon.name}`)
+												.addFields(
+													{ name: 'Dex Number', value: `${defaultMon.dexNum}`, inline: true },
+													{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
+													{ name: 'Region', value: `${defaultMon.region}`, inline: true }
+												)
+												.setImage(imageLink)
+												.setTimestamp();
+
+											i.update({ embeds: [embedPrev], components: [buttonRow] });
+										}
+									} catch (error) {
+										if (error.code === 10008) {
+											console.log('The message was deleted before the interaction was handled.');
+										}
+										else {
+											console.error('An unexpected error occurred:', error);
+										}
+									}
+								});
+
+								collector.on('end', async () => {
+									try {
+										const disabledRow = new ActionRowBuilder()
+											.addComponents(
+												new ButtonBuilder()
+													.setCustomId('prev')
+													.setLabel('◀')
+													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true),
+												new ButtonBuilder()
+													.setCustomId('next')
+													.setLabel('▶')
+													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true)
+											);
+										await sentMessage.edit({ components: [disabledRow] });
+									} catch (error) {
+										if (error.code === 10008) {
+											console.log('The message was deleted before the interaction was handled.');
+										}
+										else {
+											console.error('An unexpected error occurred:', error);
+										}
+									}
+								});
+							}).catch(err => {
+								console.error('Error sending the view message:', err);
+							});
 						});
 					});
 				});
