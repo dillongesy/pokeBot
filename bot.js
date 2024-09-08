@@ -1978,10 +1978,21 @@ client.on('messageCreate', (message) => {
 								message.channel.send('Pokémon not found in the database.');
 								return;
 							}
-							let defaultMon = pokemonRows.filter(pokemon => pokemon.isLM !== 3 && pokemon.name === pokemonName)[0];
+							let defaultMon = pokemonRows.filter(pokemon => pokemon.isLM !== 3 && pokemon.name === pokemonName);
 							if (defaultMon.length < 1){ 
 								message.channel.send('Pokémon not found in the database.');
 								return;
+							}
+							if (defaultMon.length === 1) {
+								defaultMon = defaultMon[0];
+							}
+							else {
+								if (pokemonToDisplay.gender === 'Female') {
+									defaultMon = defaultMon[0];
+								}
+								else {
+									defaultMon = defaultMon[1];
+								}
 							}
 
 							let shinyImageLinks = JSON.parse(defaultMon.shinyImageLinks);
@@ -1991,6 +2002,7 @@ client.on('messageCreate', (message) => {
 							let curForm = getFormTypes(pokemonName, formName, pokemonRows);
 							let type1Field = '';
 							let type2Field = '';
+							let genderSymbol = '';
 							if (curForm.formFound) {
 								type1Field = curForm.type1;
 								type2Field = curForm.type2 ? ` / ${curForm.type2}` : '';
@@ -2006,10 +2018,16 @@ client.on('messageCreate', (message) => {
 							else {
 								formName = '';
 							}
+							if (pokemonToDisplay.gender === 'Male') {
+								genderSymbol = '`♂\u200B`';
+							}
+							else if (pokemonToDisplay.gender === 'Female') {
+								genderSymbol = '`♀\u200B`';
+							}
 
 							const embed = new EmbedBuilder()
 									.setColor('#0099ff')
-									.setTitle(`Your ${isShiny ? '✨' : ''}${formName}${defaultMon.name}`)
+									.setTitle(`Your ${isShiny ? '✨' : ''}${formName}${defaultMon.name}${genderSymbol}`)
 									.addFields(
 										{ name: 'Dex Number', value: `${defaultMon.dexNum}`, inline: true },
 										{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
@@ -2038,7 +2056,6 @@ client.on('messageCreate', (message) => {
 								collector.on('collect', async i => {
 									try {
 										if (i.customId === 'prev') {
-											//TODO: go back one in the user's party
 											index = index - 1;
 											if (index < 0) {
 												index = caughtPokemon.length - 1;
@@ -2047,11 +2064,23 @@ client.on('messageCreate', (message) => {
 											isShiny = pokemonToDisplay.name.startsWith('✨');
 											pokemonName = isShiny ? pokemonToDisplay.name.slice(1) : pokemonToDisplay.name;
 											formName = pokemonToDisplay.form;
-											defaultMon = pokemonRows.filter(pokemon => pokemon.isLM !== 3 && pokemon.name === pokemonName)[0];
+											defaultMon = pokemonRows.filter(pokemon => pokemon.isLM !== 3 && pokemon.name === pokemonName);
 											if (defaultMon.length < 1) {
 												message.channel('Error getting requested pokémon.');
 												return;
 											}
+											if (defaultMon.length === 1) {
+												defaultMon = defaultMon[0];
+											}
+											else {
+												if (pokemonToDisplay.gender === 'Female') {
+													defaultMon = defaultMon[0];
+												}
+												else {
+													defaultMon = defaultMon[1];
+												}
+											}
+
 											shinyImageLinks = JSON.parse(defaultMon.shinyImageLinks);
 											imgLinks = JSON.parse(defaultMon.imageLinks);
 											imageLink = isShiny ? shinyImageLinks[formName] || shinyImageLinks.default : imgLinks[formName] || imgLinks.default;
@@ -2059,6 +2088,7 @@ client.on('messageCreate', (message) => {
 											curForm = getFormTypes(pokemonName, formName, pokemonRows);
 											let type1Field = '';
 											let type2Field = '';
+											let genderSymbol = '';
 											if (curForm.formFound) {
 												type1Field = curForm.type1;
 												type2Field = curForm.type2 ? ` / ${curForm.type2}` : '';
@@ -2074,10 +2104,16 @@ client.on('messageCreate', (message) => {
 											else {
 												formName = '';
 											}
+											if (pokemonToDisplay.gender === 'Male') {
+												genderSymbol = '`♂\u200B`';
+											}
+											else if (pokemonToDisplay.gender === 'Female') {
+												genderSymbol = '`♀\u200B`';
+											}
 
 											const embedPrev = new EmbedBuilder()
 												.setColor('#0099ff')
-												.setTitle(`Your ${isShiny ? '✨' : ''}${formName}${defaultMon.name}`)
+												.setTitle(`Your ${isShiny ? '✨' : ''}${formName}${defaultMon.name}${genderSymbol}`)
 												.addFields(
 													{ name: 'Dex Number', value: `${defaultMon.dexNum}`, inline: true },
 													{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
@@ -2098,10 +2134,21 @@ client.on('messageCreate', (message) => {
 											isShiny = pokemonToDisplay.name.startsWith('✨');
 											pokemonName = isShiny ? pokemonToDisplay.name.slice(1) : pokemonToDisplay.name;
 											formName = pokemonToDisplay.form;
-											defaultMon = pokemonRows.filter(pokemon => pokemon.isLM !== 3 && pokemon.name === pokemonName)[0];
+											defaultMon = pokemonRows.filter(pokemon => pokemon.isLM !== 3 && pokemon.name === pokemonName);
 											if (defaultMon.length < 1) {
 												message.channel('Error getting requested pokémon.');
 												return;
+											}
+											if (defaultMon.length === 1) {
+												defaultMon = defaultMon[0];
+											}
+											else {
+												if (pokemonToDisplay.gender === 'Female') {
+													defaultMon = defaultMon[0];
+												}
+												else {
+													defaultMon = defaultMon[1];
+												}
 											}
 											shinyImageLinks = JSON.parse(defaultMon.shinyImageLinks);
 											imgLinks = JSON.parse(defaultMon.imageLinks);
@@ -2110,6 +2157,7 @@ client.on('messageCreate', (message) => {
 											curForm = getFormTypes(pokemonName, formName, pokemonRows);
 											let type1Field = '';
 											let type2Field = '';
+											let genderSymbol = '';
 											if (curForm.formFound) {
 												type1Field = curForm.type1;
 												type2Field = curForm.type2 ? ` / ${curForm.type2}` : '';
@@ -2125,10 +2173,16 @@ client.on('messageCreate', (message) => {
 											else {
 												formName = '';
 											}
+											if (pokemonToDisplay.gender === 'Male') {
+												genderSymbol = '`♂\u200B`';
+											}
+											else if (pokemonToDisplay.gender === 'Female') {
+												genderSymbol = '`♀\u200B`';
+											}
 
 											const embedPrev = new EmbedBuilder()
 												.setColor('#0099ff')
-												.setTitle(`Your ${isShiny ? '✨' : ''}${formName}${defaultMon.name}`)
+												.setTitle(`Your ${isShiny ? '✨' : ''}${formName}${defaultMon.name}${genderSymbol}`)
 												.addFields(
 													{ name: 'Dex Number', value: `${defaultMon.dexNum}`, inline: true },
 													{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
