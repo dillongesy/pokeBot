@@ -1296,6 +1296,10 @@ client.on('messageCreate', (message) => {
 					else {
 						const userR = args[0];
 						const coinsToAdd = args[1];
+						if (isNaN(coinsToAdd) || coinsToAdd === '') {
+							message.channel.send('Syntax error - Requires 2 args: .give <userID> <amount>');
+							return;
+						}
 						dbUser.get("SELECT * FROM user WHERE user_id = ?", [userR], (err, row) => {
 							if (err) {
 								console.error(err.message);
@@ -1938,12 +1942,17 @@ client.on('messageCreate', (message) => {
 						return;
 					}
 					const args = message.content.split(' ');
-					if (args.length < 2 || isNaN(args[1])) {
-						message.channel.send('Please specify a valid number. Usage: `.view <partyNumber>`');
-						return;
+					let index;
+					if (args.length < 2) {
+						index = 0;
 					}
-					
-					let index = parseInt(args[1], 10) - 1;
+					else {
+						index = parseInt(args[1], 10) - 1;
+						if (isNaN(index)) {
+							message.channel.send('Syntax error, command usage: .view <partyNum>.');
+							return;
+						}
+					}
 					
 					dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
 						if (err) {
@@ -2333,6 +2342,10 @@ client.on('messageCreate', (message) => {
 								let searchName = args[1].toLowerCase();
 								searchName = capitalizeFirstLetter(searchName);
 								searchName = fixPokemonName(searchName, args);
+								if (searchName === '') {
+									message.channel.send('Syntax error, usage: .party name: <pokemon>');
+									return;
+								}
 
 								const filteredPokemon = caughtPokemon
 									.map((p, index) => {
@@ -2806,7 +2819,7 @@ client.on('messageCreate', (message) => {
 									let ignoreNum = 0;
 									if (args.length > 1 && !isNaN(args[1])) {
 										ignoreNum = parseInt(args[1], 10);
-										if (ignoreNum < 1 || ignoreNum > userPokemonList.length) {
+										if (ignoreNum < 1 || ignoreNum > userPokemonList.length || isNaN(ignoreNum)) {
 											message.channel.send('Error: provided ignore num is invalid');
 											return;
 										}
@@ -2877,7 +2890,7 @@ client.on('messageCreate', (message) => {
 								let ignoreNum = 0;
 								if (args.length > 1 && !isNaN(args[1])) {
 									ignoreNum = parseInt(args[1], 10);
-									if (ignoreNum < 1 || ignoreNum > userPokemonList.length) {
+									if (ignoreNum < 1 || ignoreNum > userPokemonList.length || isNaN(ignoreNum)) {
 										message.channel.send('Error: provided ignore num is invalid');
 										return;
 									}
@@ -2944,7 +2957,7 @@ client.on('messageCreate', (message) => {
 								let ignoreNum = 0;
 								if (args.length > 1 && !isNaN(args[1])) {
 									ignoreNum = parseInt(args[1], 10);
-									if (ignoreNum < 1 || ignoreNum > userPokemonList.length) {
+									if (ignoreNum < 1 || ignoreNum > userPokemonList.length || isNaN(ignoreNum)) {
 										message.channel.send('Error: provided ignore num is invalid');
 										return;
 									}
@@ -3014,7 +3027,7 @@ client.on('messageCreate', (message) => {
 								let ignoreNum = 0;
 								if (args.length > 1 && !isNaN(args[1])) {
 									ignoreNum = parseInt(args[1], 10);
-									if (ignoreNum < 1 || ignoreNum > userPokemonList.length) {
+									if (ignoreNum < 1 || ignoreNum > userPokemonList.length || isNaN(ignoreNum)) {
 										message.channel.send('Error: provided ignore num is invalid');
 										return;
 									}
@@ -3079,7 +3092,7 @@ client.on('messageCreate', (message) => {
 									let ignoreNum = 0;
 									if (args.length > 1 && !isNaN(args[1])) {
 										ignoreNum = parseInt(args[1], 10);
-										if (ignoreNum < 1 || ignoreNum > userPokemonList.length) {
+										if (ignoreNum < 1 || ignoreNum > userPokemonList.length || isNaN(ignoreNum)) {
 											message.channel.send('Error: provided ignore num is invalid');
 											return;
 										}
@@ -4262,6 +4275,10 @@ client.on('messageCreate', (message) => {
 						
 						const trade = activeTrades.get(serverId);
 						const partyNum = parseInt(args[2], 10) - 1;
+						if (isNaN(partyNum)) {
+							message.channel.send("Syntax error: you must provide a valid party number.");
+							return;
+						}
 						
 						dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
 							if (err) {
@@ -4440,6 +4457,17 @@ client.on('messageCreate', (message) => {
 					}
 					
 					else if (args.length === 2) {
+						let isInTrade = false;
+						for (const [serverId, trade] of activeTrades.entries()) {
+							if (trade && (userId === trade.user1 || userId === trade.user2)) {
+								isInTrade = true;
+								break;
+							}
+						}
+						if (isInTrade) {
+							message.channel.send('Cannot trade while in an active trade!');
+							return;
+						}
 						const targetUser = message.mentions.users.first();
 						if (!targetUser) {
 							message.channel.send("You must mention a user to trade with.");
