@@ -624,46 +624,6 @@ client.on('messageCreate', (message) => {
 				});
 			}
 
-			else if (message.content.toLowerCase() === '.makeservercolumn' && userId === '177580797165961216') {
-				//add a column to user's database called servers
-					//servers is an object that stores strings of serverIds
-				//when a user catches a pokemon, add the serverId to the list
-				//if the user catches a pokemon in a different server, add it to the list
-					//if the user already has the serverId in their list, don't add the same one
-				dbUser.run("ALTER TABLE user ADD COLUMN servers TEXT", (err) => {
-					if (err) {
-						if (err.message.includes('duplicate column name')) {
-							message.channel.send('The servers column already exists.');
-							return;
-						}
-						else {
-							console.error(err.message);
-							message.channel.send('An error occurred while adding the servers column');
-							return;
-						}
-					}
-					message.channel.send('Servers column added successfully');
-				});
-
-				dbUser.run("UPDATE user SET servers = '[]' WHERE servers IS NULL", (err) => {
-					if (err) {
-						console.error(err.message);
-						message.channel.send('An error occurred while initializing the servers column.');
-						return;
-					}
-					message.channel.send('Servers column initialized for all users.');
-				});
-			}
-
-			else if (message.content.toLowerCase() === '.serverlb') {
-				isChannelAllowed(serverId, message.channel.id, (allowed) => {
-					if (!allowed) {
-						return;
-					}
-
-				});
-			}
-
 			//fix pokemon's objects (default -> male)
 			else if (message.content.toLowerCase() === '.fixmon' && userId === '177580797165961216') {
 				dbUser.all("SELECT user_id, caught_pokemon FROM user", [], (err, rows) => {
@@ -709,146 +669,6 @@ client.on('messageCreate', (message) => {
 							});
 						});
 						message.channel.send('Finished fixing Pokémon forms for all users.');
-					});
-				});
-			}
-
-			//flatten everyone's caught_pokemon
-			else if(message.content.toLowerCase() === '.flatten' && userId === '177580797165961216') {
-				dbUser.all("SELECT user_id, caught_pokemon FROM user", [], (err, rows) => {
-					if (err) {
-						console.error(err.message);
-						message.channel.send('An error occurred while fetching the user\'s Pokémon.');
-						return;
-					}
-					rows.forEach((row) => {
-						if (!row.caught_pokemon) {
-							console.log(`User ${row.user_id} has no Pokémon to order.`);
-							return;
-						}
-						let list = JSON.parse(row.caught_pokemon).flat();
-						dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(list), row.user_id], (err) => {
-							if (err) {
-								console.error(err.message);
-								message.channel.send('An error occurred while updating your Pokémon.');
-								return;
-							}
-							else {
-								console.log(`Pokemon successfully made into objects for user ${row.user_id}.`);
-							}
-						});
-					});
-				});
-			}
-
-			//Make pokemon objects
-			else if(message.content.toLowerCase() === '.makepobj' && userId === '177580797165961216') {
-				dbUser.all("SELECT user_id, caught_pokemon FROM user", [], (err, rows) => {
-					if (err) {
-						console.error(err.message);
-						message.channel.send('An error occurred while fetching the user\'s Pokémon.');
-						return;
-					}
-
-					db.all("SELECT * FROM pokemon", [], (error, allPokemonList) => { //test 0, userPokemonList.length, 1, userPokemonList.length + 1
-						if (error) {
-							console.error(error.message);
-							message.channel.send('An error occurred while fetching the Pokémon database.');
-							return;
-						}
-						//check if string starts with ✨, if it does: make a variable "checkName" that deletes it (we still want the name to start with ✨ in the name!!!)
-						//compare "checkName" names to allPokemonList
-						//use Math.random() * 100 to roll pokemon traits for gender and form
-						//each edited entry should look something like this in the db:
-						// [{"name":"Bulbasaur","gender":"Male","form":"Default"}]
-						rows.forEach((row) => {
-							if (!row.caught_pokemon) {
-								console.log(`User ${row.user_id} has no Pokémon to order.`);
-								return;
-							}
-							let userPokemonList = JSON.parse(row.caught_pokemon);
-							let pokemonObjects = [];
-
-							for(let i = 0; i < userPokemonList.length; i++) {
-								const pkmnName = userPokemonList[i];
-								let checkName = ''
-								let isShiny = pkmnName.startsWith("✨");
-								if (isShiny) {
-									checkName = pkmnName.substring(1);
-								}
-								else {
-									checkName = pkmnName;
-								}
-								const pkmnRow = allPokemonList.find(pokemon => pokemon.name.toLowerCase() === checkName.toLowerCase());
-								if (!pkmnRow) {
-									console.error(`Pokémon ${checkName} not found in the database.`);
-									continue;
-								}
-	
-								const genders = JSON.parse(pkmnRow.gender);
-								let randomPercentage = Math.random() * 100;
-								let selectGender;
-								let cumulativePercentage = 0;
-								for (const gender of genders) {
-									cumulativePercentage += gender.percentage;
-									if (randomPercentage <= cumulativePercentage) {
-										selectGender = gender;
-										break;
-									}
-								}
-	
-								const forms = JSON.parse(pkmnRow.forms);
-								randomPercentage = Math.random() * 100;
-								let selectForm;
-								cumulativePercentage = 0;
-								for (const form of forms) {
-									cumulativePercentage += form.percentage;
-									if (randomPercentage <= cumulativePercentage) {
-										selectForm = form;
-										break;
-									}
-								}
-	
-								if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
-									selectGender = {
-										name: 'Male',
-										percentage: selectGender.percentage
-									};
-								}
-								else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
-									selectGender = {
-										name: 'Female',
-										percentage: selectForm.percentage
-									};
-								}
-	
-								if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
-									selectForm = {
-										name: selectForm.name.substring(0, selectForm.name.length - 4),
-										percentage: selectForm.percentage
-									};
-								}
-	
-								const newObj = {
-									name: pkmnName,
-									gender: selectGender.name,
-									form: selectForm.name
-								};
-								pokemonObjects.push(newObj);
-							}
-
-							dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify([pokemonObjects]), row.user_id], (err) => {
-								if (err) {
-									console.error(err.message);
-									message.channel.send('An error occurred while updating your Pokémon.');
-									return;
-								}
-								else {
-									console.log(`Pokemon successfully made into objects for user ${row.user_id}.`);
-								}
-							});
-						});
-						message.channel.send("Pokemon objects have been processed for all users.");
 					});
 				});
 			}
@@ -1335,8 +1155,10 @@ client.on('messageCreate', (message) => {
 						.setDescription('Recently added Changes')
 						.addFields(
 							{ name: 'ANNOUNCEMENT:', value: 'For any bug found, you may recieve currency in the range 100-5000!' },
-							{ name: 'Order/Sort', value: 'Added reorganization of your party. Use .help for more information!' },
-							{ name: 'Detailed Pokemon', value: 'Added details to pokemon, such as gender, forms, and more!' },
+							{ name: 'View:', value: 'Added arrows to view.' },
+							{ name: 'Server Leaderboard:', value: 'Added a server leaderboard.' },
+							{ name: 'Bugs:', value: 'Fixed an exploit with trading, a crash with sub commands, and nidoran dex issues (fuck nidoran)' },
+							{ name: 'BOINGO:', value: 'BOINGO BOINGO BOINGO BOINGO BOINGO' }
 						)
 						.setTimestamp();
 
@@ -2830,12 +2652,40 @@ client.on('messageCreate', (message) => {
 
 									const dexMap = new Map();
 									allPokemonList.forEach(pokemon => {
-										dexMap.set(pokemon.name, pokemon.dexNum);
+										if (pokemon.name === 'Nidoran') {
+											if (pokemon.dexNum === '29') {
+												dexMap.set('Nidoran-Female', pokemon.dexNum);
+											}
+											else if (pokemon.dexNum === '32') {
+												dexMap.set('Nidoran-Male', pokemon.dexNum);
+											}
+										}
+										else {
+											dexMap.set(pokemon.name, pokemon.dexNum);
+										}
 									});
 
 									sortableList.sort((a, b) => {
-										const nameA = a.name.startsWith('✨') ? a.name.substring(1) : a.name;
-										const nameB = b.name.startsWith('✨') ? b.name.substring(1) : b.name;
+										let nameA = a.name.startsWith('✨') ? a.name.substring(1) : a.name;
+										let nameB = b.name.startsWith('✨') ? b.name.substring(1) : b.name;
+
+										//NIDORANNNN
+										if (nameA === 'Nidoran') {
+											if (a.gender === 'Female') {
+												nameA = 'Nidoran-Female';
+											}
+											else {
+												nameA = 'Nidoran-Male';
+											}
+										}
+										if (nameB === 'Nidoran') {
+											if (b.gender === 'Female') {
+												nameB = 'Nidoran-Female';
+											}
+											else {
+												nameB = 'Nidoran-Male';
+											}
+										}
 
 										// Get Dex numbers from the map
 										const dexA = dexMap.get(nameA) || 9999; // Use a large number if not found
@@ -3103,12 +2953,30 @@ client.on('messageCreate', (message) => {
 
 									const dexMap = new Map();
 									allPokemonList.forEach(pokemon => {
-										dexMap.set(pokemon.name, {dexNum: pokemon.dexNum, isLM: pokemon.isLM});
+										if (pokemon.name === 'Nidoran') {
+											if (pokemon.dexNum === '29') {
+												dexMap.set('Nidoran-Female', { dexNum: 29, isLM: pokemon.isLM });
+											}
+											if (pokemon.dexNum === '32') {
+												dexMap.set('Nidoran-Male', { dexNum: 32, isLM: pokemon.isLM });
+											}
+										}
+										else {
+											dexMap.set(pokemon.name, {dexNum: pokemon.dexNum, isLM: pokemon.isLM});
+										}
 									});
 
 									const countMap = new Map();
 									sortableList.forEach(pokemon => {
 										let name = pokemon.name.startsWith('✨') ? pokemon.name.substring(1) : pokemon.name;
+										if (name === 'Nidoran') {
+											if (pokemon.gender === 'Female') {
+												name = 'Nidoran-Female';
+											}
+											else {
+												name = 'Nidoran-Male';
+											}
+										}
 										if (!countMap.has(name)) {
 											countMap.set(name, { count: 0, shiny: 0 });
 										}
@@ -3124,35 +2992,97 @@ client.on('messageCreate', (message) => {
 										let nameA = a.name.startsWith('✨') ? a.name.substring(1) : a.name;
 										let nameB = b.name.startsWith('✨') ? b.name.substring(1) : b.name;
 
+										//Pesky Nidoran
+										if (nameA === 'Nidoran') {
+											if (a.gender === 'Female') {
+												nameA = 'Nidoran-Female';
+											}
+											else {
+												nameA = 'Nidoran-Male';
+											}
+										}
+										if (nameB === 'Nidoran') {
+											if (b.gender === 'Female') {
+												nameB = 'Nidoran-Female';
+											}
+											else {
+												nameB = 'Nidoran-Male';
+											}
+										}
+
 										let dexA = dexMap.get(nameA) || { dexNum: 9999, isLM: 0 };
 										let dexB = dexMap.get(nameB) || { dexNum: 9999, isLM: 0 };
 
 										let countA = countMap.get(nameA);
 										let countB = countMap.get(nameB);
 
+										//shiny
 										if (a.name.startsWith('✨') && !b.name.startsWith('✨')) {
-											return -1;  // Shiny comes first
+											return -1;
 										}
 										if (!a.name.startsWith('✨') && b.name.startsWith('✨')) {
-											return 1;   // Shiny comes first
+											return 1;
 										}
 
-										// Sort by Mythical -> Legendary -> Regular
-										if (dexA.isLM !== dexB.isLM) {
-											return dexB.isLM - dexA.isLM;
+										//within shiny: count low to high -> mythical -> legendary -> regular
+										if (a.name.startsWith('✨') && b.name.startsWith('✨')) {
+											if (countA.count !== countB.count) {
+												return countA.count - countB.count;
+											}
+											if (dexA.isLM !== dexB.isLM) {
+												return dexB.isLM - dexA.isLM;
+											}
+											if (dexA.dexNum !== dexB.dexNum) {
+												return dexA.dexNum - dexB.dexNum;
+											}
+											return nameA.localeCompare(nameB);
 										}
 
-										// For Mythical and Legendary, sort by count (low to high)
-										if (dexA.isLM > 0 && countA.count !== countB.count) {
-											return countA.count - countB.count;
+										//mythical
+										if (dexA.isLM === 2 && dexB.isLM !== 2) {
+											return -1;
+										}
+										if (dexA.isLM !== 2 && dexB.isLM === 2) {
+											return 1;
 										}
 
-										// For regular Pokémon, sort by dex number
-										if (dexA.isLM === 0 && dexB.isLM === 0) {
+										//within mythical: count low to high -> dex num -> alphabetical
+										if (dexA.isLM === 2 && dexB.isLM === 2) {
+											if (countA.count !== countB.count) {
+												return countA.count - countB.count;
+											}
+											if (dexA.dexNum !== dexB.dexNum) {
+												return dexA.dexNum - dexB.dexNum;
+											}
+											return nameA.localeCompare(nameB);
+										}
+
+										//legendary
+										if (dexA.isLM === 1 && dexB.isLM !== 1) {
+											return -1;
+										}
+										if (dexA.isLM !== 1 && dexB.isLM === 1) {
+											return 1;
+										}
+
+										//within legendary: count low to high -> dex num -> alphabetical
+										if (dexA.isLM === 1 && dexB.isLM === 1) {
+											if (countA.count !== countB.count) {
+												return countA.count - countB.count;
+											}
+											if (dexA.dexNum !== dexB.dexNum) {
+												return dexA.dexNum - dexB.dexNum;
+											}
+											return nameA.localeCompare(nameB);
+										}
+
+										//regular pokemon, dex number
+										if (dexA.dexNum !== dexB.dexNum) {
 											return dexA.dexNum - dexB.dexNum;
 										}
 
-										return nameA.localeCompare(nameB); // Alphabetical as a last resort
+										// Alphabetical as a last resort
+										return nameA.localeCompare(nameB); 
 									});
 
 									let finalList = ignoredList.concat(sortableList);
@@ -3842,32 +3772,6 @@ client.on('messageCreate', (message) => {
 								.setLabel('▶')
 								.setStyle(ButtonStyle.Primary)
 						);
-
-					/*const helpEmbed = new EmbedBuilder()
-						.setColor('#0099ff')
-						.setTitle('Help')
-						.setDescription('List of available commands and how to use them:')
-						.addFields(
-							{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
-							{ name: '.party (.p)', value: 'Displays your caught Pokémon.' + '\n' + 'Usages: .p name: <pokémon> *|* .p shiny *|* .p legendary *|* .p mythical *|* .p swap 1 10' },
-							{ name: '.order <order> <ignoreNum> (.sort)', value: 'Sorts your Pokémon in an order. If an ignoreNum is added, it will not rearrange the Pokémon from indices 1 -> ignoreNum.' + '\n' + 'Orders: `flexdex`, `dex`, `countLow`, `countHigh`, and `alphabetical`.' },
-							{ name: '.view <partyNum> (.v)', value: 'Displays a pokémon from your party.' + '\n' + 'Example: .view 1' },
-							{ name: '.dex <pokémon>', value: 'Displays a pokémon from the pokedex.' + '\n' + 'Usages: .dex 1 | .dex bulbasaur' },
-							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
-							{ name: '.inventory (.i)', value: 'Displays the items in your inventory.' },
-							{ name: '.shop (.s)', value: 'Displays the global shop.' },
-							{ name: '.buy <shopNum> (.b)', value: 'Buys an item from the shop.' + '\n' + 'Example: .buy 1' },
-							{ name: '.hint (.h)', value: 'Gives a hint for the currently dropped Pokémon.' },
-							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party.' + '\n' + 'Example: .release 1' },
-							{ name: '.trade @<user> (.t)', value: 'Initiates a trade with another user.' },
-							{ name: '.count', value: 'Displays the amount of each pokémon you\'ve caught.'},
-							{ name: '.leaderboard (.lb)', value: 'Display a leaderboard.' + '\n' + 'Usages: .lb currency *|* .lb shiny *|* .lb legendary *|* .lb mythical *|* .lb pokedex *|* .lb {pokémon}' },
-							{ name: '.shinydrop', value: 'Drops a shiny pokémon, using a Shiny Drop item in the process.' },
-							{ name: '.setChannel: #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channel>.' + '\n' + 'Example: .setChannel <text1> <text2>' },
-							{ name: '.resetChannels:', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
-							{ name: '.viewChannels:', value: '`ADMIN ONLY:` Posts a list of channels the server allows bot commands in' }
-						)
-						.setTimestamp();*/
 
 					message.channel.send({ embeds: [helpPages[page]], components: [buttonRow] }).then(sentMessage => {
 						const filter = i => i.user.id === message.author.id;
