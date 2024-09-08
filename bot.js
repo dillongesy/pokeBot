@@ -1373,6 +1373,10 @@ client.on('messageCreate', (message) => {
 							}));
 
 							const filteredUsers = users.filter(user => user !== null);
+							if (filteredUsers.length < 1) {
+								message.channel.send('No users have caught Pokémon yet.');
+								return;
+							}
 							filteredUsers.sort((a, b) => b.value - a.value);
 							sendLeaderboard(message, filteredUsers, 'Total Pokémon Caught Leaderboard');
 						});
@@ -1397,6 +1401,10 @@ client.on('messageCreate', (message) => {
 							}));
 
 							const filteredUsers = users.filter(user => user !== null);
+							if (filteredUsers.length < 1) {
+								message.channel.send('No users have currency yet.');
+								return;
+							}
 							filteredUsers.sort((a, b) => b.value - a.value);
 							sendLeaderboard(message, filteredUsers, 'Currency Leaderboard');
 						});
@@ -1430,6 +1438,10 @@ client.on('messageCreate', (message) => {
 							}));
 
 							const filteredUsers = users.filter(user => user !== null);
+							if (filteredUsers.length < 1) {
+								message.channel.send('No users have caught a shiny yet.');
+								return;
+							}
 							filteredUsers.sort((a, b) => b.value - a.value);
 							sendLeaderboard(message, filteredUsers, 'Shiny Pokémon Leaderboard');
 						});
@@ -1468,8 +1480,13 @@ client.on('messageCreate', (message) => {
 							}));
 
 							const filteredUsers = users.filter(user => user !== null);
+							if (filteredUsers.length < 1) {
+								message.channel.send('No users have caught Pokémon in this server yet.');
+								return;
+							}
+
 							filteredUsers.sort((a, b) => b.value - a.value);
-							sendLeaderboard(message, filteredUsers, 'Total Pokémon Caught Leaderboard');
+							sendLeaderboard(message, filteredUsers, 'Server Total Pokémon Caught Leaderboard');
 						});
 					}
 
@@ -1514,6 +1531,10 @@ client.on('messageCreate', (message) => {
 								} : null;
 							}));
 							const filteredUsers = users.filter(user => user !== null);
+							if (filteredUsers.length < 1) {
+								message.channel.send('No users have caught a legendary yet.');
+								return;
+							}
 							filteredUsers.sort((a, b) => b.value - a.value);
 							sendLeaderboard(message, filteredUsers, 'Legendary Pokémon Leaderboard');
 						});
@@ -1559,6 +1580,10 @@ client.on('messageCreate', (message) => {
 								} : null;
 							}));
 							const filteredUsers = users.filter(user => user !== null);
+							if (filteredUsers.length < 1) {
+								message.channel.send('No users have caught a mythical yet.');
+								return;
+							}
 							filteredUsers.sort((a, b) => b.value - a.value);
 							sendLeaderboard(message, filteredUsers, 'Mythical Pokémon Leaderboard');
 						});
@@ -1610,6 +1635,10 @@ client.on('messageCreate', (message) => {
 							}));
 							
 							const filteredUsers = users.filter(user => user !== null);
+							if (filteredUsers.length < 1) {
+								message.channel.send('No users have caught Pokémon yet.');
+								return;
+							}
 							filteredUsers.sort((a, b) => b.value - a.value);
 							sendLeaderboard(message, filteredUsers, 'Pokédex Completeness Leaderboard (/649)');
 						});
