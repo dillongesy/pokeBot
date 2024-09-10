@@ -544,7 +544,7 @@ client.on('messageCreate', (message) => {
 									pokemon = rowsN[randPokemon];
 								}
 							}
-
+							
 							const genders = JSON.parse(pokemon.gender);
 							let randomPercentage = Math.random() * 100;
 							let selectGender;
@@ -582,13 +582,6 @@ client.on('messageCreate', (message) => {
 								};
 							}
 
-							if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
-								selectForm = {
-									name: selectForm.name.substring(0, selectForm.name.length - 4),
-									percentage: selectForm.percentage
-								};
-							}
-
 							let imageLink = null;
 							if (isShiny) {
 								embedColor = '#FFD700';
@@ -599,10 +592,22 @@ client.on('messageCreate', (message) => {
 								const imageLinks = JSON.parse(pokemon.imageLinks);
 								imageLink = imageLinks[selectForm.name] || imageLinks.default;
 							}
+
+							if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
+								selectForm = {
+									name: selectForm.name.substring(0, selectForm.name.length - 4),
+									percentage: selectForm.percentage
+								};
+							}
 							
 							const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
 							const curMon = pokemon.name ? `${pokemon.name}` : '';
-							console.log('Current pokemon: ' + curMon + '\n' + 'ShinyNum:     ' + shinyNumber + ' (<0.00025)' + '\n' + 'MythicalNum:  ' + mythicalNumber + ' (<0.005)' + '\n' + 'LegendaryNum: ' + legendaryNumber + ' (<0.0075)' +'\n');
+							console.log('Current pokemon: ' + curMon + '\n' + 
+								'ShinyNum:     ' + shinyNumber + ' (<0.00025)' + '\n' + 
+								'MythicalNum:  ' + mythicalNumber + ' (<0.005)' + '\n' + 
+								'LegendaryNum: ' + legendaryNumber + ' (<0.0075)' +'\n' +
+								'Form: ' + selectForm.name + '\n' +
+								'Gender: ' + selectGender.name + '\n');
 							
 							activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny, form: selectForm.name, gender: selectGender.name });
 							
@@ -708,7 +713,6 @@ client.on('messageCreate', (message) => {
 							if (shinyNumber < 0.00025) {
 								isShiny = true;
 							}
-							console.log('Name: ' + pokemon.name + '\nShinyNum: ' + shinyNumber + ' (<0.00025)');
 
 							const genders = JSON.parse(pokemon.gender);
 							let randomPercentage = Math.random() * 100;
@@ -746,13 +750,6 @@ client.on('messageCreate', (message) => {
 									percentage: selectGender.percentage
 								};
 							}
-
-							if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
-								selectForm = {
-									name: selectForm.name.substring(0, selectForm.name.length - 4),
-									percentage: selectForm.percentage
-								};
-							}
 							
 							let imageLink = null;
 							if (isShiny) {
@@ -763,9 +760,18 @@ client.on('messageCreate', (message) => {
 								const imageLinks = JSON.parse(pokemon.imageLinks);
    					 			imageLink = imageLinks[selectForm.name] || imageLinks.default;
 							}
+
+							if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
+								selectForm = {
+									name: selectForm.name.substring(0, selectForm.name.length - 4),
+									percentage: selectForm.percentage
+								};
+							}
 							
 							const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
 							const curMon = pokemon.name ? `${pokemon.name}` : '';
+
+							console.log('Name: ' + pokemon.name + '\nShinyNum: ' + shinyNumber + ' (<0.00025)' + '\nForm: ' + selectForm.name + '\nGender: ' + selectGender.name + '\n');
 							
 							activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny, form: selectForm.name, gender: selectGender.name });
 							
@@ -1826,6 +1832,13 @@ client.on('messageCreate', (message) => {
 								}
 							}
 
+							if (formName.includes('Female')) {
+								formName = pokemonToDisplay.form + ' (F)';
+							}
+							else if (formName.includes('Male')) {
+								formName = pokemonToDisplay.form + ' (M)';
+							}
+
 							let shinyImageLinks = JSON.parse(defaultMon.shinyImageLinks);
 							let imgLinks = JSON.parse(defaultMon.imageLinks);
 							let imageLink = isShiny ? shinyImageLinks[formName] || shinyImageLinks.default : imgLinks[formName] || imgLinks.default;
@@ -1878,7 +1891,6 @@ client.on('messageCreate', (message) => {
 										.setLabel('▶')
 										.setStyle(ButtonStyle.Primary)
 								);
-							
 									
 							message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
 								const filter = i => i.user.id === userId;
@@ -1910,6 +1922,13 @@ client.on('messageCreate', (message) => {
 												else {
 													defaultMon = defaultMon[1];
 												}
+											}
+
+											if (formName.includes('Female')) {
+												formName = pokemonToDisplay.form + ' (F)';
+											}
+											else if (formName.includes('Male')) {
+												formName = pokemonToDisplay.form + ' (M)';
 											}
 
 											shinyImageLinks = JSON.parse(defaultMon.shinyImageLinks);
@@ -1981,6 +2000,14 @@ client.on('messageCreate', (message) => {
 													defaultMon = defaultMon[1];
 												}
 											}
+
+											if (formName.includes('Female')) {
+												formName = pokemonToDisplay.form + ' (F)';
+											}
+											else if (formName.includes('Male')) {
+												formName = pokemonToDisplay.form + ' (M)';
+											}
+
 											shinyImageLinks = JSON.parse(defaultMon.shinyImageLinks);
 											imgLinks = JSON.parse(defaultMon.imageLinks);
 											imageLink = isShiny ? shinyImageLinks[formName] || shinyImageLinks.default : imgLinks[formName] || imgLinks.default;
