@@ -154,7 +154,7 @@ function getDisablePartyBtns() {
 }
 
 //Helper function, .dex Embed Generator
-function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList) {
+function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, genders) {
 	const shinyImageLinks = JSON.parse(pokemonRow.shinyImageLinks);
 	const imgLinks = JSON.parse(pokemonRow.imageLinks);
 
@@ -163,6 +163,9 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList) {
 	const formTypes = getFormTypes(pokemonRow.name, selectedForm, pokeList);
 	let type1Field = '';
 	let type2Field = '';
+	let gender1 = '';
+	let gender2 = '';
+	let genderRatio = '';
 	if (formTypes.formFound === true) {
 		type1Field = formTypes.type1;
 		type2Field = formTypes.type2 ? ` / ${formTypes.type2}` : '';
@@ -178,13 +181,21 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList) {
 	if (selectedForm.toLowerCase().includes('(f)') || selectedForm.toLowerCase().includes('(m)')) {
 		selectedForm = `${selectedForm.substring(0, selectedForm.length - 5)})`;
 	}
-							
+	
+	if (genders.length === 2) {
+		genderRatio = `♂ ` + genders[0].percentage + '% - ' + `♀ ` + genders[1].percentage + '%';
+	}
+	else {
+		genderRatio = 'Unknown - 100%';
+	}
+
 	return new EmbedBuilder()
 		.setColor('#0099ff')
 		.setTitle(`${pokemonRow.name} - #${dexNumber} ${selectedForm}`)
 		.addFields(
 			{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
-			{ name: 'Region', value: `${pokemonRow.region}`, inline: true }
+			{ name: 'Region', value: `${pokemonRow.region}`, inline: true },
+			{ name: 'Gender Ratio', value: `${genderRatio}`, inline: true },
 		)
 		.setImage(imageLink)
 		.setTimestamp();
@@ -1595,6 +1606,7 @@ client.on('messageCreate', (message) => {
 
 						let selectedForm = 'default'; // Default form selection
 						let forms = JSON.parse(curMon.forms);
+						let genders = JSON.parse(curMon.gender);
 
 						if (forms.length > 0) {
 							if (forms[0].name.toLowerCase() !== 'default') {
@@ -1614,7 +1626,7 @@ client.on('messageCreate', (message) => {
 								}))
 							);
 						
-						let embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
+						let embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders);
 						
 						let buttonRow = new ActionRowBuilder()
 							.addComponents(
@@ -1657,6 +1669,7 @@ client.on('messageCreate', (message) => {
 												selectedForm = '';
 											}
 										}
+										genders = JSON.parse(curMon.gender);
 	
 										formSelectMenu = new Discord.StringSelectMenuBuilder()
 											.setCustomId('formSelect')
@@ -1668,7 +1681,7 @@ client.on('messageCreate', (message) => {
 												}))
 											);
 	
-										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
+										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders);
 										i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
 										
 									} 
@@ -1687,8 +1700,10 @@ client.on('messageCreate', (message) => {
 											else {
 												selectedForm = '';
 											}
-	
-											formSelectMenu = new Discord.StringSelectMenuBuilder()
+										}
+										genders = JSON.parse(curMon.gender);
+
+										formSelectMenu = new Discord.StringSelectMenuBuilder()
 											.setCustomId('formSelect')
 											.setPlaceholder('Select a Form')
 											.addOptions(
@@ -1697,9 +1712,8 @@ client.on('messageCreate', (message) => {
 													value: form.name,
 												}))
 											);
-										}
 	
-										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
+										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders);
 										i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
 									} 
 									else if (i.customId === 'shinyBtn') {
