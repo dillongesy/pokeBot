@@ -1870,7 +1870,7 @@ client.on('messageCreate', (message) => {
 							}
 
 							if (formName.includes('(F)') || formName.includes('(M)')) {
-								formName = formName.substring(0, selectForm.name.length - 4);
+								formName = formName.substring(0, formName.length - 4);
 							}
 
 							const embed = new EmbedBuilder()
@@ -1966,7 +1966,7 @@ client.on('messageCreate', (message) => {
 											}
 
 											if (formName.includes('(F)') || formName.includes('(M)')) {
-												formName = formName.substring(0, selectForm.name.length - 4);
+												formName = formName.substring(0, formName.length - 4);
 											}
 				
 											const embedPrev = new EmbedBuilder()
@@ -2047,7 +2047,7 @@ client.on('messageCreate', (message) => {
 											}
 
 											if (formName.includes('(F)') || formName.includes('(M)')) {
-												formName = formName.substring(0, selectForm.name.length - 4);
+												formName = formName.substring(0, formName.length - 4);
 											}				
 
 											const embedPrev = new EmbedBuilder()
