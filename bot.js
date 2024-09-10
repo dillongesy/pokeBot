@@ -163,8 +163,6 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, ge
 	const formTypes = getFormTypes(pokemonRow.name, selectedForm, pokeList);
 	let type1Field = '';
 	let type2Field = '';
-	let gender1 = '';
-	let gender2 = '';
 	let genderRatio = '';
 	if (formTypes.formFound === true) {
 		type1Field = formTypes.type1;
@@ -185,8 +183,19 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, ge
 	if (genders.length === 2) {
 		genderRatio = `♂ ` + genders[0].percentage + '% - ' + `♀ ` + genders[1].percentage + '%';
 	}
+	else if (genders.length === 1) {
+		if (genders[0].name === 'Male') {
+			genderRatio = `♂ ` + genders[0].percentage + '%';
+		}
+		else if (genders[0].name === 'Female') {
+			genderRatio = `♀ ` + genders[0].percentage + '%';
+		}
+		else {
+			genderRatio = 'Unknown';
+		}
+	}
 	else {
-		genderRatio = 'Unknown - 100%';
+		genderRatio = 'Unknown';
 	}
 
 	return new EmbedBuilder()
