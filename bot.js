@@ -1869,6 +1869,10 @@ client.on('messageCreate', (message) => {
 								genderSymbol = '`♀\u200B`';
 							}
 
+							if (formName.includes('(F)') || formName.includes('(M)')) {
+								formName = formName.substring(0, selectForm.name.length - 4);
+							}
+
 							const embed = new EmbedBuilder()
 									.setColor('#0099ff')
 									.setTitle(`Your ${isShiny ? '✨' : ''}${formName}${defaultMon.name}${genderSymbol}`)
@@ -1961,6 +1965,10 @@ client.on('messageCreate', (message) => {
 												genderSymbol = '`♀\u200B`';
 											}
 
+											if (formName.includes('(F)') || formName.includes('(M)')) {
+												formName = formName.substring(0, selectForm.name.length - 4);
+											}
+				
 											const embedPrev = new EmbedBuilder()
 												.setColor('#0099ff')
 												.setTitle(`Your ${isShiny ? '✨' : ''}${formName}${defaultMon.name}${genderSymbol}`)
@@ -2037,6 +2045,10 @@ client.on('messageCreate', (message) => {
 											else if (pokemonToDisplay.gender === 'Female') {
 												genderSymbol = '`♀\u200B`';
 											}
+
+											if (formName.includes('(F)') || formName.includes('(M)')) {
+												formName = formName.substring(0, selectForm.name.length - 4);
+											}				
 
 											const embedPrev = new EmbedBuilder()
 												.setColor('#0099ff')
