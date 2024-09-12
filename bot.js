@@ -1875,6 +1875,8 @@ client.on('messageCreate', (message) => {
 							);
 						
 						let embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders);
+
+						let shinyButtonStyle = shinyImg ? ButtonStyle.Danger : ButtonStyle.Primary;
 						
 						let buttonRow = new ActionRowBuilder()
 							.addComponents(
@@ -1885,7 +1887,7 @@ client.on('messageCreate', (message) => {
 								new ButtonBuilder()
 									.setCustomId('shinyBtn')
 									.setLabel('✨')
-									.setStyle(ButtonStyle.Primary),
+									.setStyle(shinyButtonStyle),
 								new ButtonBuilder()
 									.setCustomId('next')
 									.setLabel('▶')
@@ -1966,8 +1968,25 @@ client.on('messageCreate', (message) => {
 									} 
 									else if (i.customId === 'shinyBtn') {
 										shinyImg = !shinyImg;
-										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
-										i.update({ embeds: [embed] });
+										shinyButtonStyle = shinyImg ? ButtonStyle.Danger: ButtonStyle.Primary;
+										buttonRow = new ActionRowBuilder()
+											.addComponents(
+												new ButtonBuilder()
+													.setCustomId('prev')
+													.setLabel('◀')
+													.setStyle(ButtonStyle.Primary),
+												new ButtonBuilder()
+													.setCustomId('shinyBtn')
+													.setLabel('✨')
+													.setStyle(shinyButtonStyle),
+												new ButtonBuilder()
+													.setCustomId('next')
+													.setLabel('▶')
+													.setStyle(ButtonStyle.Primary)
+											);
+
+										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders);
+										i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
 									}
 									else if (i.customId === 'formSelect') {
 										selectedForm = i.values[0];
