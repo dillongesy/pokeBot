@@ -1235,7 +1235,11 @@ client.on('messageCreate', (message) => {
 					}
 					else if (args[0].toLowerCase() === 'c' || args[0].toLowerCase() === 'currency') {
 						//display currency leaderboard
-						dbUser.all("SELECT user_id, currency FROM user ORDER BY currency DESC", [], async (err, rows) => {
+						let serverLb = false;
+						if (args.length > 1 && args[1].toLowerCase() === 'server') {
+							serverLb = true;
+						}
+						dbUser.all("SELECT user_id, currency, servers FROM user ORDER BY currency DESC", [], async (err, rows) => {
 							if (err) {
 								console.error(err.message);
 								message.channel.send('An error occurred while fetching the currency leaderboard.');
@@ -1243,6 +1247,16 @@ client.on('messageCreate', (message) => {
 							}
 
 							const users = await Promise.all(rows.map(async row => {
+								if (serverLb) {
+									if (!row.servers) {
+										return null;
+									}
+									const userServers = JSON.parse(row.servers);
+									if (!userServers.includes(serverId)) {
+										return null;
+									}
+								}
+
 								const user = await client.users.fetch(row.user_id).catch(() => null);
 								const value = row.currency || 0;
 
@@ -1254,17 +1268,22 @@ client.on('messageCreate', (message) => {
 
 							const filteredUsers = users.filter(user => user !== null);
 							if (filteredUsers.length < 1) {
-								message.channel.send('No users have currency yet.');
+								message.channel.send(serverLb ? 'No users have currency in this server yet.' : 'No users have currency yet.');
 								return;
 							}
 							filteredUsers.sort((a, b) => b.value - a.value);
-							sendLeaderboard(message, filteredUsers, 'Currency Leaderboard');
+							const leaderboardTitle = serverLb ? 'Server Currency Leaderboard' : 'Currency Leaderboard';
+							sendLeaderboard(message, filteredUsers, leaderboardTitle);
 						});
 					}
 
 					else if (args[0].toLowerCase() === 's' || args[0].toLowerCase() === 'shiny') {
 						//display shiny leaderboard
-						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
+						let serverLb = false;
+						if (args.length > 1 && args[1].toLowerCase() === 'server') {
+							serverLb = true;
+						}
+						dbUser.all("SELECT user_id, caught_pokemon, servers FROM user", [], async (err, rows) => {
 							if (err) {
 								console.error(err.message);
 								message.channel.send('An error occurred while fetching the shiny leaderboard.');
@@ -1272,9 +1291,17 @@ client.on('messageCreate', (message) => {
 							}
 
 							const users = await Promise.all(rows.map(async row => {
-								if (!row.caught_pokemon) {
+								if (!row.caught_pokemon || (serverLb && !row.servers)) {
 									return null;
 								}
+
+								if (serverLb) {
+									const userServers = JSON.parse(row.servers);
+									if (!userServers.includes(serverId)) {
+										return null;
+									}
+								}
+
 								const user = await client.users.fetch(row.user_id).catch(() => null);
 
 								let caughtPokemonList = JSON.parse(row.caught_pokemon).flat();
@@ -1291,11 +1318,12 @@ client.on('messageCreate', (message) => {
 
 							const filteredUsers = users.filter(user => user !== null);
 							if (filteredUsers.length < 1) {
-								message.channel.send('No users have caught a shiny yet.');
+								message.channel.send(serverLb ? 'No users have caught a shiny in this server yet.' : 'No users have caught a shiny yet.');
 								return;
 							}
 							filteredUsers.sort((a, b) => b.value - a.value);
-							sendLeaderboard(message, filteredUsers, 'Shiny Pokémon Leaderboard');
+							const leaderboardTitle = serverLb ? 'Server Shiny Pokémon Leaderboard' : 'Shiny Pokémon Leaderboard';
+							sendLeaderboard(message, filteredUsers, leaderboardTitle);
 						});
 					}
 
@@ -1303,7 +1331,7 @@ client.on('messageCreate', (message) => {
 						dbUser.all("SELECT user_id, caught_pokemon, servers FROM user", [], async (err, rows) => {
 							if (err) {
 								console.error(err.message);
-								message.channel.send('An error occurred while fetching the shiny leaderboard.');
+								message.channel.send('An error occurred while fetching the server leaderboard.');
 								return;
 							}
 
@@ -1344,6 +1372,10 @@ client.on('messageCreate', (message) => {
 
 					else if (args[0].toLowerCase() === 'l' || args[0].toLowerCase() === 'legendary') {
 						//display legendary leaderboard
+						let serverLb = false;
+						if (args.length > 1 && args[1].toLowerCase() === 'server') {
+							serverLb = true;
+						}
 						//Use in-memory data to make this call a lot faster
 						const legendaryPokemon = [
 							'Articuno', 'Zapdos', 'Moltres', 'Mewtwo', 
@@ -1352,7 +1384,7 @@ client.on('messageCreate', (message) => {
 							'Uxie', 'Mesprit', 'Azelf', 'Dialga', 'Palkia', 'Heatran', 'Regigigas', 'Giratina', 'Cresselia',
 							'Cobalion', 'Terrakion', 'Virizion', 'Tornadus', 'Thundurus', 'Reshiram', 'Zekrom', 'Landorus', 'Kyurem'
 						];
-						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
+						dbUser.all("SELECT user_id, caught_pokemon, servers FROM user", [], async (err, rows) => {
 							if (err) {
 								console.error(err.message);
 								message.channel.send('An error occurred while fetching the legendary leaderboard.');
@@ -1360,9 +1392,17 @@ client.on('messageCreate', (message) => {
 							}
 
 							const users = await Promise.all(rows.map(async row => {
-								if (!row.caught_pokemon) {
+								if (!row.caught_pokemon || (serverLb && !row.servers)) {
 									return null;
 								}
+
+								if (serverLb) {
+									const userServers = JSON.parse(row.servers);
+									if (!userServers.includes(serverId)) {
+										return null;
+									}
+								}
+
 								const user = await client.users.fetch(row.user_id).catch(() => null);
 
 								const caughtPokemon = JSON.parse(row.caught_pokemon).flat().map(pokemon => pokemon.name) || [];
@@ -1382,18 +1422,24 @@ client.on('messageCreate', (message) => {
 									value: legendaryCount
 								} : null;
 							}));
+
 							const filteredUsers = users.filter(user => user !== null);
 							if (filteredUsers.length < 1) {
-								message.channel.send('No users have caught a legendary yet.');
+								message.channel.send(serverLb ? 'No users in this server have caught a legendary yet.' : 'No users have caught a legendary yet.');
 								return;
 							}
 							filteredUsers.sort((a, b) => b.value - a.value);
-							sendLeaderboard(message, filteredUsers, 'Legendary Pokémon Leaderboard');
+							const leaderboardTitle = serverLb ? 'Server Legendary Pokémon Leaderboard' : 'Legendary Pokémon Leaderboard';
+							sendLeaderboard(message, filteredUsers, leaderboardTitle);
 						});
 					}
 
 					else if (args[0].toLowerCase() === 'm' || args[0].toLowerCase() === 'mythical' || args[0].toLowerCase() === 'mythic') {
 						//display mythical leaderboard
+						let serverLb = false;
+						if (args.length > 1 && args[1].toLowerCase() === 'server') {
+							serverLb = true;
+						}
 						////Use in-memory data to make this call a lot faster
 						const mythicalPokemon = [
 							'Mew',
@@ -1402,7 +1448,7 @@ client.on('messageCreate', (message) => {
 							'Phione', 'Manaphy', 'Darkrai', 'Shaymin', 'Arceus',
 							'Victini', 'Keldeo', 'Meloetta', 'Genesect'
 						];
-						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
+						dbUser.all("SELECT user_id, caught_pokemon, servers FROM user", [], async (err, rows) => {
 							if (err) {
 								console.error(err.message);
 								message.channel.send('An error occurred while fetching the mythical leaderboard.');
@@ -1410,9 +1456,17 @@ client.on('messageCreate', (message) => {
 							}
 
 							const users = await Promise.all(rows.map(async row => {
-								if (!row.caught_pokemon) {
+								if (!row.caught_pokemon || (serverLb && !row.servers)) {
 									return null;
 								}
+
+								if (serverLb) {
+									const userServers = JSON.parse(row.servers);
+									if (!userServers.includes(serverId)) {
+										return null;
+									}
+								}
+
 								const user = await client.users.fetch(row.user_id).catch(() => null);
 								const caughtPokemon = JSON.parse(row.caught_pokemon).flat().map(pokemon => pokemon.name) || [];
 
@@ -1431,19 +1485,25 @@ client.on('messageCreate', (message) => {
 									value: mythicalCount
 								} : null;
 							}));
+
 							const filteredUsers = users.filter(user => user !== null);
 							if (filteredUsers.length < 1) {
-								message.channel.send('No users have caught a mythical yet.');
+								message.channel.send(serverLb ? 'No users in this server have caught a mythical yet.' : 'No users have caught a mythical yet.');
 								return;
 							}
 							filteredUsers.sort((a, b) => b.value - a.value);
-							sendLeaderboard(message, filteredUsers, 'Mythical Pokémon Leaderboard');
+							const leaderboardTitle = serverLb ? 'Server Mythical Pokémon Leaderboard' : 'Mythical Pokémon Leaderboard';
+							sendLeaderboard(message, filteredUsers, leaderboardTitle);
 						});
 					}
 
 					else if (args[0].toLowerCase() === 'pokedex' || args[0].toLowerCase() === 'dex') {
 						//display pokedex completeness leaderboard
-						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
+						let serverLb = false;
+						if (args.length > 1 && args[1].toLowerCase() === 'server') {
+							serverLb = true;
+						}
+						dbUser.all("SELECT user_id, caught_pokemon, servers FROM user", [], async (err, rows) => {
 							if (err) {
 								console.error(err.message);
 								message.channel.send('An error occurred while fetching the Pokédex completeness leaderboard.');
@@ -1451,9 +1511,17 @@ client.on('messageCreate', (message) => {
 							}
 
 							const users = await Promise.all(rows.map(async row => {
-								if (!row.caught_pokemon) {
+								if (!row.caught_pokemon || (serverLb && !row.servers)) {
 									return null;
 								}
+
+								if (serverLb) {
+									const userServers = JSON.parse(row.servers);
+									if (!userServers.includes(serverId)) {
+										return null;
+									}
+								}
+
 								const user = await client.users.fetch(row.user_id).catch(() => null);
 								const caughtPokemon = JSON.parse(row.caught_pokemon).flat() || [];
 
@@ -1488,16 +1556,21 @@ client.on('messageCreate', (message) => {
 							
 							const filteredUsers = users.filter(user => user !== null);
 							if (filteredUsers.length < 1) {
-								message.channel.send('No users have caught Pokémon yet.');
+								message.channel.send(serverLb ? 'No users in this server have caught Pokémon yet.' : 'No users have caught Pokémon yet.');
 								return;
 							}
 							filteredUsers.sort((a, b) => b.value - a.value);
-							sendLeaderboard(message, filteredUsers, 'Pokédex Completeness Leaderboard (/649)');
+							const leaderboardTitle = serverLb ? 'Pokédex Completeness Server Leaderboard (/649)' : 'Pokédex Completeness Leaderboard (/649)';
+							sendLeaderboard(message, filteredUsers, leaderboardTitle);
 						});
 					}
 
 					else if (args.length > 0) {
 						//lb by pokemon name
+						let serverLb = false;
+						if (args.length > 1 && args[1].toLowerCase() === 'server') {
+							serverLb = true;
+						}
 						let pokemonIdentifier = args[0];
 						let isNumber = !isNaN(pokemonIdentifier);
 						if (!isNumber) {
@@ -1514,7 +1587,7 @@ client.on('messageCreate', (message) => {
 							return;
 						}
 
-						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
+						dbUser.all("SELECT user_id, caught_pokemon, servers FROM user", [], async (err, rows) => {
 							if (err) {
 								console.error(err.message);
 								message.channel.send('An error occurred while fetching the leaderboard.');
@@ -1522,9 +1595,17 @@ client.on('messageCreate', (message) => {
 							}
 
 							const users = await Promise.all(rows.map(async (row) => {
-								if (!row.caught_pokemon) {
+								if (!row.caught_pokemon || (serverLb && !row.servers)) {
 									return null;
 								}
+
+								if (serverLb) {
+									const userServers = JSON.parse(row.servers);
+									if (!userServers.includes(serverId)) {
+										return null;
+									}
+								}
+
 								const user = await client.users.fetch(row.user_id).catch(() => null);
 								const caughtPokemon = JSON.parse(row.caught_pokemon).flat().map(pokemon => pokemon.name) || [];
 								const count = caughtPokemon.filter(pokemonName => {
@@ -1540,14 +1621,16 @@ client.on('messageCreate', (message) => {
 									value: count
 								} : null;
 							}));
+
 							const filteredUsers = users.filter(user => user !== null);
 							filteredUsers.sort((a, b) => b.value - a.value);
 
 							if (filteredUsers.length > 0) {
-								sendLeaderboard(message, filteredUsers, `Leaderboard for ${pokemonIdentifier}`);
+								const leaderboardTitle = serverLb ? `Server Leaderboard for ${pokemonIdentifier}` : `Leaderboard for ${pokemonIdentifier}`;
+								sendLeaderboard(message, filteredUsers, leaderboardTitle);
 							}
 							else {
-								message.channel.send(`No users have caught that or they aren't registered in the pokedex.`);
+								message.channel.send(serverLb ? `No users in this server have caught that or they aren't registered in the pokedex.` : `No users have caught that or they aren't registered in the pokedex.`);
 							}
 						});
 					}
