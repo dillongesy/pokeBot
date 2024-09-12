@@ -464,7 +464,8 @@ const inventoryCommandRegex = /^\.(inventory|i)\b/;
 const forceShinySpawnRegex = /^\.(shinydrop)\b/;
 const giveCCmdRegex = /^\.(give)\b/; //For people who find bugs
 const changeLogRegex = /^\.(changelog|log)\b/;
-const orderCommandRegex = /^\.(order|sort)\b/;
+const orderCommandRegex = /^\.(order|sort|o)\b/;
+const uncaughtCommandRegex = /^\.(uncaught|u)\b/;
 
 const maxDexNum = 649; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
@@ -1181,9 +1182,10 @@ client.on('messageCreate', (message) => {
 						.setDescription('Recently added Changes')
 						.addFields(
 							{ name: 'ANNOUNCEMENT:', value: 'For any bug found, you may recieve currency in the range 100-5000!' },
+							{ name: 'Server Leaderboard:', value: 'Added server leaderboards for all sub commands.' },
+							{ name: 'Uncaught Command:', value: 'Added a command to view all your uncaught pokemon.' },
 							{ name: 'View:', value: 'Added arrows to view.' },
-							{ name: 'Server Leaderboard:', value: 'Added a server leaderboard.' },
-							{ name: 'Bugs:', value: 'Fixed an exploit with trading, a crash with sub commands, and nidoran dex issues (fuck nidoran)' },
+							{ name: 'Bugs:', value: 'Fixed an exploit with trading, a crash with sub commands, and nidoran dex issues (fuck nidoran).' },
 							{ name: 'BOINGO:', value: 'BOINGO BOINGO BOINGO BOINGO BOINGO' }
 						)
 						.setTimestamp();
@@ -1192,6 +1194,160 @@ client.on('messageCreate', (message) => {
 				});
 			}
 			
+			//uncaught
+			else if(uncaughtCommandRegex.test(message.content.toLowerCase())) {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, row) => {
+						if (err) {
+							console.error(err.message);
+							message.channel.send('An error occurred while fetching your caught Pokémon.');
+							return;
+						}
+
+						const caughtPokemon = row && row.caught_pokemon ? JSON.parse(row.caught_pokemon).flat().map(p => ({ name: p.name, gender: p.gender })) : [];
+
+						db.all("SELECT name, dexNum, isLM, gender FROM pokemon WHERE isLM != 3", [], (err, allPokemonList) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching the Pokémon database.');
+								return;
+							}
+							if (!allPokemonList) {
+								console.message('No Pokémon in database.');
+								return;
+							}
+
+							const hasCaughtPokemon = (pokemon) => {
+								if (pokemon.name === 'Nidoran') {
+									const pokemonGenderList = JSON.parse(pokemon.gender);
+									const isFemale = pokemonGenderList.some(g => g.name === 'Female');
+									const isMale = pokemonGenderList.some(g => g.name === 'Male');
+
+									if (isFemale) {
+										return caughtPokemon.some(cp => cp.name === 'Nidoran' && cp.gender === 'Female');
+									}
+									else if (isMale) {
+										return caughtPokemon.some(cp => cp.name === 'Nidoran' && cp.gender === 'Male');
+									}
+								}
+								return caughtPokemon.some(cp => cp.name === pokemon.name);
+							};
+
+							const uncaughtPokemon = allPokemonList.filter(pokemon => !hasCaughtPokemon(pokemon));
+
+							if (uncaughtPokemon.length === 0) {
+								message.channel.send('You have caught all available Pokémon!');
+                    			return;
+							}
+
+							const pageSize = 20;
+							let page = 0;
+
+							const generateUncaughtEmbed = (uncaughtList, page, pageSize) => {
+								const start = page * pageSize;
+								const end = start + pageSize;
+								const pageData = uncaughtList.slice(start, end);
+
+								return new EmbedBuilder()
+									.setColor('#0099ff')
+									.setTitle('Your Uncaught Pokémon')
+									.setDescription(pageData.map((pokemon, index) => {
+										// Display gender for Nidoran only
+										if (pokemon.name === 'Nidoran' && pokemon.gender) {
+											const pokemonGenderList = JSON.parse(pokemon.gender);
+											if (pokemonGenderList.some(g => g.name === 'Female')) {
+												return `\`${pokemon.dexNum}\` ${pokemon.name} (♀)`;
+											}
+											if (pokemonGenderList.some(g => g.name === 'Male')) {
+												return `\`${pokemon.dexNum}\` ${pokemon.name} (♂)`;
+											}
+										}
+										return `\`${pokemon.dexNum}\` ${pokemon.name}`;
+									}).join('\n'))
+									.setFooter({ text: `Page ${page + 1} of ${Math.ceil(uncaughtList.length / pageSize)}` })
+									.setTimestamp();
+							};
+
+							const buttonRow = new ActionRowBuilder()
+								.addComponents(
+									new ButtonBuilder()
+										.setCustomId('prevPage')
+										.setLabel('◀')
+										.setStyle(ButtonStyle.Primary),
+									new ButtonBuilder()
+										.setCustomId('nextPage')
+										.setLabel('▶')
+										.setStyle(ButtonStyle.Primary)
+								);
+							const embed = generateUncaughtEmbed(uncaughtPokemon, page, pageSize);
+
+							message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+								const filter = i => i.user.id === userId;
+								const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+								collector.on('collect', async i => {
+									try {
+										if (i.customId === 'prevPage') {
+											page = page - 1;
+											if (page < 0) {
+												page = Math.ceil(uncaughtPokemon.length / pageSize) - 1;
+											}
+										}
+										else if (i.customId === 'nextPage') {
+											page = page + 1;
+											if (page > Math.ceil(uncaughtPokemon.length / pageSize) - 1) {
+												page = 0;
+											}
+										}
+
+										const updatedEmbed = generateUncaughtEmbed(uncaughtPokemon, page, pageSize);
+										await i.update({ embeds: [updatedEmbed] });
+									} catch (error) {
+										if (error.code === 10008) {
+											console.log('The message was deleted before the interaction was handled.');
+										}
+										else {
+											console.error('An unexpected error occurred:', error);
+										}
+									}
+								});
+
+								collector.on('end', async () => {
+									try {
+										const disabledRow = new ActionRowBuilder()
+											.addComponents(
+												new ButtonBuilder()
+													.setCustomId('prevPage')
+													.setLabel('◀')
+													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true),
+												new ButtonBuilder()
+													.setCustomId('nextPage')
+													.setLabel('▶')
+													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true)
+											);
+										await sentMessage.edit({ components: [disabledRow] });
+									} catch (error) {
+										if (error.code === 10008) {
+											console.log('The message was deleted before the interaction was handled.');
+										}
+										else {
+											console.error('An unexpected error occurred:', error);
+										}
+									}
+								});
+							}).catch(err => {
+								console.error('Error sending the uncaught Pokémon list:', err);
+							});
+						});
+					});
+				});
+			}
+
 			//leaderboard
 			else if (leaderboardCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
@@ -2089,7 +2245,6 @@ client.on('messageCreate', (message) => {
 											i.update({ embeds: [embedPrev], components: [buttonRow] });
 										}
 										else if (i.customId === 'next') {
-											//TODO: go forward one in the user's party
 											index = index + 1;
 											if (index > caughtPokemon.length - 1) {
 												index = 0;
@@ -3862,7 +4017,7 @@ client.on('messageCreate', (message) => {
 						.addFields(
 							{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
 							{ name: '.party (.p)', value: 'Displays your caught Pokémon.' + '\n' + 'Usages: .p name: <pokémon> *|* .p shiny *|* .p legendary *|* .p mythical *|* .p swap 1 10' },
-							{ name: '.order <order> <ignoreNum> (.sort)', value: 'Sorts your Pokémon in an order. If an ignoreNum is added, it will not rearrange the Pokémon from indices 1 -> ignoreNum.' + '\n' + 'Orders: `flexdex`, `dex`, `countLow`, `countHigh`, and `alphabetical`.' },
+							{ name: '.order <order> <ignoreNum> (.o)', value: 'Sorts your Pokémon in an order. If an ignoreNum is added, it will not rearrange the Pokémon from indices 1 -> ignoreNum.' + '\n' + 'Orders: `flexdex`, `dex`, `countLow`, `countHigh`, and `alphabetical`.' },
 							{ name: '.view <partyNum> (.v)', value: 'Displays a pokémon from your party.' + '\n' + 'Example: .view 1' },
 							{ name: '.dex <pokémon>', value: 'Displays a pokémon from the pokedex.' + '\n' + 'Usages: .dex 1 | .dex bulbasaur' }
 						)
@@ -3884,6 +4039,7 @@ client.on('messageCreate', (message) => {
 						.setTitle('Help (Page 3)')
 						.setDescription('List of available commands:')
 						.addFields(
+							{ name: '.uncaught (.u)', value: 'Displays a list of your uncaught pokémon' },
 							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party.' + '\n' + 'Example: .release 1' },
 							{ name: '.trade @<user> (.t)', value: 'Initiates a trade with another user.' },
 							{ name: '.count', value: 'Displays the amount of each pokémon you\'ve caught.'},
