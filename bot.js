@@ -1974,7 +1974,7 @@ client.on('messageCreate', (message) => {
 										if (selectedForm.toLowerCase() === 'default') {
 											selectedForm = '';
 										}
-										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList);
+										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders);
 										i.update({ embeds: [embed] });
 									}
 								} catch (error) {
