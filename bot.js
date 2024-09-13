@@ -34,7 +34,8 @@ const client = new Client({
   ],
 });
 
-const cooldowns = new Map(); 	//Map<serverId, cooldownEnd>
+const cooldowns = new Map(); 	//Map<userId, cooldownEnd>
+const cooldownAlerts = new Map(); //Map<userId, alertEnabled>
 const activeDrops = new Map();	//Map<serverId_channelId, activePokemon {name, isShiny, form}>
 const activeTrades = new Map();	//Map<serverId, {user1, user2, user1Pokemon, user2Pokemon, user1Confirmed, user2Confirmed}>
 
@@ -466,6 +467,7 @@ const giveCCmdRegex = /^\.(give)\b/; //For people who find bugs
 const changeLogRegex = /^\.(changelog|log)\b/;
 const orderCommandRegex = /^\.(order|sort|o)\b/;
 const uncaughtCommandRegex = /^\.(uncaught|u)\b/;
+const remindCommandRegex = /^\.(remind)\b/;
 
 const maxDexNum = 649; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
@@ -505,7 +507,12 @@ client.on('messageCreate', (message) => {
 					
 					const cooldownEnd = now + 300000;
 					cooldowns.set(userId, cooldownEnd);
-					setTimeout(() => cooldowns.delete(userId), 300000);
+					setTimeout(() => {
+						cooldowns.delete(userId)
+						if (cooldownAlerts.has(userId) && cooldownAlerts.get(userId)) {
+							message.channel.send(`<@!${userId}>, your drop is off cooldown!`);
+						}
+					}, 300000);
 					
 					
 					db.all("SELECT * FROM pokemon", [], (err, rows) => {
@@ -1192,6 +1199,18 @@ client.on('messageCreate', (message) => {
 
 					message.channel.send({ embeds: [helpEmbed] });
 				});
+			}
+
+			//reminder
+			else if(remindCommandRegex.test(message.content.toLowerCase())) {
+				if (cooldownAlerts.has(userId) && cooldownAlerts.get(userId)) {
+					cooldownAlerts.set(userId, false);
+					message.channel.send(`<@!${userId}>, you won't be alerted when your drop is off cooldown.`);
+				}
+				else {
+					cooldownAlerts.set(userId, true);
+					message.channel.send(`<@!${userId}>, you'll be alerted when your drop is off cooldown.`);
+				}
 			}
 			
 			//uncaught
