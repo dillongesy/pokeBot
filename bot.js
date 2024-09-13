@@ -59,7 +59,7 @@ function generatePartyEmbed(pokemonList, page, pageSize, title, isSLM) {
 				}
 
 				if (p.form && p.form.toLowerCase() !== 'default') {
-					const formPrefix = p.form;
+					const formPrefix = p.form; //.split(' ')[0];
 					displayName = `${formPrefix} ${displayName}`;
 					if (isShiny) {
 						displayName = `✨${displayName}`;
@@ -1228,7 +1228,10 @@ client.on('messageCreate', (message) => {
 							return;
 						}
 
-						const caughtPokemon = row && row.caught_pokemon ? JSON.parse(row.caught_pokemon).flat().map(p => ({ name: p.name, gender: p.gender })) : [];
+						const caughtPokemon = row && row.caught_pokemon ? JSON.parse(row.caught_pokemon).flat().map(p => ({ 
+							name: p.name.startsWith('✨') ? p.name.slice(1) : p.name,
+							gender: p.gender 
+						})) : [];
 
 						db.all("SELECT name, dexNum, isLM, gender FROM pokemon WHERE isLM != 3", [], (err, allPokemonList) => {
 							if (err) {
@@ -2739,15 +2742,13 @@ client.on('messageCreate', (message) => {
 								.map((pokemonObj, index) => {
 									let pokemonName = pokemonObj.name;
 
-									let isShiny = false;
 									if (pokemonName.startsWith('✨')) {
-										isShiny = true;
 										pokemonName = pokemonName.substring(1);
 									}
 
 									if (legendaryPokemon.includes(pokemonName)) {
 										return {
-											name: isShiny ? `✨${pokemonName}` : pokemonName,
+											...pokemonObj,
 											id: index + 1
 										};
 									}
@@ -2839,16 +2840,16 @@ client.on('messageCreate', (message) => {
 								.map((pokemonObj, index) => {
 									 let pokemonName = pokemonObj.name;
 
-									 let isShiny = false;
 									 if (pokemonName.startsWith('✨')) {
-										isShiny = true;
 										pokemonName = pokemonName.substring(1);
 									 }
 
 									 if (mythicalPokemon.includes(pokemonName)) {
 										return {
-											name: isShiny ? `✨${pokemonName}` : pokemonName,
+											...pokemonObj,
 											id: index + 1
+											//name: isShiny ? `✨${pokemonName}` : pokemonName,
+											//id: index + 1
 										};
 									 }
 									 else {
@@ -3921,6 +3922,10 @@ client.on('messageCreate', (message) => {
 							}
 							let inventoryArr = JSON.parse(row.inventory).flat();
 							let pokemonArr = JSON.parse(row.caught_pokemon).flat();
+							if (inventoryArr.length < 1 || pokemonArr.length < 1) {
+								message.channel.send('You have no items or you have no caught pokemon!');
+								return;
+							}
 							if (itemNum > inventoryArr.length || itemNum < 1 || partyNum > pokemonArr.length || partyNum < 1) {
 								message.channel.send('Improper command usage. Usage: `.use <itemNum> <partyNum>`');
 								return;
