@@ -59,7 +59,7 @@ function generatePartyEmbed(pokemonList, page, pageSize, title, isSLM) {
 				}
 
 				if (p.form && p.form.toLowerCase() !== 'default') {
-					const formPrefix = p.form.split(' ')[0];
+					const formPrefix = p.form;
 					displayName = `${formPrefix} ${displayName}`;
 					if (isShiny) {
 						displayName = `✨${displayName}`;
@@ -468,6 +468,7 @@ const changeLogRegex = /^\.(changelog|log)\b/;
 const orderCommandRegex = /^\.(order|sort|o)\b/;
 const uncaughtCommandRegex = /^\.(uncaught|u)\b/;
 const remindCommandRegex = /^\.(remind)\b/;
+const useCommandRegex = /^\.(use)\b/;
 
 const maxDexNum = 649; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
@@ -1189,10 +1190,11 @@ client.on('messageCreate', (message) => {
 						.setDescription('Recently added Changes')
 						.addFields(
 							{ name: 'ANNOUNCEMENT:', value: 'For any bug found, you may recieve currency in the range 100-5000!' },
+							{ name: 'Remind Command:', value: 'Added .remind to get notified when your drop is off cooldown.' },
+							{ name: 'Updated Shop:', value: 'Added various items to the store for pokemon\'s forms.' },
+							{ name: 'Use Command:', value: 'Allows you to use some items on pokemon to change their forms.' },
 							{ name: 'Server Leaderboard:', value: 'Added server leaderboards for all sub commands.' },
 							{ name: 'Uncaught Command:', value: 'Added a command to view all your uncaught pokemon.' },
-							{ name: 'View:', value: 'Added arrows to view.' },
-							{ name: 'Bugs:', value: 'Fixed an exploit with trading, a crash with sub commands, and nidoran dex issues (fuck nidoran).' },
 							{ name: 'BOINGO:', value: 'BOINGO BOINGO BOINGO BOINGO BOINGO' }
 						)
 						.setTimestamp();
@@ -3490,11 +3492,11 @@ client.on('messageCreate', (message) => {
 							.setTitle('Shop (Page 2)')
 							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 							.addFields(
-								{ name: '` 3:` **Fire Stone (5000)**', value: 'Fire stone (coming soon)' },
-								{ name: '` 4:` **Water Stone (5000)**', value: 'Water evolution stone (coming soon)' },
-								{ name: '` 5:` **Thunder Stone (5000)**', value: 'Electric evolution Stone (coming soon)' },
-								{ name: '` 6:` **Leaf Stone (5000)**', value: 'Grass evolution Stone (coming soon)' },
-								{ name: '` 7:` **Moon Stone (5000)**', value: 'Moon evolution Stone (coming soon)' }
+								{ name: '` 3:` **Fire Stone (1000)**', value: 'Fire stone (coming soon)' },
+								{ name: '` 4:` **Water Stone (1000)**', value: 'Water evolution stone (coming soon)' },
+								{ name: '` 5:` **Thunder Stone (1000)**', value: 'Electric evolution Stone (coming soon)' },
+								{ name: '` 6:` **Leaf Stone (1000)**', value: 'Grass evolution Stone (coming soon)' },
+								{ name: '` 7:` **Moon Stone (1000)**', value: 'Moon evolution Stone (coming soon)' }
 							)
 							.setTimestamp(),
 						new EmbedBuilder()
@@ -3502,13 +3504,35 @@ client.on('messageCreate', (message) => {
 							.setTitle('Shop (Page 3)')
 							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 							.addFields(
-								{ name: '` 8:` **Sun Stone (5000)**', value: 'Sun evolution Stone (coming soon)' },
-								{ name: '` 9:` **Shiny Stone (5000)**', value: 'Shiny evolution Stone (coming soon)' },
-								{ name: '`10:` **Dusk Stone (5000)**', value: 'Dusk evolution Stone (coming soon)' },
-								{ name: '`11:` **Dawn Stone (5000)**', value: 'Dawn evolution Stone (coming soon)' },
-								{ name: '`12:` **Ice Stone (5000)**', value: 'Ice evolution Stone (coming soon)' }
+								{ name: '` 8:` **Sun Stone (1000)**', value: 'Sun evolution Stone (coming soon)' },
+								{ name: '` 9:` **Shiny Stone (1000)**', value: 'Shiny evolution Stone (coming soon)' },
+								{ name: '`10:` **Dusk Stone (1000)**', value: 'Dusk evolution Stone (coming soon)' },
+								{ name: '`11:` **Dawn Stone (1000)**', value: 'Dawn evolution Stone (coming soon)' },
+								{ name: '`12:` **Ice Stone (1000)**', value: 'Ice evolution Stone (coming soon)' }
 							)
-							.setTimestamp()
+							.setTimestamp(),
+						new EmbedBuilder()
+							.setColor('#0099ff')
+							.setTitle('Shop (Page 4)')
+							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+							.addFields(
+								{ name: '`13:` **Defaulter (500)**', value: '**REUSABLE**: Resets the Pokemon\'s form to default' },
+								{ name: '`14:` **Stove (2000)**', value: '**CONSUMABLE**: Stove for Rotom transformation' },
+								{ name: '`15:` **Washing Machine (2000)**', value: '**CONSUMABLE**: Washing machine for Rotom transformation' },
+								{ name: '`16:` **Fridge (2000)**', value: '**CONSUMABLE**: Fridge for Rotom transformation' },
+								{ name: '`17:` **Gracidea Flower (2000)**', value: '**REUSABLE**: Flower for Shaymin Skye Forme transformation' }
+							)
+							.setTimestamp(),
+						new EmbedBuilder()
+							.setColor('#0099ff')
+							.setTitle('Shop (Page 5)')
+							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+							.addFields(
+								{ name: '`18:` **Reveal Glass (2000)**', value: '**REUSABLE**: Glass for Tornadus/Thundurus/Landorus Therian transformation' },
+								{ name: '`19:` **White DNA Splicer (2000)**', value: '**REUSABLE**: DNA splicer for Reshiram/White Kyurem transformation' },
+								{ name: '`20:` **Black DNA Splicer (2000)**', value: '**REUSABLE**: DNA splicer for Zekrom/Black Kyurem transformation' }
+							)
+							.setTimestamp(),
 					]
 
 					let page = 0;
@@ -3600,7 +3624,7 @@ client.on('messageCreate', (message) => {
 					}
 					let shopNum = args[1];
 					let isNum = !isNaN(shopNum);
-					if (!isNum || shopNum < 1 || shopNum > 12) {
+					if (!isNum || shopNum < 1 || shopNum > 20) {
 						message.channel.send('Please specify a valid shop number. Usage: `.buy <shopNum>`');
 						return;
 					}
@@ -3629,55 +3653,95 @@ client.on('messageCreate', (message) => {
 							boughtItem = 'Shiny Drop';
 							amount = 20000;
 						}
-						else if (shopNum === '3'  && userCurrency >= 5000) {
-							userCurrency -= 5000;
+						else if (shopNum === '3'  && userCurrency >= 1000) {
+							userCurrency -= 1000;
 							boughtItem = 'Fire Stone';
-							amount = 5000;
+							amount = 1000;
 						}
-						else if (shopNum === '4'  && userCurrency >= 5000) {
-							userCurrency -= 5000;
+						else if (shopNum === '4'  && userCurrency >= 1000) {
+							userCurrency -= 1000;
 							boughtItem = 'Water Stone';
-							amount = 5000;
+							amount = 1000;
 						}
-						else if (shopNum === '5'  && userCurrency >= 5000) {
-							userCurrency -= 5000;
+						else if (shopNum === '5'  && userCurrency >= 1000) {
+							userCurrency -= 1000;
 							boughtItem = 'Thunder Stone';
-							amount = 5000;
+							amount = 1000;
 						}
-						else if (shopNum === '6'  && userCurrency >= 5000) {
-							userCurrency -= 5000;
+						else if (shopNum === '6'  && userCurrency >= 1000) {
+							userCurrency -= 1000;
 							boughtItem = 'Leaf Stone';
-							amount = 5000;
+							amount = 1000;
 						}
-						else if (shopNum === '7'  && userCurrency >= 5000) {
-							userCurrency -= 5000;
+						else if (shopNum === '7'  && userCurrency >= 1000) {
+							userCurrency -= 1000;
 							boughtItem = 'Moon Stone';
-							amount = 5000;
+							amount = 1000;
 						}
-						else if (shopNum === '8'  && userCurrency >= 5000) {
-							userCurrency -= 5000;
+						else if (shopNum === '8'  && userCurrency >= 1000) {
+							userCurrency -= 1000;
 							boughtItem = 'Sun Stone';
-							amount = 5000;
+							amount = 1000;
 						}
-						else if (shopNum === '9'  && userCurrency >= 5000) {
-							userCurrency -= 5000;
+						else if (shopNum === '9'  && userCurrency >= 1000) {
+							userCurrency -= 1000;
 							boughtItem = 'Shiny Stone';
-							amount = 5000;
+							amount = 1000;
 						}
-						else if (shopNum === '10'  && userCurrency >= 5000) {
-							userCurrency -= 5000;
+						else if (shopNum === '10'  && userCurrency >= 1000) {
+							userCurrency -= 1000;
 							boughtItem = 'Dusk Stone';
-							amount = 5000;
+							amount = 1000;
 						}
-						else if (shopNum === '11'  && userCurrency >= 5000) {
-							userCurrency -= 5000;
+						else if (shopNum === '11'  && userCurrency >= 1000) {
+							userCurrency -= 1000;
 							boughtItem = 'Dawn Stone';
-							amount = 5000;
+							amount = 1000;
 						}
-						else if (shopNum === '12'  && userCurrency >= 5000) {
-							userCurrency -= 5000;
+						else if (shopNum === '12'  && userCurrency >= 1000) {
+							userCurrency -= 1000;
 							boughtItem = 'Ice Stone';
-							amount = 5000;
+							amount = 1000;
+						}
+						else if (shopNum === '13'  && userCurrency >= 500) {
+							userCurrency -= 500;
+							boughtItem = 'Defaulter';
+							amount = 500;
+						}
+						else if (shopNum === '14'  && userCurrency >= 2000) {
+							userCurrency -= 2000;
+							boughtItem = 'Stove';
+							amount = 2000;
+						}
+						else if (shopNum === '15'  && userCurrency >= 2000) {
+							userCurrency -= 2000;
+							boughtItem = 'Washing Machine';
+							amount = 2000;
+						}
+						else if (shopNum === '16'  && userCurrency >= 2000) {
+							userCurrency -= 2000;
+							boughtItem = 'Fridge';
+							amount = 2000;
+						}
+						else if (shopNum === '17'  && userCurrency >= 2000) {
+							userCurrency -= 2000;
+							boughtItem = 'Gracidea Flower';
+							amount = 2000;
+						}
+						else if (shopNum === '18'  && userCurrency >= 2000) {
+							userCurrency -= 2000;
+							boughtItem = 'Reveal Glass';
+							amount = 2000;
+						}
+						else if (shopNum === '19'  && userCurrency >= 2000) {
+							userCurrency -= 2000;
+							boughtItem = 'White DNA Splicer';
+							amount = 2000;
+						}
+						else if (shopNum === '20'  && userCurrency >= 2000) {
+							userCurrency -= 2000;
+							boughtItem = 'Black DNA Splicer';
+							amount = 2000;
 						}
 						else {
 							message.channel.send('You do not have enough currency to purchase requested item.');
@@ -3829,6 +3893,146 @@ client.on('messageCreate', (message) => {
 							console.error('Error sending the inventory message:', err);
 						});
 					});
+				});
+			}
+
+			//use
+			else if (useCommandRegex.test(message.content.toLowerCase())) {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					const args = message.content.split(' ').slice(1);
+					if (args.length > 1 && !isNaN(args[0]) && !isNaN(args[1])) {
+						const itemNum = parseInt(args[0], 10);
+						const partyNum = parseInt(args[1], 10);
+						if (isNaN(itemNum) || isNaN(partyNum)) {
+							message.channel.send('Improper command usage. Usage: `.use <itemNum> <partyNum>`');
+							return;
+						}
+						dbUser.get("SELECT caught_pokemon, inventory FROM user WHERE user_id = ?", [userId], (err, row) => {
+							if (err) {
+								console.error(err.message);
+								return;
+							}
+							if (!row) {
+								message.channel.send('User has not caught a pokemon yet.');
+								return;
+							}
+							let inventoryArr = JSON.parse(row.inventory).flat();
+							let pokemonArr = JSON.parse(row.caught_pokemon).flat();
+							if (itemNum > inventoryArr.length || itemNum < 1 || partyNum > pokemonArr.length || partyNum < 1) {
+								message.channel.send('Improper command usage. Usage: `.use <itemNum> <partyNum>`');
+								return;
+							}
+
+							const selectedItem = inventoryArr[itemNum - 1];
+							const selectedMon = pokemonArr[partyNum - 1];
+							let newItem = null;
+
+							if (selectedMon.name === 'Rotom') {
+								if (selectedItem === 'Stove') {
+									if (selectedMon.form.toLowerCase() !== 'default') {
+										newItem = selectedMon.form;
+									}
+									inventoryArr.splice(itemNum - 1, itemNum - 1);
+									pokemonArr[partyNum - 1].form = 'Heat';
+								}
+								else if (selectedItem === 'Washing Machine') {
+									if (selectedMon.form.toLowerCase() !== 'default') {
+										newItem = selectedMon.form;
+									}
+									inventoryArr.splice(itemNum - 1, itemNum - 1);
+									pokemonArr[partyNum - 1].form = 'Wash';
+								}
+								else if (selectedItem === 'Fridge') {
+									if (selectedMon.form.toLowerCase() !== 'default') {
+										newItem = selectedMon.form;
+									}
+									inventoryArr.splice(itemNum - 1, itemNum - 1);
+									pokemonArr[partyNum - 1].form = 'Frost';
+								}
+								else if (selectedItem === 'Defaulter') {
+									if (selectedMon.form.toLowerCase() !== 'default') {
+										newItem = selectedMon.form;
+									}
+									pokemonArr[partyNum - 1].form = 'Default';
+								}
+								else {
+									message.channel.send('Could not use selected item on selected pokemon.');
+									return;
+								}
+
+								if (newItem !== null && newItem === 'Heat') {
+									newItem = 'Stove';
+								}
+								else if (newItem !== null && newItem === 'Wash') {
+									newItem = 'Washing Machine';
+								}
+								else if (newItem !== null && newItem === 'Frost') {
+									newItem = 'Fridge';
+								}
+
+								if (newItem !== null) {
+									inventoryArr = inventoryArr.concat(newItem);
+								}
+							}
+							else if (selectedMon.name === 'Shaymin') {
+								if (selectedItem === 'Gracidea Flower') {
+									pokemonArr[partyNum - 1].form = 'Sky Forme';
+								}
+								else if (selectedItem === 'Defaulter') {
+									pokemonArr[partyNum - 1].form = 'Land Forme';
+								}
+								else {
+									message.channel.send('Could not use selected item on selected pokemon.');
+									return;
+								}
+							}
+							else if (selectedMon.name === 'Tornadus' || selectedMon.name === 'Thundurus' || selectedMon.name === 'Landorus') {
+								if (selectedItem === 'Reveal Glass') {
+									pokemonArr[partyNum - 1].form = 'Therian';
+								}
+								else if (selectedItem === 'Defaulter') {
+									pokemonArr[partyNum - 1].form = 'Incarnate';
+								}
+								else {
+									message.channel.send('Could not use selected item on selected pokemon.');
+									return;
+								}
+							}
+							else if (selectedMon.name === 'Kyurem') {
+								if (selectedItem === 'White DNA Splicer') {
+									pokemonArr[partyNum - 1].form = 'White';
+								}
+								else if (selectedItem === 'Black DNA Splicer') {
+									pokemonArr[partyNum - 1].form = 'Black';
+								}
+								else if (selectedItem === 'Defaulter') {
+									pokemonArr[partyNum - 1].form = 'Default';
+								}
+								else {
+									message.channel.send('Could not use selected item on selected pokemon.');
+									return;
+								}
+							}
+							else {
+								message.channel.send('Could not use selected item on selected pokemon.');
+								return;
+							}
+
+							dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], (err) => {
+								if (err) {
+									console.error('Error updating user inventory and caught pokemon:', err.message);
+									return;
+								}
+								message.channel.send('Transformation Successful');
+							})
+						});
+					}
+					else {
+						message.channel.send('Improper command usage. Usage: `.use <itemNum> <partyNum>`');
+					}
 				});
 			}
 
@@ -4089,6 +4293,7 @@ client.on('messageCreate', (message) => {
 						.setTitle('Help (Page 4)')
 						.setDescription('List of available commands:')
 						.addFields(
+							{ name: '.use <itemNum> <partyNum>', value: 'Uses an item on a Pokémon.' },
 							{ name: '.shinydrop', value: 'Drops a shiny pokémon, using a Shiny Drop item in the process.' },
 							{ name: '.setChannel: #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channel>.' + '\n' + 'Example: .setChannel <text1> <text2>' },
 							{ name: '.resetChannels:', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
