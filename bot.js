@@ -38,6 +38,7 @@ const cooldowns = new Map(); 	//Map<userId, cooldownEnd>
 const cooldownAlerts = new Map(); //Map<userId, alertEnabled>
 const activeDrops = new Map();	//Map<serverId_channelId, activePokemon {name, isShiny, form}>
 const activeTrades = new Map();	//Map<serverId, {user1, user2, user1Pokemon, user2Pokemon, user1Confirmed, user2Confirmed}>
+const activeUserRepels = new Map(); //Map<userId, { standard, rare }
 
 //Helper function, .party Embed Generator
 //isSLM: 0 = default/name, 1 = shiny, 2 = legendary, 3 = mythical
@@ -515,145 +516,224 @@ client.on('messageCreate', (message) => {
 						}
 					}, 300000);
 					
-					
-					db.all("SELECT * FROM pokemon", [], (err, rows) => {
+					dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, caughtPokemonList) => {
 						if (err) {
 							console.error(err.message);
-							message.channel.send('An error occurred while fetching the Pokémon.');
+							message.channel.send('An error occurred while fetching your caught Pokémon.');
 							return;
 						}
-						if (rows.length > 0) {
-							const shinyNumber = Math.random();
-							let isShiny = false;
-							const legendaryNumber = Math.random();
-							let isLegendary = false;
-							const mythicalNumber = Math.random();
-							let isMythical = false;
-							
-							if (shinyNumber < 0.00025) {
-								isShiny = true;
-							}
-							if (mythicalNumber < 0.005) {
-								isMythical = true;
-							}
-							else if (legendaryNumber < 0.0075) {
-								isLegendary = true;
-							}
-							
-							let randPokemon = getRandomInt(maxDexNum); 
-							let pokemon = null;
-							let embedColor = '#0099FF';
 
-							if (isMythical) {
-								const rowsM = rows.filter(row => row.isLM === 2);
-								if (rowsM.length > 0) {
-									pokemon = rowsM[getRandomInt(rowsM.length)];
-									embedColor = '#FF96C5';
+						const caughtPokemon = caughtPokemonList && caughtPokemonList.caught_pokemon ? JSON.parse(caughtPokemonList.caught_pokemon).flat().map(p => ({ 
+							name: p.name.startsWith('✨') ? p.name.slice(1) : p.name,
+							gender: p.gender 
+						})) : [];
+
+						db.all("SELECT * FROM pokemon", [], (err, rows) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching the Pokémon.');
+								return;
+							}
+							if (rows.length > 0) {
+								const shinyNumber = Math.random();
+								let isShiny = false;
+								const legendaryNumber = Math.random();
+								let isLegendary = false;
+								const mythicalNumber = Math.random();
+								let isMythical = false;
+								
+								let randPokemon = getRandomInt(maxDexNum); 
+								let pokemon = null;
+								let embedColor = '#0099FF';
+	
+								const userRepels = activeUserRepels.get(userId);
+								let repelList = rows.filter(row => row.isLM !== 3);
+
+								let s = false; //shiny
+								let l = false; //legendary
+								let m = false; //mythical
+
+								if (userRepels) {
+									let standardRepel = null; 
+									let rareRepel = null;
+									if (userRepels.standard) {
+										standardRepel = userRepels.standard;
+									}
+									if (userRepels.rare) {
+										rareRepel = userRepels.rare;
+									}
+									if (standardRepel) {
+										const hasCaughtPokemon = (pokemon) => {
+											if (pokemon.name === 'Nidoran') {
+												const pokemonGenderList = JSON.parse(pokemon.gender);
+												const isFemale = pokemonGenderList.some(g => g.name === 'Female');
+												const isMale = pokemonGenderList.some(g => g.name === 'Male');
+			
+												if (isFemale) {
+													return caughtPokemon.some(cp => cp.name === 'Nidoran' && cp.gender === 'Female');
+												}
+												else if (isMale) {
+													return caughtPokemon.some(cp => cp.name === 'Nidoran' && cp.gender === 'Male');
+												}
+											}
+											return caughtPokemon.some(cp => cp.name === pokemon.name);
+										};
+
+										const uncaughtPokemon = repelList.filter(pokemon => !hasCaughtPokemon(pokemon));
+
+										const randRepelNum = Math.random();
+										if (standardRepel === 'Normal Repel') {
+											if (randRepelNum < 0.5) {
+												repelList = uncaughtPokemon;
+											}
+										}
+										else if (standardRepel === 'Super Repel') {
+											if (randRepelNum < 0.75) {
+												repelList = uncaughtPokemon;
+											}
+										}
+										else if (standardRepel === 'Max Repel') {
+											if (randRepelNum < 0.9) {
+												repelList = uncaughtPokemon;
+											}
+										}
+									}
+
+									if (rareRepel) {
+										if (rareRepel === 'Legendary Repel') {
+											l = true;
+										}
+										else if (rareRepel === 'Mythical Repel') {
+											m = true;
+										}
+										else if (rareRepel === 'Shiny Repel') {
+											s = true;
+										}
+									}
+
+									activeUserRepels.delete(userId);
+								}
+
+								if (shinyNumber < 0.00025 || s) {
+									isShiny = true;
+								}
+								if (mythicalNumber < 0.005 || m) {
+									isMythical = true;
+								}
+								else if (legendaryNumber < 0.0075 || l) {
+									isLegendary = true;
+								}
+
+								if (isMythical) {
+									const rowsM = repelList.filter(row => row.isLM === 2);
+									if (rowsM.length > 0) {
+										pokemon = rowsM[getRandomInt(rowsM.length)];
+										embedColor = '#FF96C5';
+									}
+									else {
+										console.log("Error, no mythical pokemon!");
+									}
+								}
+								else if (isLegendary) {
+									const rowsL = repelList.filter(row => row.isLM === 1);
+									if (rowsL.length > 0) {
+										pokemon = rowsL[getRandomInt(rowsL.length)];
+										embedColor = '#66FF00';
+									}
+									else {
+										console.log("Error, no mythical pokemon!");
+									}
 								}
 								else {
-									console.log("Error, no mythical pokemon!");
+									const rowsN = repelList;
+									pokemon = rowsN[getRandomInt(rowsN.length)]; //this is fine
+									embedColor = '#0099FF';
+									while (pokemon.isLM !== 0) {
+										pokemon = rowsN[getRandomInt(rowsN.length)];
+									}
 								}
-							}
-							else if (isLegendary) {
-								const rowsL = rows.filter(row => row.isLM === 1);
-								if (rowsL.length > 0) {
-									pokemon = rowsL[getRandomInt(rowsL.length)];
-									embedColor = '#66FF00';
+								
+								const genders = JSON.parse(pokemon.gender);
+								let randomPercentage = Math.random() * 100;
+								let selectGender;
+								let cumulativePercentage = 0;
+								for (const gender of genders) {
+									cumulativePercentage += gender.percentage;
+									if (randomPercentage <= cumulativePercentage) {
+										selectGender = gender;
+										break;
+									}
+								}
+	
+								const forms = JSON.parse(pokemon.forms);
+								randomPercentage = Math.random() * 100;
+								let selectForm;
+								cumulativePercentage = 0;
+								for (const form of forms) {
+									cumulativePercentage += form.percentage;
+									if (randomPercentage <= cumulativePercentage) {
+										selectForm = form;
+										break;
+									}
+								}
+	
+								if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
+									selectGender = {
+										name: 'Male',
+										percentage: selectGender.percentage
+									};
+								}
+								else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
+									selectGender = {
+										name: 'Female',
+										percentage: selectForm.percentage
+									};
+								}
+	
+								let imageLink = null;
+								if (isShiny) {
+									embedColor = '#FFD700';
+									const shinyImageLinks = JSON.parse(pokemon.shinyImageLinks);
+									imageLink = shinyImageLinks[selectForm.name] || shinyImageLinks.default;
 								}
 								else {
-									console.log("Error, no mythical pokemon!");
+									const imageLinks = JSON.parse(pokemon.imageLinks);
+									imageLink = imageLinks[selectForm.name] || imageLinks.default;
 								}
+	
+								if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
+									selectForm = {
+										name: selectForm.name.substring(0, selectForm.name.length - 4),
+										percentage: selectForm.percentage
+									};
+								}
+								
+								const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
+								const curMon = pokemon.name ? `${pokemon.name}` : '';
+								console.log('Current pokemon: ' + curMon + '\n' + 
+									'ShinyNum:     ' + shinyNumber + ' (<0.00025)' + '\n' + 
+									'MythicalNum:  ' + mythicalNumber + ' (<0.005)' + '\n' + 
+									'LegendaryNum: ' + legendaryNumber + ' (<0.0075)' +'\n' +
+									'Form: ' + selectForm.name + '\n' +
+									'Gender: ' + selectGender.name + '\n');
+								
+								activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny, form: selectForm.name, gender: selectGender.name });
+								
+								const embed = new EmbedBuilder()
+									.setColor(embedColor)
+									.addFields(
+										{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
+										{ name: 'Region', value: `${pokemon.region}`, inline: true }
+									)
+									.setImage(imageLink)
+									.setTimestamp()
+	
+								message.channel.send({ embeds: [embed] });
 							}
 							else {
-								const rowsN = rows.filter(row => row.isLM !== 3);
-								pokemon = rowsN[randPokemon]; //this is fine
-								embedColor = '#0099FF';
-								while (pokemon.isLM !== 0) {
-									randPokemon = getRandomInt(maxDexNum);
-									pokemon = rowsN[randPokemon];
-								}
+								message.channel.send('No Pokémon found in the database.');
 							}
-							
-							const genders = JSON.parse(pokemon.gender);
-							let randomPercentage = Math.random() * 100;
-							let selectGender;
-							let cumulativePercentage = 0;
-							for (const gender of genders) {
-								cumulativePercentage += gender.percentage;
-								if (randomPercentage <= cumulativePercentage) {
-									selectGender = gender;
-									break;
-								}
-							}
-
-							const forms = JSON.parse(pokemon.forms);
-							randomPercentage = Math.random() * 100;
-							let selectForm;
-							cumulativePercentage = 0;
-							for (const form of forms) {
-								cumulativePercentage += form.percentage;
-								if (randomPercentage <= cumulativePercentage) {
-									selectForm = form;
-									break;
-								}
-							}
-
-							if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
-								selectGender = {
-									name: 'Male',
-									percentage: selectGender.percentage
-								};
-							}
-							else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
-								selectGender = {
-									name: 'Female',
-									percentage: selectForm.percentage
-								};
-							}
-
-							let imageLink = null;
-							if (isShiny) {
-								embedColor = '#FFD700';
-								const shinyImageLinks = JSON.parse(pokemon.shinyImageLinks);
-								imageLink = shinyImageLinks[selectForm.name] || shinyImageLinks.default;
-							}
-							else {
-								const imageLinks = JSON.parse(pokemon.imageLinks);
-								imageLink = imageLinks[selectForm.name] || imageLinks.default;
-							}
-
-							if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
-								selectForm = {
-									name: selectForm.name.substring(0, selectForm.name.length - 4),
-									percentage: selectForm.percentage
-								};
-							}
-							
-							const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
-							const curMon = pokemon.name ? `${pokemon.name}` : '';
-							console.log('Current pokemon: ' + curMon + '\n' + 
-								'ShinyNum:     ' + shinyNumber + ' (<0.00025)' + '\n' + 
-								'MythicalNum:  ' + mythicalNumber + ' (<0.005)' + '\n' + 
-								'LegendaryNum: ' + legendaryNumber + ' (<0.0075)' +'\n' +
-								'Form: ' + selectForm.name + '\n' +
-								'Gender: ' + selectGender.name + '\n');
-							
-							activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny, form: selectForm.name, gender: selectGender.name });
-							
-							const embed = new EmbedBuilder()
-								.setColor(embedColor)
-								.addFields(
-									{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
-									{ name: 'Region', value: `${pokemon.region}`, inline: true }
-								)
-								.setImage(imageLink)
-								.setTimestamp()
-
-							message.channel.send({ embeds: [embed] });
-						}
-						else {
-							message.channel.send('No Pokémon found in the database.');
-						}
+						});
 					});
 				});
 			}
@@ -1190,8 +1270,9 @@ client.on('messageCreate', (message) => {
 						.setDescription('Recently added Changes')
 						.addFields(
 							{ name: 'ANNOUNCEMENT:', value: 'For any bug found, you may recieve currency in the range 100-5000!' },
-							{ name: 'Remind Command:', value: 'Added .remind to get notified when your drop is off cooldown.' },
+							{ name: 'Updated Shop/Drop:', value: 'Added repels to the store for drops.' },
 							{ name: 'Updated Shop:', value: 'Added various items to the store for pokemon\'s forms.' },
+							{ name: 'Remind Command:', value: 'Added .remind to get notified when your drop is off cooldown.' },
 							{ name: 'Use Command:', value: 'Allows you to use some items on pokemon to change their forms.' },
 							{ name: 'Server Leaderboard:', value: 'Added server leaderboards for all sub commands.' },
 							{ name: 'Uncaught Command:', value: 'Added a command to view all your uncaught pokemon.' },
@@ -1556,7 +1637,7 @@ client.on('messageCreate', (message) => {
 						if (args.length > 1 && args[1].toLowerCase() === 'server') {
 							serverLb = true;
 						}
-						//Use in-memory data to make this call a lot faster
+						// Use in-memory data to make this call a lot faster
 						const legendaryPokemon = [
 							'Articuno', 'Zapdos', 'Moltres', 'Mewtwo', 
 							'Raikou', 'Entei', 'Suicune', 'Lugia', 'Ho-Oh',
@@ -1620,7 +1701,7 @@ client.on('messageCreate', (message) => {
 						if (args.length > 1 && args[1].toLowerCase() === 'server') {
 							serverLb = true;
 						}
-						////Use in-memory data to make this call a lot faster
+						// Use in-memory data to make this call a lot faster
 						const mythicalPokemon = [
 							'Mew',
 							'Celebi',
@@ -3483,8 +3564,12 @@ client.on('messageCreate', (message) => {
 							.setTitle('Shop (Page 1)')
 							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 							.addFields(
-								{ name: '` 1:` **Rare Candy (500)**', value: 'Levels a pokemon up (coming soon)' },
-								{ name: '` 2:` **Shiny Drop (20000)**', value: 'Drops a shiny on command using .shinydrop' + '\n' + '__It is recommended to do this in a private place!__' }
+								{ name: '` 1:` **Normal Repel (1000)**', value: 'Has a 50% chance to drop an uncaught Pokemon' },
+								{ name: '` 2:` **Super Repel (1500)**', value: 'Has a 75% chance to drop an uncaught Pokemon' },
+								{ name: '` 3:` **Max Repel (2000)**', value: 'Has a 90% chance to drop an uncaught Pokemon' },
+								{ name: '` 4:` **Legendary Repel (10000)**', value: 'Makes your next pokemon drop a legendary pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
+								{ name: '` 5:` **Mythical Repel (15000)**', value: 'Makes your next pokemon drop a mythical pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
+								{ name: '` 6:` **Shiny Repel (20000)**', value: 'Makes your next pokemon drop a shiny pokemon' + '\n' + '__It is recommended to do this in a private place!__' }
 								
 							)
 							.setTimestamp(),
@@ -3493,11 +3578,11 @@ client.on('messageCreate', (message) => {
 							.setTitle('Shop (Page 2)')
 							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 							.addFields(
-								{ name: '` 3:` **Fire Stone (1000)**', value: 'Fire stone (coming soon)' },
-								{ name: '` 4:` **Water Stone (1000)**', value: 'Water evolution stone (coming soon)' },
-								{ name: '` 5:` **Thunder Stone (1000)**', value: 'Electric evolution Stone (coming soon)' },
-								{ name: '` 6:` **Leaf Stone (1000)**', value: 'Grass evolution Stone (coming soon)' },
-								{ name: '` 7:` **Moon Stone (1000)**', value: 'Moon evolution Stone (coming soon)' }
+								{ name: '` 7:` **Fire Stone (1000)**', value: 'Fire stone (coming soon)' },
+								{ name: '` 8:` **Water Stone (1000)**', value: 'Water evolution stone (coming soon)' },
+								{ name: '` 9:` **Thunder Stone (1000)**', value: 'Electric evolution Stone (coming soon)' },
+								{ name: '`10:` **Leaf Stone (1000)**', value: 'Grass evolution Stone (coming soon)' },
+								{ name: '`11:` **Moon Stone (1000)**', value: 'Moon evolution Stone (coming soon)' }
 							)
 							.setTimestamp(),
 						new EmbedBuilder()
@@ -3505,11 +3590,11 @@ client.on('messageCreate', (message) => {
 							.setTitle('Shop (Page 3)')
 							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 							.addFields(
-								{ name: '` 8:` **Sun Stone (1000)**', value: 'Sun evolution Stone (coming soon)' },
-								{ name: '` 9:` **Shiny Stone (1000)**', value: 'Shiny evolution Stone (coming soon)' },
-								{ name: '`10:` **Dusk Stone (1000)**', value: 'Dusk evolution Stone (coming soon)' },
-								{ name: '`11:` **Dawn Stone (1000)**', value: 'Dawn evolution Stone (coming soon)' },
-								{ name: '`12:` **Ice Stone (1000)**', value: 'Ice evolution Stone (coming soon)' }
+								{ name: '`12:` **Sun Stone (1000)**', value: 'Sun evolution Stone (coming soon)' },
+								{ name: '`13:` **Shiny Stone (1000)**', value: 'Shiny evolution Stone (coming soon)' },
+								{ name: '`14:` **Dusk Stone (1000)**', value: 'Dusk evolution Stone (coming soon)' },
+								{ name: '`15:` **Dawn Stone (1000)**', value: 'Dawn evolution Stone (coming soon)' },
+								{ name: '`16:` **Ice Stone (1000)**', value: 'Ice evolution Stone (coming soon)' }
 							)
 							.setTimestamp(),
 						new EmbedBuilder()
@@ -3517,11 +3602,11 @@ client.on('messageCreate', (message) => {
 							.setTitle('Shop (Page 4)')
 							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 							.addFields(
-								{ name: '`13:` **Defaulter (500)**', value: '**REUSABLE**: Resets the Pokemon\'s form to default' },
-								{ name: '`14:` **Stove (2000)**', value: '**CONSUMABLE**: Stove for Rotom transformation' },
-								{ name: '`15:` **Washing Machine (2000)**', value: '**CONSUMABLE**: Washing machine for Rotom transformation' },
-								{ name: '`16:` **Fridge (2000)**', value: '**CONSUMABLE**: Fridge for Rotom transformation' },
-								{ name: '`17:` **Gracidea Flower (2000)**', value: '**REUSABLE**: Flower for Shaymin Skye Forme transformation' }
+								{ name: '`17:` **Defaulter (500)**', value: '**REUSABLE**: Resets the Pokemon\'s form to default' },
+								{ name: '`18:` **Stove (2000)**', value: '**CONSUMABLE**: Stove for Rotom transformation' },
+								{ name: '`19:` **Washing Machine (2000)**', value: '**CONSUMABLE**: Washing machine for Rotom transformation' },
+								{ name: '`20:` **Fridge (2000)**', value: '**CONSUMABLE**: Fridge for Rotom transformation' },
+								{ name: '`21:` **Gracidea Flower (2000)**', value: '**REUSABLE**: Flower for Shaymin Skye Forme transformation' }
 							)
 							.setTimestamp(),
 						new EmbedBuilder()
@@ -3529,9 +3614,10 @@ client.on('messageCreate', (message) => {
 							.setTitle('Shop (Page 5)')
 							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 							.addFields(
-								{ name: '`18:` **Reveal Glass (2000)**', value: '**REUSABLE**: Glass for Tornadus/Thundurus/Landorus Therian transformation' },
-								{ name: '`19:` **White DNA Splicer (2000)**', value: '**REUSABLE**: DNA splicer for Reshiram/White Kyurem transformation' },
-								{ name: '`20:` **Black DNA Splicer (2000)**', value: '**REUSABLE**: DNA splicer for Zekrom/Black Kyurem transformation' }
+								{ name: '`22:` **Reveal Glass (2000)**', value: '**REUSABLE**: Glass for Tornadus/Thundurus/Landorus Therian transformation' },
+								{ name: '`23:` **White DNA Splicer (2000)**', value: '**REUSABLE**: DNA splicer for Reshiram/White Kyurem transformation' },
+								{ name: '`24:` **Black DNA Splicer (2000)**', value: '**REUSABLE**: DNA splicer for Zekrom/Black Kyurem transformation' },
+								{ name: '`25:` **Rare Candy (500)**', value: 'Levels a pokemon up (coming soon)' },
 							)
 							.setTimestamp(),
 					]
@@ -3625,7 +3711,7 @@ client.on('messageCreate', (message) => {
 					}
 					let shopNum = args[1];
 					let isNum = !isNaN(shopNum);
-					if (!isNum || shopNum < 1 || shopNum > 20) {
+					if (!isNum || shopNum < 1 || shopNum > 25) {
 						message.channel.send('Please specify a valid shop number. Usage: `.buy <shopNum>`');
 						return;
 					}
@@ -3644,105 +3730,130 @@ client.on('messageCreate', (message) => {
 						if (userCurrency < 500) {
 							message.channel.send('You do not have enough currency to purchase an item.');
 						}
-						else if (shopNum === '1' && userCurrency >= 500) {
-							userCurrency -= 500;
-							boughtItem = 'Rare Candy';
-							amount = 500;
+						else if (shopNum === '1'  && userCurrency >= 1000) {
+							userCurrency -= 1000;
+							boughtItem = 'Normal Repel';
+							amount = 1000;
 						}
-						else if (shopNum === '2'  && userCurrency >= 20000) {
+						else if (shopNum === '2'  && userCurrency >= 1500) {
+							userCurrency -= 1500;
+							boughtItem = 'Super Repel';
+							amount = 1500;
+						}
+						else if (shopNum === '3'  && userCurrency >= 2000) {
+							userCurrency -= 2000;
+							boughtItem = 'Max Repel';
+							amount = 2000;
+						}
+						else if (shopNum === '4'  && userCurrency >= 10000) {
+							userCurrency -= 10000;
+							boughtItem = 'Legendary Repel';
+							amount = 10000;
+						}
+						else if (shopNum === '5'  && userCurrency >= 15000) {
+							userCurrency -= 15000;
+							boughtItem = 'Mythical Repel';
+							amount = 15000;
+						}
+						else if (shopNum === '6'  && userCurrency >= 20000) {
 							userCurrency -= 20000;
-							boughtItem = 'Shiny Drop';
+							boughtItem = 'Shiny Repel';
 							amount = 20000;
 						}
-						else if (shopNum === '3'  && userCurrency >= 1000) {
+						else if (shopNum === '7'  && userCurrency >= 1000) {
 							userCurrency -= 1000;
 							boughtItem = 'Fire Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '4'  && userCurrency >= 1000) {
+						else if (shopNum === '8'  && userCurrency >= 1000) {
 							userCurrency -= 1000;
 							boughtItem = 'Water Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '5'  && userCurrency >= 1000) {
+						else if (shopNum === '9'  && userCurrency >= 1000) {
 							userCurrency -= 1000;
 							boughtItem = 'Thunder Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '6'  && userCurrency >= 1000) {
+						else if (shopNum === '10'  && userCurrency >= 1000) {
 							userCurrency -= 1000;
 							boughtItem = 'Leaf Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '7'  && userCurrency >= 1000) {
+						else if (shopNum === '11'  && userCurrency >= 1000) {
 							userCurrency -= 1000;
 							boughtItem = 'Moon Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '8'  && userCurrency >= 1000) {
+						else if (shopNum === '12'  && userCurrency >= 1000) {
 							userCurrency -= 1000;
 							boughtItem = 'Sun Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '9'  && userCurrency >= 1000) {
+						else if (shopNum === '13'  && userCurrency >= 1000) {
 							userCurrency -= 1000;
 							boughtItem = 'Shiny Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '10'  && userCurrency >= 1000) {
+						else if (shopNum === '14'  && userCurrency >= 1000) {
 							userCurrency -= 1000;
 							boughtItem = 'Dusk Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '11'  && userCurrency >= 1000) {
+						else if (shopNum === '15'  && userCurrency >= 1000) {
 							userCurrency -= 1000;
 							boughtItem = 'Dawn Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '12'  && userCurrency >= 1000) {
+						else if (shopNum === '16'  && userCurrency >= 1000) {
 							userCurrency -= 1000;
 							boughtItem = 'Ice Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '13'  && userCurrency >= 500) {
+						else if (shopNum === '17'  && userCurrency >= 500) {
 							userCurrency -= 500;
 							boughtItem = 'Defaulter';
 							amount = 500;
 						}
-						else if (shopNum === '14'  && userCurrency >= 2000) {
+						else if (shopNum === '18'  && userCurrency >= 2000) {
 							userCurrency -= 2000;
 							boughtItem = 'Stove';
 							amount = 2000;
 						}
-						else if (shopNum === '15'  && userCurrency >= 2000) {
+						else if (shopNum === '19'  && userCurrency >= 2000) {
 							userCurrency -= 2000;
 							boughtItem = 'Washing Machine';
 							amount = 2000;
 						}
-						else if (shopNum === '16'  && userCurrency >= 2000) {
+						else if (shopNum === '20'  && userCurrency >= 2000) {
 							userCurrency -= 2000;
 							boughtItem = 'Fridge';
 							amount = 2000;
 						}
-						else if (shopNum === '17'  && userCurrency >= 2000) {
+						else if (shopNum === '21'  && userCurrency >= 2000) {
 							userCurrency -= 2000;
 							boughtItem = 'Gracidea Flower';
 							amount = 2000;
 						}
-						else if (shopNum === '18'  && userCurrency >= 2000) {
+						else if (shopNum === '22'  && userCurrency >= 2000) {
 							userCurrency -= 2000;
 							boughtItem = 'Reveal Glass';
 							amount = 2000;
 						}
-						else if (shopNum === '19'  && userCurrency >= 2000) {
+						else if (shopNum === '23'  && userCurrency >= 2000) {
 							userCurrency -= 2000;
 							boughtItem = 'White DNA Splicer';
 							amount = 2000;
 						}
-						else if (shopNum === '20'  && userCurrency >= 2000) {
+						else if (shopNum === '24'  && userCurrency >= 2000) {
 							userCurrency -= 2000;
 							boughtItem = 'Black DNA Splicer';
 							amount = 2000;
+						}
+						else if (shopNum === '25' && userCurrency >= 500) {
+							userCurrency -= 500;
+							boughtItem = 'Rare Candy';
+							amount = 500;
 						}
 						else {
 							message.channel.send('You do not have enough currency to purchase requested item.');
@@ -3904,7 +4015,7 @@ client.on('messageCreate', (message) => {
 						return;
 					}
 					const args = message.content.split(' ').slice(1);
-					if (args.length > 1 && !isNaN(args[0]) && !isNaN(args[1])) {
+					if (args.length === 2 && !isNaN(args[0]) && !isNaN(args[1])) {
 						const itemNum = parseInt(args[0], 10);
 						const partyNum = parseInt(args[1], 10);
 						if (isNaN(itemNum) || isNaN(partyNum)) {
@@ -3940,21 +4051,21 @@ client.on('messageCreate', (message) => {
 									if (selectedMon.form.toLowerCase() !== 'default') {
 										newItem = selectedMon.form;
 									}
-									inventoryArr.splice(itemNum - 1, itemNum - 1);
+									inventoryArr.splice(itemNum - 1, 1);
 									pokemonArr[partyNum - 1].form = 'Heat';
 								}
 								else if (selectedItem === 'Washing Machine') {
 									if (selectedMon.form.toLowerCase() !== 'default') {
 										newItem = selectedMon.form;
 									}
-									inventoryArr.splice(itemNum - 1, itemNum - 1);
+									inventoryArr.splice(itemNum - 1, 1);
 									pokemonArr[partyNum - 1].form = 'Wash';
 								}
 								else if (selectedItem === 'Fridge') {
 									if (selectedMon.form.toLowerCase() !== 'default') {
 										newItem = selectedMon.form;
 									}
-									inventoryArr.splice(itemNum - 1, itemNum - 1);
+									inventoryArr.splice(itemNum - 1, 1);
 									pokemonArr[partyNum - 1].form = 'Frost';
 								}
 								else if (selectedItem === 'Defaulter') {
@@ -4032,221 +4143,113 @@ client.on('messageCreate', (message) => {
 									return;
 								}
 								message.channel.send('Transformation Successful');
-							})
+							});
+						});
+					}
+					else if (args.length === 1 && !isNaN(args[0])) {
+						const itemNum = parseInt(args[0], 10);
+						if (isNaN(itemNum)) {
+							message.channel.send('Improper command usage. Usage: `.use <itemNum>`');
+							return;
+						}
+						dbUser.get("SELECT inventory FROM user WHERE user_id = ?", [userId], (err, row) => {
+							if (err) {
+								console.error(err.message);
+								return;
+							}
+							if (!row) {
+								message.channel.send('You have not caught a pokemon yet.');
+								return;
+							}
+							let inventoryArr = JSON.parse(row.inventory).flat();
+							if (inventoryArr.length < 1) {
+								message.channel.send('You have no items!');
+								return;
+							}
+							if (itemNum > inventoryArr.length || itemNum < 1) {
+								message.channel.send('Improper command usage. Usage: `.use <itemNum>`');
+								return;
+							}
+
+							const selectedItem = inventoryArr[itemNum - 1];
+							//get currently used items
+							const userRepels = activeUserRepels.get(userId);
+							let standardRepel = null; 
+							let rareRepel = null; 
+							if (userRepels) {
+								if (userRepels.standard) {
+									standardRepel = userRepels.standard;
+								}
+								if (userRepels.rare) {
+									rareRepel = userRepels.rare;
+								}
+							}
+
+							if (selectedItem === 'Normal Repel') {
+								if (standardRepel) {
+									message.channel.send('You must use your currently equipped standard repel before activating a new one.');
+									return;
+								}
+								activeUserRepels.set(userId, { standard: 'Normal Repel', rare: rareRepel });
+								inventoryArr.splice(itemNum - 1, 1);
+							}
+							else if (selectedItem === 'Super Repel') {
+								if (standardRepel) {
+									message.channel.send('You must use your currently equipped standard repel before activating a new one.');
+									return;
+								}
+								activeUserRepels.set(userId, { standard: 'Super Repel', rare: rareRepel });
+								inventoryArr.splice(itemNum - 1, 1);
+							}
+							else if (selectedItem === 'Max Repel') {
+								if (standardRepel) {
+									message.channel.send('You must use your currently equipped standard repel before activating a new one.');
+									return;
+								}
+								activeUserRepels.set(userId, { standard: 'Max Repel', rare: rareRepel });
+								inventoryArr.splice(itemNum - 1, 1);
+							}
+							else if (selectedItem === 'Legendary Repel') {
+								if (rareRepel) {
+									message.channel.send('You must use your currently equipped rare repel before activating a new one.');
+									return;
+								}
+								activeUserRepels.set(userId, { standard: standardRepel, rare: 'Legendary Repel'});
+								inventoryArr.splice(itemNum - 1, 1);
+							}
+							else if (selectedItem === 'Mythical Repel') {
+								if (rareRepel) {
+									message.channel.send('You must use your currently equipped rare repel before activating a new one.');
+									return;
+								}
+								activeUserRepels.set(userId, { standard: standardRepel, rare: 'Mythical Repel'});
+								inventoryArr.splice(itemNum - 1, 1);
+							}
+							else if (selectedItem === 'Shiny Repel') {
+								if (rareRepel) {
+									message.channel.send('You must use your currently equipped rare repel before activating a new one.');
+									return;
+								}
+								activeUserRepels.set(userId, { standard: standardRepel, rare: 'Shiny Repel'});
+								inventoryArr.splice(itemNum - 1, 1);
+							}
+							else {
+								message.channel.send('Could not use selected item.');
+								return;
+							}
+
+							dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(inventoryArr), userId], (err) => {
+								if (err) {
+									console.error('Error updating user inventory:', err.message);
+									return;
+								}
+								message.channel.send('Repel Activated.');
+							});
 						});
 					}
 					else {
 						message.channel.send('Improper command usage. Usage: `.use <itemNum> <partyNum>`');
 					}
-				});
-			}
-
-			//shinydrop
-			else if (forceShinySpawnRegex.test(message.content.toLowerCase())) {
-				isChannelAllowed(serverId, message.channel.id, (allowed) => {
-					if (!allowed) {
-						return;
-					}
-					//check if user has a shiny drop
-					dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
-						if (err) {
-							console.error(err.message);
-							message.channel.send('An error occurred while checking your inventory.');
-							return;
-						}
-						if (!row) {
-							message.channel.send('You do not have any Shiny Drops in your inventory.');
-							return;
-						}
-						const userInventory = JSON.parse(row.inventory);
-						if (!userInventory.includes('Shiny Drop')) {
-							message.channel.send('You do not have any Shiny Drops in your inventory.');
-							return;
-						}
-
-						const confirmEmbed = new EmbedBuilder()
-							.setColor('#ff0000')
-							.setTitle('Use Shiny Drop?')
-							.setDescription('Are you sure you want to use your Shiny Drop? Other users can also see and catch this Pokémon!')
-							.setTimestamp();
-
-						const buttonRow = new ActionRowBuilder()
-							.addComponents(
-								new ButtonBuilder()
-									.setCustomId('use_yes')
-									.setLabel('Yes')
-									.setStyle(ButtonStyle.Success),
-								new ButtonBuilder()
-									.setCustomId('use_no')
-									.setLabel('No')
-									.setStyle(ButtonStyle.Danger)
-							);
-
-						message.channel.send({ embeds: [confirmEmbed], components: [buttonRow] }).then(sentMessage => {
-							const filter = i => i.user.id === message.author.id;
-							const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
-						
-							collector.on('collect', async i => {
-								try {
-									if (i.customId === 'use_yes') {
-										const index = userInventory.indexOf('Shiny Drop');
-										if (index !== -1) {
-											userInventory.splice(index, 1);
-										}
-										dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(userInventory), userId], (err) => {
-											if (err) {
-												console.error(err.message);
-												message.channel.send('An error occurred while updating your inventory.');
-												return;
-											}
-										});
-										db.all("SELECT * FROM pokemon", [], (err, rowsMon) => {
-											if (err) {
-												console.error(err.message);
-												message.channel.send('An error occurred while fetching Pokémon data.');
-												return;
-											}
-	
-											const mythicalNumber = Math.random();
-											let isMythical = false;
-											const legendaryNumber = Math.random();
-											let isLegendary = false;
-											if (mythicalNumber < 0.025) {
-												isMythical = true;
-											}
-											else if (legendaryNumber < 0.05) {
-												isLegendary = true;
-											}
-	
-											let pokemon = null;
-											if (isMythical) {
-												const rowsM = rowsMon.filter(row => row.isLM === 2); //rows = pokemon db query
-												if (rowsM.length > 0) {
-													pokemon = rowsM[getRandomInt(rowsM.length)];
-												}
-												else {
-													console.log("Error, no mythical pokemon!");
-													message.channel.send("Error: No Mythical Pokémon found!");
-													return;
-												}
-											}
-											else if (isLegendary) {
-												const rowsL = rowsMon.filter(row => row.isLM === 1); //rows = pokemon db query
-												if (rowsL.length > 0) {
-													pokemon = rowsL[getRandomInt(rowsL.length)];
-												}
-												else {
-													console.log("Error, no legendary pokemon!");
-													message.channel.send("Error: No legendary Pokémon found!");
-													return;
-												}
-											}
-											else {
-												let randPokemon = getRandomInt(maxDexNum);
-												const rowsN = rowsMon.filter(row => row.isLM !== 3);
-												pokemon = rowsN[randPokemon];
-												while (pokemon.isLM !== 0) {
-													randPokemon = getRandomInt(maxDexNum);
-													pokemon = rowsN[randPokemon];
-												}
-											}
-	
-											const genders = JSON.parse(pokemon.gender);
-											let randomPercentage = Math.random() * 100;
-											let selectGender;
-											let cumulativePercentage = 0;
-											for (const gender of genders) {
-												cumulativePercentage += gender.percentage;
-												if (randomPercentage <= cumulativePercentage) {
-													selectGender = gender;
-													break;
-												}
-											}
-	
-											const forms = JSON.parse(pokemon.forms);
-											randomPercentage = Math.random() * 100;
-											let selectForm;
-											cumulativePercentage = 0;
-											for (const form of forms) {
-												cumulativePercentage += form.percentage;
-												if (randomPercentage <= cumulativePercentage) {
-													selectForm = form;
-													break;
-												}
-											}
-	
-											if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
-												selectGender = {
-													name: 'Male',
-													percentage: selectGender.percentage
-												};
-											}
-											else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
-												selectGender = {
-													name: 'Female',
-													percentage: selectGender.percentage
-												};
-											}
-											
-											let imageLink = null;
-											const shinyImageLinks = JSON.parse(pokemon.shinyImageLinks);
-											imageLink = shinyImageLinks[selectForm.name.toLowerCase()] || shinyImageLinks.default;
-				
-											if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
-												selectForm = {
-													name: selectForm.name.substring(0, selectForm.name.length - 4),
-													percentage: selectForm.percentage
-												};
-											}
-	
-											const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
-											const curMon = pokemon.name ? `${pokemon.name}` : '';
-											console.log('Current pokemon: ' + curMon + '\n' + 'MythicalNum:  ' + mythicalNumber + ' (<0.025)' + '\n' + 'LegendaryNum: ' + legendaryNumber + ' (<0.05)' +'\n');
-											const isShiny = true;
-	
-											activeDrops.set(`${serverId}_${message.channel.id}`, { name: curMon, isShiny, form: selectForm.name, gender: selectGender.name });
-	
-											const embed = new EmbedBuilder()
-												.setColor('#FFD700')
-												.addFields(
-													{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
-													{ name: 'Region', value: `${pokemon.region}`, inline: true }
-												)
-												.setImage(imageLink)
-												.setTimestamp()
-	
-											message.channel.send({ embeds: [embed] });
-										});
-									} 
-									else if (i.customId === 'use_no') {
-										i.update({ content: 'Shiny drop cancelled.', embeds: [], components: [] });
-									}
-								} catch (error) {
-									if (error.code === 10008) {
-										console.log('The message was deleted before the interaction was handled.');
-									}
-									else {
-										console.error('An unexpected error occurred:', error);
-									}
-								}
-							});
-
-							collector.on('end', async () => {
-								try {
-									await sentMessage.edit({components: [] });
-								} catch (error) {
-									if (error.code === 10008) {
-										console.log('The message was deleted before the interaction was handled.');
-									}
-									else {
-										console.error('An unexpected error occurred:', error);
-									}
-								}
-							});
-						}).catch(err => {
-							console.error('Error sending the shinydrop message:', err);
-						})
-					});
 				});
 			}
 
@@ -4298,8 +4301,7 @@ client.on('messageCreate', (message) => {
 						.setTitle('Help (Page 4)')
 						.setDescription('List of available commands:')
 						.addFields(
-							{ name: '.use <itemNum> <partyNum>', value: 'Uses an item on a Pokémon.' },
-							{ name: '.shinydrop', value: 'Drops a shiny pokémon, using a Shiny Drop item in the process.' },
+							{ name: '.use <itemNum> <partyNum>', value: 'Uses an item. If a partyNum is supplied, uses the item on a Pokémon.' },
 							{ name: '.setChannel: #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channel>.' + '\n' + 'Example: .setChannel <text1> <text2>' },
 							{ name: '.resetChannels:', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
 							{ name: '.viewChannels:', value: '`ADMIN ONLY:` Posts a list of channels the server allows bot commands in' }
