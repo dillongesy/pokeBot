@@ -514,7 +514,7 @@ client.on('messageCreate', (message) => {
 						if (cooldownAlerts.has(userId) && cooldownAlerts.get(userId)) {
 							message.channel.send(`<@!${userId}>, your drop is off cooldown!`);
 						}
-					}, 3000); //TODO FIX THIS ADD 2 ZEROS
+					}, 300000);
 					
 					dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, caughtPokemonList) => {
 						if (err) {
