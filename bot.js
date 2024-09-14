@@ -514,7 +514,7 @@ client.on('messageCreate', (message) => {
 						if (cooldownAlerts.has(userId) && cooldownAlerts.get(userId)) {
 							message.channel.send(`<@!${userId}>, your drop is off cooldown!`);
 						}
-					}, 300000);
+					}, 3000); //TODO FIX THIS ADD 2 ZEROS
 					
 					dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, caughtPokemonList) => {
 						if (err) {
@@ -542,7 +542,6 @@ client.on('messageCreate', (message) => {
 								const mythicalNumber = Math.random();
 								let isMythical = false;
 								
-								let randPokemon = getRandomInt(maxDexNum); 
 								let pokemon = null;
 								let embedColor = '#0099FF';
 	
@@ -579,21 +578,29 @@ client.on('messageCreate', (message) => {
 											return caughtPokemon.some(cp => cp.name === pokemon.name);
 										};
 
-										const uncaughtPokemon = repelList.filter(pokemon => !hasCaughtPokemon(pokemon));
+										let uncaughtPokemon = repelList.filter(pokemon => !hasCaughtPokemon(pokemon));
+
+										//user caught all pokemon
+										if (uncaughtPokemon.length === 0) {
+											uncaughtPokemon = rows.filter(row => row.isLM !== 3);
+										}
 
 										const randRepelNum = Math.random();
 										if (standardRepel === 'Normal Repel') {
 											if (randRepelNum < 0.5) {
+												message.channel.send('Repel worked successfully.');
 												repelList = uncaughtPokemon;
 											}
 										}
 										else if (standardRepel === 'Super Repel') {
 											if (randRepelNum < 0.75) {
+												message.channel.send('Repel worked successfully.');
 												repelList = uncaughtPokemon;
 											}
 										}
 										else if (standardRepel === 'Max Repel') {
 											if (randRepelNum < 0.9) {
+												message.channel.send('Repel worked successfully.');
 												repelList = uncaughtPokemon;
 											}
 										}
@@ -620,12 +627,21 @@ client.on('messageCreate', (message) => {
 								if (mythicalNumber < 0.005 || m) {
 									isMythical = true;
 								}
+								else if (s && mythicalNumber < 0.025) {
+									isMythical = true;
+								}
 								else if (legendaryNumber < 0.0075 || l) {
+									isLegendary = true;
+								}
+								else if (s && legendaryNumber < 0.05) {
 									isLegendary = true;
 								}
 
 								if (isMythical) {
-									const rowsM = repelList.filter(row => row.isLM === 2);
+									let rowsM = repelList.filter(row => row.isLM === 2);
+									if (rowsM.length === 0) {
+										rowsM = rows.filter(row => row.isLM === 2);
+									}
 									if (rowsM.length > 0) {
 										pokemon = rowsM[getRandomInt(rowsM.length)];
 										embedColor = '#FF96C5';
@@ -635,7 +651,10 @@ client.on('messageCreate', (message) => {
 									}
 								}
 								else if (isLegendary) {
-									const rowsL = repelList.filter(row => row.isLM === 1);
+									let rowsL = repelList.filter(row => row.isLM === 1);
+									if (rowsL.length === 0) {
+										rowsL = rows.filter(row => row.isLM === 1);
+									}
 									if (rowsL.length > 0) {
 										pokemon = rowsL[getRandomInt(rowsL.length)];
 										embedColor = '#66FF00';
@@ -646,7 +665,7 @@ client.on('messageCreate', (message) => {
 								}
 								else {
 									const rowsN = repelList;
-									pokemon = rowsN[getRandomInt(rowsN.length)]; //this is fine
+									pokemon = rowsN[getRandomInt(rowsN.length)];
 									embedColor = '#0099FF';
 									while (pokemon.isLM !== 0) {
 										pokemon = rowsN[getRandomInt(rowsN.length)];
@@ -1271,6 +1290,7 @@ client.on('messageCreate', (message) => {
 						.addFields(
 							{ name: 'ANNOUNCEMENT:', value: 'For any bug found, you may recieve currency in the range 100-5000!' },
 							{ name: 'Updated Shop/Drop:', value: 'Added repels to the store for drops.' },
+							{ name: 'Updated Buy:', value: 'Added quantity option.' },
 							{ name: 'Updated Shop:', value: 'Added various items to the store for pokemon\'s forms.' },
 							{ name: 'Remind Command:', value: 'Added .remind to get notified when your drop is off cooldown.' },
 							{ name: 'Use Command:', value: 'Allows you to use some items on pokemon to change their forms.' },
@@ -3710,6 +3730,17 @@ client.on('messageCreate', (message) => {
 						return;
 					}
 					let shopNum = args[1];
+					let quantityNum = null;
+					if (args.length > 2) {
+						quantityNum = parseInt(args[2], 10);
+					}
+					else {
+						quantityNum = 1;
+					}
+					if (isNaN(quantityNum)) {
+						message.channel.send('Syntax error on quantity, defaulting to 1.');
+						quantityNum = 1;
+					}
 					let isNum = !isNaN(shopNum);
 					if (!isNum || shopNum < 1 || shopNum > 25) {
 						message.channel.send('Please specify a valid shop number. Usage: `.buy <shopNum>`');
@@ -3730,128 +3761,128 @@ client.on('messageCreate', (message) => {
 						if (userCurrency < 500) {
 							message.channel.send('You do not have enough currency to purchase an item.');
 						}
-						else if (shopNum === '1'  && userCurrency >= 1000) {
-							userCurrency -= 1000;
+						else if (shopNum === '1'  && userCurrency >= 1000 * quantityNum) {
+							userCurrency -= (1000 * quantityNum);
 							boughtItem = 'Normal Repel';
 							amount = 1000;
 						}
-						else if (shopNum === '2'  && userCurrency >= 1500) {
-							userCurrency -= 1500;
+						else if (shopNum === '2'  && userCurrency >= 1500 * quantityNum) {
+							userCurrency -= (1500 * quantityNum);
 							boughtItem = 'Super Repel';
 							amount = 1500;
 						}
-						else if (shopNum === '3'  && userCurrency >= 2000) {
-							userCurrency -= 2000;
+						else if (shopNum === '3'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
 							boughtItem = 'Max Repel';
 							amount = 2000;
 						}
-						else if (shopNum === '4'  && userCurrency >= 10000) {
-							userCurrency -= 10000;
+						else if (shopNum === '4'  && userCurrency >= 10000 * quantityNum) {
+							userCurrency -= (10000 * quantityNum);
 							boughtItem = 'Legendary Repel';
 							amount = 10000;
 						}
-						else if (shopNum === '5'  && userCurrency >= 15000) {
-							userCurrency -= 15000;
+						else if (shopNum === '5'  && userCurrency >= 15000 * quantityNum) {
+							userCurrency -= (15000 * quantityNum);
 							boughtItem = 'Mythical Repel';
 							amount = 15000;
 						}
-						else if (shopNum === '6'  && userCurrency >= 20000) {
-							userCurrency -= 20000;
+						else if (shopNum === '6'  && userCurrency >= 20000 * quantityNum) {
+							userCurrency -= (20000 * quantityNum);
 							boughtItem = 'Shiny Repel';
 							amount = 20000;
 						}
-						else if (shopNum === '7'  && userCurrency >= 1000) {
-							userCurrency -= 1000;
+						else if (shopNum === '7'  && userCurrency >= 1000 * quantityNum) {
+							userCurrency -= (1000 * quantityNum);
 							boughtItem = 'Fire Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '8'  && userCurrency >= 1000) {
-							userCurrency -= 1000;
+						else if (shopNum === '8'  && userCurrency >= 1000 * quantityNum) {
+							userCurrency -= (1000 * quantityNum);
 							boughtItem = 'Water Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '9'  && userCurrency >= 1000) {
-							userCurrency -= 1000;
+						else if (shopNum === '9'  && userCurrency >= 1000 * quantityNum) {
+							userCurrency -= (1000 * quantityNum);
 							boughtItem = 'Thunder Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '10'  && userCurrency >= 1000) {
-							userCurrency -= 1000;
+						else if (shopNum === '10'  && userCurrency >= 1000 * quantityNum) {
+							userCurrency -= (1000 * quantityNum);
 							boughtItem = 'Leaf Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '11'  && userCurrency >= 1000) {
-							userCurrency -= 1000;
+						else if (shopNum === '11'  && userCurrency >= 1000 * quantityNum) {
+							userCurrency -= (1000 * quantityNum);
 							boughtItem = 'Moon Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '12'  && userCurrency >= 1000) {
-							userCurrency -= 1000;
+						else if (shopNum === '12'  && userCurrency >= 1000 * quantityNum) {
+							userCurrency -= (1000 * quantityNum);
 							boughtItem = 'Sun Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '13'  && userCurrency >= 1000) {
-							userCurrency -= 1000;
+						else if (shopNum === '13'  && userCurrency >= 1000 * quantityNum) {
+							userCurrency -= (1000 * quantityNum);
 							boughtItem = 'Shiny Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '14'  && userCurrency >= 1000) {
-							userCurrency -= 1000;
+						else if (shopNum === '14'  && userCurrency >= 1000 * quantityNum) {
+							userCurrency -= (1000 * quantityNum);
 							boughtItem = 'Dusk Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '15'  && userCurrency >= 1000) {
-							userCurrency -= 1000;
+						else if (shopNum === '15'  && userCurrency >= 1000 * quantityNum) {
+							userCurrency -= (1000 * quantityNum);
 							boughtItem = 'Dawn Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '16'  && userCurrency >= 1000) {
-							userCurrency -= 1000;
+						else if (shopNum === '16'  && userCurrency >= 1000 * quantityNum) {
+							userCurrency -= (1000 * quantityNum);
 							boughtItem = 'Ice Stone';
 							amount = 1000;
 						}
-						else if (shopNum === '17'  && userCurrency >= 500) {
-							userCurrency -= 500;
+						else if (shopNum === '17'  && userCurrency >= 500 * quantityNum) {
+							userCurrency -= (500 * quantityNum);
 							boughtItem = 'Defaulter';
 							amount = 500;
 						}
-						else if (shopNum === '18'  && userCurrency >= 2000) {
-							userCurrency -= 2000;
+						else if (shopNum === '18'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
 							boughtItem = 'Stove';
 							amount = 2000;
 						}
-						else if (shopNum === '19'  && userCurrency >= 2000) {
-							userCurrency -= 2000;
+						else if (shopNum === '19'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
 							boughtItem = 'Washing Machine';
 							amount = 2000;
 						}
-						else if (shopNum === '20'  && userCurrency >= 2000) {
-							userCurrency -= 2000;
+						else if (shopNum === '20'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
 							boughtItem = 'Fridge';
 							amount = 2000;
 						}
-						else if (shopNum === '21'  && userCurrency >= 2000) {
-							userCurrency -= 2000;
+						else if (shopNum === '21'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
 							boughtItem = 'Gracidea Flower';
 							amount = 2000;
 						}
-						else if (shopNum === '22'  && userCurrency >= 2000) {
-							userCurrency -= 2000;
+						else if (shopNum === '22'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
 							boughtItem = 'Reveal Glass';
 							amount = 2000;
 						}
-						else if (shopNum === '23'  && userCurrency >= 2000) {
-							userCurrency -= 2000;
+						else if (shopNum === '23'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
 							boughtItem = 'White DNA Splicer';
 							amount = 2000;
 						}
-						else if (shopNum === '24'  && userCurrency >= 2000) {
-							userCurrency -= 2000;
+						else if (shopNum === '24'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
 							boughtItem = 'Black DNA Splicer';
 							amount = 2000;
 						}
-						else if (shopNum === '25' && userCurrency >= 500) {
-							userCurrency -= 500;
+						else if (shopNum === '25' && userCurrency >= 500 * quantityNum) {
+							userCurrency -= (500 * quantityNum);
 							boughtItem = 'Rare Candy';
 							amount = 500;
 						}
@@ -3862,7 +3893,7 @@ client.on('messageCreate', (message) => {
 							const embed = new EmbedBuilder()
 							.setColor('#ff0000')
 							.setTitle('Buy Item')
-							.setDescription(`Really buy ${boughtItem} for ${amount}? Leftover currency after transaction: ${userCurrency}`)
+							.setDescription(`Really buy ${quantityNum} ${boughtItem}(s) for ${quantityNum * amount}? Leftover currency after transaction: ${userCurrency}`)
 							.setTimestamp();
 
 							const buttonRow = new ActionRowBuilder()
@@ -3885,12 +3916,14 @@ client.on('messageCreate', (message) => {
 									try {
 										if (i.customId === 'buy_yes') {
 											const userInventory = JSON.parse(row.inventory);
-											userInventory.push(boughtItem);
+											for (let i = 0; i < quantityNum; i++) {
+												userInventory.push(boughtItem);
+											}
 											dbUser.run("UPDATE user SET inventory = ?, currency = ? WHERE user_id = ?", [JSON.stringify(userInventory), userCurrency, userId], (err) => {
 												if (err) {
 													console.error(err.message);
 												}
-												i.update({ content: `Successfully purchased ${boughtItem} for ${amount}. You have ${userCurrency} leftover.`, embeds: [], components: [] });
+												i.update({ content: `Successfully purchased ${quantityNum} ${boughtItem}(s) for ${quantityNum * amount}. You have ${userCurrency} leftover.`, embeds: [], components: [] });
 											});
 										} 
 										else if (i.customId === 'buy_no') {
@@ -3977,7 +4010,7 @@ client.on('messageCreate', (message) => {
 										page = Math.ceil(userInventory.length / pageSize) - 1;;
 									}
 	
-									await i.update({ embeds: [generatePartyEmbed(userInventory, page, pageSize, `Your Pokémon`, 0)] });
+									await i.update({ embeds: [generatePartyEmbed(userInventory, page, pageSize, `Your Inventory`, 0)] });
 								} catch (error) {
 									if (error.code === 10008) {
 										console.log('The message was deleted before the interaction was handled.');
@@ -4243,7 +4276,7 @@ client.on('messageCreate', (message) => {
 									console.error('Error updating user inventory:', err.message);
 									return;
 								}
-								message.channel.send('Repel Activated.');
+								message.channel.send(`${selectedItem} Activated.`);
 							});
 						});
 					}
@@ -4280,7 +4313,7 @@ client.on('messageCreate', (message) => {
 							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
 							{ name: '.inventory (.i)', value: 'Displays the items in your inventory.' },
 							{ name: '.shop (.s)', value: 'Displays the global shop.' },
-							{ name: '.buy <shopNum> (.b)', value: 'Buys an item from the shop.' + '\n' + 'Example: .buy 1' },
+							{ name: '.buy <shopNum> <quantity> (.b)', value: 'Buys an item from the shop. If a quantity is supplied, buys that many.' + '\n' + 'Example: .buy 1 5' },
 							{ name: '.hint (.h)', value: 'Gives a hint for the currently dropped Pokémon.' }
 						)
 						.setTimestamp(),
