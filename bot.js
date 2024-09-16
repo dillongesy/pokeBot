@@ -156,7 +156,7 @@ function getDisablePartyBtns() {
 }
 
 //Helper function, .dex Embed Generator
-function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, genders) {
+function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, genders, caughtCount) {
 	const shinyImageLinks = JSON.parse(pokemonRow.shinyImageLinks);
 	const imgLinks = JSON.parse(pokemonRow.imageLinks);
 
@@ -166,6 +166,7 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, ge
 	let type1Field = '';
 	let type2Field = '';
 	let genderRatio = '';
+	let ownedVar = '';
 	if (formTypes.formFound === true) {
 		type1Field = formTypes.type1;
 		type2Field = formTypes.type2 ? ` / ${formTypes.type2}` : '';
@@ -200,6 +201,13 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, ge
 		genderRatio = 'Unknown';
 	}
 
+	if (caughtCount === 0) {
+		ownedVar = 'Not owned';
+	}
+	else {
+		ownedVar = `${caughtCount}`;
+	}
+
 	return new EmbedBuilder()
 		.setColor('#0099ff')
 		.setTitle(`${pokemonRow.name} - #${dexNumber} ${selectedForm}`)
@@ -207,6 +215,7 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, ge
 			{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
 			{ name: 'Region', value: `${pokemonRow.region}`, inline: true },
 			{ name: 'Gender Ratio', value: `${genderRatio}`, inline: true },
+			{ name: 'Owned:', value: `${ownedVar}`, inline: true },
 		)
 		.setImage(imageLink)
 		.setTimestamp();
@@ -451,7 +460,7 @@ const viewChannelCommandRegex = /^\.(viewchannels)\b/;
 const resetChannelCommandRegex = /^\.(resetchannels)\b/;
 const viewCommandRegex = /^\.(view|v)\b/;
 const partyCommandRegex = /^\.(party|p)\b/;
-const currencyCommandRegex = /^\.(currency|c)\b/;
+const currencyCommandRegex = /^\.(currency|c|bal)\b/;
 const helpCommandRegex = /^\.(help)\b/;
 const hintCommandRegex = /^\.(hint|h)\b/;
 const releaseCommandRegex = /^\.(release|r)\b/;
@@ -463,7 +472,6 @@ const countCommandRegex = /^\.(count)\b/;
 const shopCommandRegex = /^\.(shop|s)\b/;
 const buyCommandRegex = /^\.(buy|b)\b/;
 const inventoryCommandRegex = /^\.(inventory|i)\b/;
-const forceShinySpawnRegex = /^\.(shinydrop)\b/;
 const giveCCmdRegex = /^\.(give)\b/; //For people who find bugs
 const changeLogRegex = /^\.(changelog|log)\b/;
 const orderCommandRegex = /^\.(order|sort|o)\b/;
@@ -534,6 +542,7 @@ client.on('messageCreate', (message) => {
 								message.channel.send('An error occurred while fetching the Pokémon.');
 								return;
 							}
+
 							if (rows.length > 0) {
 								const shinyNumber = Math.random();
 								let isShiny = false;
@@ -561,6 +570,19 @@ client.on('messageCreate', (message) => {
 									if (userRepels.rare) {
 										rareRepel = userRepels.rare;
 									}
+
+									if (rareRepel) {
+										if (rareRepel === 'Legendary Repel') {
+											l = true;
+										}
+										else if (rareRepel === 'Mythical Repel') {
+											m = true;
+										}
+										else if (rareRepel === 'Shiny Repel') {
+											s = true;
+										}
+									}
+
 									if (standardRepel) {
 										const hasCaughtPokemon = (pokemon) => {
 											if (pokemon.name === 'Nidoran') {
@@ -579,9 +601,17 @@ client.on('messageCreate', (message) => {
 										};
 
 										let uncaughtPokemon = repelList.filter(pokemon => !hasCaughtPokemon(pokemon));
+										if (l) {
+											uncaughtPokemon = uncaughtPokemon.filter(pokemon => pokemon.isLM == 1);
+										}
+										else if (m) {
+											uncaughtPokemon = uncaughtPokemon.filter(pokemon => pokemon.isLM == 2);
+										}
+
 
 										//user caught all pokemon
 										if (uncaughtPokemon.length === 0) {
+											message.channel.send('You have caught all pokemon, repel will be given back.');
 											uncaughtPokemon = rows.filter(row => row.isLM !== 3);
 										}
 
@@ -606,26 +636,15 @@ client.on('messageCreate', (message) => {
 										}
 									}
 
-									if (rareRepel) {
-										if (rareRepel === 'Legendary Repel') {
-											l = true;
-										}
-										else if (rareRepel === 'Mythical Repel') {
-											m = true;
-										}
-										else if (rareRepel === 'Shiny Repel') {
-											s = true;
-										}
-									}
-
 									activeUserRepels.delete(userId);
 								}
 
 								if (shinyNumber < 0.00025 || s) {
 									isShiny = true;
 								}
-								if (mythicalNumber < 0.005 || m) {
-									isMythical = true;
+
+								if ((mythicalNumber < 0.005 || m) && !l) {
+										isMythical = true;
 								}
 								else if (s && mythicalNumber < 0.025) {
 									isMythical = true;
@@ -664,7 +683,10 @@ client.on('messageCreate', (message) => {
 									}
 								}
 								else {
-									const rowsN = repelList;
+									let rowsN = repelList.filter(row => row.isLM !== 2 && row.isLM !== 1);
+									if (rowsN.length === 0) {
+										rowsN = rows.filter(row => row.isLM !== 3 && row.isLM !== 2 && row.isLM !== 1);
+									}
 									pokemon = rowsN[getRandomInt(rowsN.length)];
 									embedColor = '#0099FF';
 									while (pokemon.isLM !== 0) {
@@ -753,6 +775,81 @@ client.on('messageCreate', (message) => {
 								message.channel.send('No Pokémon found in the database.');
 							}
 						});
+					});
+				});
+			}
+
+			//FOR DEV USE ONLY
+			else if(message.content.toLowerCase() === '.filldex' && userId === '177580797165961216') {
+				dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, rows) => {
+					if (err) {
+						console.error(err.message);
+						message.channel.send('An error occurred while fetching your Pokémon.');
+						return;
+					}
+					db.all("SELECT * FROM pokemon", [], (err, allPokemonList) => {
+						if (err) {
+							console.error(err.message);
+							message.channel.send('An error occurred while fetching Pokémon data.');
+							return;
+						}
+						let allList = allPokemonList.filter(row => row.isLM !== 3);
+						let userMons = JSON.parse(rows.caught_pokemon);
+						for(let i = 0; i < allList.length; i++) {
+							let pokemon = allList[i];
+							const genders = JSON.parse(pokemon.gender);
+							let randomPercentage = Math.random() * 100;
+							let selectGender;
+							let cumulativePercentage = 0;
+							for (const gender of genders) {
+								cumulativePercentage += gender.percentage;
+								if (randomPercentage <= cumulativePercentage) {
+									selectGender = gender;
+									break;
+								}
+							}
+
+							const forms = JSON.parse(pokemon.forms);
+							randomPercentage = Math.random() * 100;
+							let selectForm;
+							cumulativePercentage = 0;
+							for (const form of forms) {
+								cumulativePercentage += form.percentage;
+								if (randomPercentage <= cumulativePercentage) {
+									selectForm = form;
+									break;
+								}
+							}
+
+							if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
+								selectGender = {
+									name: 'Male',
+									percentage: selectGender.percentage
+								};
+							}
+							else if (selectGender.name === 'Male' && selectForm.name.includes('(F)')) {
+								selectGender = {
+									name: 'Female',
+									percentage: selectForm.percentage
+								};
+							}
+
+							if (selectForm.name.includes('(F)') || selectForm.name.includes('(M)')) {
+								selectForm = {
+									name: selectForm.name.substring(0, selectForm.name.length - 4),
+									percentage: selectForm.percentage
+								};
+							}
+
+							userMons.push({ name: pokemon.name, gender: selectForm.name, form: selectForm.name });
+						}
+
+						dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(userMons), userId], (err) => {
+							if (err) {
+								console.error(err.message);
+							}
+							message.channel.send('Gave you all pokemon.');
+						})
 					});
 				});
 			}
@@ -1944,226 +2041,276 @@ client.on('messageCreate', (message) => {
 							return;
 						}
 					}
-					db.all("SELECT * FROM pokemon", [], (err, pokeList) => {
-						if (err) {
+					dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (error, rows) => {
+						if (error) {
 							console.error(err.message);
 							message.channel.send('An error occurred while fetching Pokémon information.');
 							return;
 						}
-						let index = 0;
-						let curMon = '';
-						const result = pokeList.find(({ name }) => name === pokemonIdentifier);
-						if (!isNumber) {
-							if (result != null) {
-								index = result.dexNum;
-								if (isNaN(index.substring(index.length - 1, index.length))) {
-									index = index.substring(0, index.length - 1);
-								}
-								curMon = pokeList[index - 1];
-							}
-							else {
-								message.channel.send('Pokémon not found in the pokedex.');
+						if (!rows) {
+							rows = { user_id: userId, caught_pokemon: JSON.stringify([{name: "Filler", gender: "Filler", form: "Filler"}])};
+						}
+						const userCaughtPokemon = JSON.parse(rows.caught_pokemon);
+						db.all("SELECT * FROM pokemon", [], (err, pokeList) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching Pokémon information.');
 								return;
 							}
-						}
-						else {
-							index = pokemonIdentifier;
-							curMon = pokeList[index - 1];
-						}
-
-						if (!curMon) {
-							message.channel.send('Syntax error occurred, try again.');
-							return;
-						}
-						let shinyImg = false;
-
-						let selectedForm = 'default'; // Default form selection
-						let forms = JSON.parse(curMon.forms);
-						let genders = JSON.parse(curMon.gender);
-
-						if (forms.length > 0) {
-							if (forms[0].name.toLowerCase() !== 'default') {
-								selectedForm = forms[0].name;
+							let index = 0;
+							let curMon = '';
+							const result = pokeList.find(({ name }) => name === pokemonIdentifier);
+							let inUser;
+							if (!isNumber) {
+								if (result != null) {
+									index = result.dexNum;
+									if (isNaN(index.substring(index.length - 1, index.length))) {
+										index = index.substring(0, index.length - 1);
+									}
+									curMon = pokeList[index - 1];
+									if (curMon.name === 'Nidoran') {
+										inUser = userCaughtPokemon.filter(pokemon => pokemon.name === curMon.name && pokemon.gender === 'Female');
+									}
+									else {
+										inUser = userCaughtPokemon.filter(pokemon => pokemon.name === curMon.name);
+									}
+								}
+								else {
+									message.channel.send('Pokémon not found in the pokedex.');
+									return;
+								}
 							}
 							else {
-								selectedForm = '';
+								index = pokemonIdentifier;
+								curMon = pokeList[index - 1];
+								if (index === 29) {
+									inUser = userCaughtPokemon.filter(pokemon => pokemon.name === curMon.name && pokemon.gender === 'Female');
+								}
+								else if (index === 32) {
+									inUser = userCaughtPokemon.filter(pokemon => pokemon.name === curMon.name && pokemon.gender === 'Male');
+								}
+								else {
+									inUser = userCaughtPokemon.filter(pokemon => pokemon.name === curMon.name);
+								}
 							}
-						}
-						let formSelectMenu = new Discord.StringSelectMenuBuilder()
-							.setCustomId('formSelect')
-							.setPlaceholder('Select a Form')
-							.addOptions(
-								forms.slice(0, 25).map(form => ({
-									label: form.name,
-									value: form.name,
-								}))
-							);
-						
-						let embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders);
-
-						let shinyButtonStyle = shinyImg ? ButtonStyle.Danger : ButtonStyle.Primary;
-						
-						let buttonRow = new ActionRowBuilder()
-							.addComponents(
-								new ButtonBuilder()
-									.setCustomId('prev')
-									.setLabel('◀')
-									.setStyle(ButtonStyle.Primary),
-								new ButtonBuilder()
-									.setCustomId('shinyBtn')
-									.setLabel('✨')
-									.setStyle(shinyButtonStyle),
-								new ButtonBuilder()
-									.setCustomId('next')
-									.setLabel('▶')
-									.setStyle(ButtonStyle.Primary)
-							);
-
-						message.channel.send({ 
-							embeds: [embed], 
-							components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow],
-						}).then(sentMessage => {
-							const filter = i => i.user.id === userId;
-							const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
-
-							collector.on('collect', async i => {
-								try {
-									if (i.customId === 'prev') {
-										let prevDexNum = curMon.dexNum - 2;
-										if (prevDexNum < 0) {
-											prevDexNum = maxDexNum - 1;
-										}
-										curMon = pokeList[prevDexNum];
 	
-										forms = JSON.parse(curMon.forms);
-										if (forms.length > 0) {
-											if (forms[0].name.toLowerCase() !== 'default') {
-												selectedForm = forms[0].name;
+							if (!curMon) {
+								message.channel.send('Syntax error occurred, try again.');
+								return;
+							}
+							let shinyImg = false;
+	
+							let selectedForm = 'default'; // Default form selection
+							let forms = JSON.parse(curMon.forms);
+							let genders = JSON.parse(curMon.gender);
+
+							let caughtCount = inUser.length || 0;
+	
+							if (forms.length > 0) {
+								if (forms[0].name.toLowerCase() !== 'default') {
+									selectedForm = forms[0].name;
+								}
+								else {
+									selectedForm = '';
+								}
+							}
+							let formSelectMenu = new Discord.StringSelectMenuBuilder()
+								.setCustomId('formSelect')
+								.setPlaceholder('Select a Form')
+								.addOptions(
+									forms.slice(0, 25).map(form => ({
+										label: form.name,
+										value: form.name,
+									}))
+								);
+							
+							let embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, caughtCount);
+	
+							let shinyButtonStyle = shinyImg ? ButtonStyle.Danger : ButtonStyle.Primary;
+							
+							let buttonRow = new ActionRowBuilder()
+								.addComponents(
+									new ButtonBuilder()
+										.setCustomId('prev')
+										.setLabel('◀')
+										.setStyle(ButtonStyle.Primary),
+									new ButtonBuilder()
+										.setCustomId('shinyBtn')
+										.setLabel('✨')
+										.setStyle(shinyButtonStyle),
+									new ButtonBuilder()
+										.setCustomId('next')
+										.setLabel('▶')
+										.setStyle(ButtonStyle.Primary)
+								);
+	
+							message.channel.send({ 
+								embeds: [embed], 
+								components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow],
+							}).then(sentMessage => {
+								const filter = i => i.user.id === userId;
+								const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+	
+								collector.on('collect', async i => {
+									try {
+										if (i.customId === 'prev') {
+											let prevDexNum = curMon.dexNum - 2;
+											if (prevDexNum < 0) {
+												prevDexNum = maxDexNum - 1;
+											}
+											curMon = pokeList[prevDexNum];
+		
+											forms = JSON.parse(curMon.forms);
+											if (forms.length > 0) {
+												if (forms[0].name.toLowerCase() !== 'default') {
+													selectedForm = forms[0].name;
+												}
+												else {
+													selectedForm = '';
+												}
+											}
+											genders = JSON.parse(curMon.gender);
+											
+											if (prevDexNum === 28) {
+												inUser = userCaughtPokemon.filter(pokemon => pokemon.name === curMon.name && pokemon.gender === 'Female');
+											}
+											else if (prevDexNum === 31) {
+												inUser = userCaughtPokemon.filter(pokemon => pokemon.name === curMon.name && pokemon.gender === 'Male');
 											}
 											else {
-												selectedForm = '';
+												inUser = userCaughtPokemon.filter(pokemon => pokemon.name === curMon.name);
 											}
-										}
-										genders = JSON.parse(curMon.gender);
-	
-										formSelectMenu = new Discord.StringSelectMenuBuilder()
-											.setCustomId('formSelect')
-											.setPlaceholder('Select a Form')
-											.addOptions(
-												forms.slice(0, 25).map(form => ({
-													label: form.name,
-													value: form.name,
-												}))
-											);
-	
-										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders);
-										i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
-										
-									} 
-									else if (i.customId === 'next') {
-										let nextDexNum = curMon.dexNum;
-										if (nextDexNum > maxDexNum - 1) {
-											nextDexNum = 0;
-										}
-										curMon = pokeList[nextDexNum];
-	
-										forms = JSON.parse(curMon.forms);
-										if (forms.length > 0) {
-											if (forms[0].name.toLowerCase() !== 'default') {
-												selectedForm = forms[0].name;
+											caughtCount = inUser.length || 0;
+		
+											formSelectMenu = new Discord.StringSelectMenuBuilder()
+												.setCustomId('formSelect')
+												.setPlaceholder('Select a Form')
+												.addOptions(
+													forms.slice(0, 25).map(form => ({
+														label: form.name,
+														value: form.name,
+													}))
+												);
+		
+											embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, caughtCount);
+											i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
+											
+										} 
+										else if (i.customId === 'next') {
+											let nextDexNum = curMon.dexNum;
+											if (nextDexNum > maxDexNum - 1) {
+												nextDexNum = 0;
+											}
+											curMon = pokeList[nextDexNum];
+		
+											forms = JSON.parse(curMon.forms);
+											if (forms.length > 0) {
+												if (forms[0].name.toLowerCase() !== 'default') {
+													selectedForm = forms[0].name;
+												}
+												else {
+													selectedForm = '';
+												}
+											}
+											genders = JSON.parse(curMon.gender);
+											if (nextDexNum === '28') {
+												inUser = userCaughtPokemon.filter(pokemon => pokemon.name === curMon.name && pokemon.gender === 'Female');
+											}
+											else if (nextDexNum === '31') {
+												inUser = userCaughtPokemon.filter(pokemon => pokemon.name === curMon.name && pokemon.gender === 'Male');
 											}
 											else {
+												inUser = userCaughtPokemon.filter(pokemon => pokemon.name === curMon.name);
+											}
+											caughtCount = inUser.length || 0;
+	
+											formSelectMenu = new Discord.StringSelectMenuBuilder()
+												.setCustomId('formSelect')
+												.setPlaceholder('Select a Form')
+												.addOptions(
+													forms.slice(0, 25).map(form => ({
+														label: form.name,
+														value: form.name,
+													}))
+												);
+		
+											embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, caughtCount);
+											i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
+										} 
+										else if (i.customId === 'shinyBtn') {
+											shinyImg = !shinyImg;
+											shinyButtonStyle = shinyImg ? ButtonStyle.Danger: ButtonStyle.Primary;
+											buttonRow = new ActionRowBuilder()
+												.addComponents(
+													new ButtonBuilder()
+														.setCustomId('prev')
+														.setLabel('◀')
+														.setStyle(ButtonStyle.Primary),
+													new ButtonBuilder()
+														.setCustomId('shinyBtn')
+														.setLabel('✨')
+														.setStyle(shinyButtonStyle),
+													new ButtonBuilder()
+														.setCustomId('next')
+														.setLabel('▶')
+														.setStyle(ButtonStyle.Primary)
+												);
+	
+											embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, caughtCount);
+											i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
+										}
+										else if (i.customId === 'formSelect') {
+											selectedForm = i.values[0];
+											if (selectedForm.toLowerCase() === 'default') {
 												selectedForm = '';
 											}
+											embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, caughtCount);
+											i.update({ embeds: [embed] });
 										}
-										genders = JSON.parse(curMon.gender);
-
-										formSelectMenu = new Discord.StringSelectMenuBuilder()
-											.setCustomId('formSelect')
-											.setPlaceholder('Select a Form')
-											.addOptions(
-												forms.slice(0, 25).map(form => ({
-													label: form.name,
-													value: form.name,
-												}))
-											);
+									} catch (error) {
+										if (error.code === 10008) {
+											console.log('The message was deleted before the interaction was handled.');
+										}
+										else {
+											console.error('An unexpected error occurred:', error);
+										}
+									}
+								});
 	
-										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders);
-										i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
-									} 
-									else if (i.customId === 'shinyBtn') {
-										shinyImg = !shinyImg;
-										shinyButtonStyle = shinyImg ? ButtonStyle.Danger: ButtonStyle.Primary;
-										buttonRow = new ActionRowBuilder()
+								collector.on('end', async () => {
+									try {
+										const disabledRow = new ActionRowBuilder()
 											.addComponents(
 												new ButtonBuilder()
 													.setCustomId('prev')
 													.setLabel('◀')
-													.setStyle(ButtonStyle.Primary),
+													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true),
 												new ButtonBuilder()
 													.setCustomId('shinyBtn')
 													.setLabel('✨')
-													.setStyle(shinyButtonStyle),
+													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true),
 												new ButtonBuilder()
 													.setCustomId('next')
 													.setLabel('▶')
 													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true)
+												
 											);
-
-										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders);
-										i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
-									}
-									else if (i.customId === 'formSelect') {
-										selectedForm = i.values[0];
-										if (selectedForm.toLowerCase() === 'default') {
-											selectedForm = '';
+										await sentMessage.edit({ components: [disabledRow] });
+									} catch (error) {
+										if (error.code === 10008) {
+											console.log('The message was deleted before the interaction was handled.');
 										}
-										embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders);
-										i.update({ embeds: [embed] });
+										else {
+											console.error('An unexpected error occurred:', error);
+										}
 									}
-								} catch (error) {
-									if (error.code === 10008) {
-										console.log('The message was deleted before the interaction was handled.');
-									}
-									else {
-										console.error('An unexpected error occurred:', error);
-									}
-								}
+								});
+							}).catch (err => {
+								console.error('Error sending the dex message:', err);
 							});
-
-							collector.on('end', async () => {
-								try {
-									const disabledRow = new ActionRowBuilder()
-										.addComponents(
-											new ButtonBuilder()
-												.setCustomId('prev')
-												.setLabel('◀')
-												.setStyle(ButtonStyle.Primary)
-												.setDisabled(true),
-											new ButtonBuilder()
-												.setCustomId('shinyBtn')
-												.setLabel('✨')
-												.setStyle(ButtonStyle.Primary)
-												.setDisabled(true),
-											new ButtonBuilder()
-												.setCustomId('next')
-												.setLabel('▶')
-												.setStyle(ButtonStyle.Primary)
-												.setDisabled(true)
-											
-										);
-									await sentMessage.edit({ components: [disabledRow] });
-								} catch (error) {
-									if (error.code === 10008) {
-										console.log('The message was deleted before the interaction was handled.');
-									}
-									else {
-										console.error('An unexpected error occurred:', error);
-									}
-								}
-							});
-						}).catch (err => {
-							console.error('Error sending the dex message:', err);
 						});
 					});
 				});
