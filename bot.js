@@ -478,6 +478,8 @@ const orderCommandRegex = /^\.(order|sort|o)\b/;
 const uncaughtCommandRegex = /^\.(uncaught|u)\b/;
 const remindCommandRegex = /^\.(remind)\b/;
 const useCommandRegex = /^\.(use)\b/;
+const compareCommandRegex = /^\.(compare)\b/;
+const teamCommandRegex = /^\.(team)\b/;
 
 const maxDexNum = 649; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
@@ -779,7 +781,7 @@ client.on('messageCreate', (message) => {
 				});
 			}
 
-			//FOR DEV USE ONLY
+			//FOR DEV USE ONLY, doesn't work for nidoran for some reason
 			else if(message.content.toLowerCase() === '.filldex' && userId === '177580797165961216') {
 				dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, rows) => {
 					if (err) {
@@ -1091,7 +1093,7 @@ client.on('messageCreate', (message) => {
 						}
 						
 						const messageText = isShinyVar
-							? `Added ✨${formName}${curMonName} ${genderSymbol}to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
+							? `Added ✨${formName}${curMonName} \`${genderSymbol}\` to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
 							: `Added ${formName}${curMonName} ${genderSymbol}to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
 						
 						message.channel.send(messageText);
@@ -1386,14 +1388,15 @@ client.on('messageCreate', (message) => {
 						.setDescription('Recently added Changes')
 						.addFields(
 							{ name: 'ANNOUNCEMENT:', value: 'For any bug found, you may recieve currency in the range 100-5000!' },
+							{ name: 'Add .team:', value: 'Allows users to look at the first 6 of someone else\'s party.' },
+							{ name: 'Add .compare:', value: 'Allows users to see what pokemon a user has compared to what they don\'t have.' },
+							{ name: 'Dex Update:', value: 'Added how many you own when you look at pokemon in .dex.' },
+							{ name: 'Repel Exploit:', value: 'Fixed a repel exploit where users had the dex filled out, forcing a mythical.' },
 							{ name: 'Updated Shop/Drop:', value: 'Added repels to the store for drops.' },
 							{ name: 'Updated Buy:', value: 'Added quantity option.' },
 							{ name: 'Updated Shop:', value: 'Added various items to the store for pokemon\'s forms.' },
 							{ name: 'Remind Command:', value: 'Added .remind to get notified when your drop is off cooldown.' },
 							{ name: 'Use Command:', value: 'Allows you to use some items on pokemon to change their forms.' },
-							{ name: 'Server Leaderboard:', value: 'Added server leaderboards for all sub commands.' },
-							{ name: 'Uncaught Command:', value: 'Added a command to view all your uncaught pokemon.' },
-							{ name: 'BOINGO:', value: 'BOINGO BOINGO BOINGO BOINGO BOINGO' }
 						)
 						.setTimestamp();
 
@@ -3181,6 +3184,353 @@ client.on('messageCreate', (message) => {
 				});
 			}
 
+			//compare
+			else if (compareCommandRegex.test(message.content.toLowerCase())) {
+				//syntax: .compare <userName>
+				const args = message.content.split(' ').slice(1);
+				const userRegex = /^<@\d+>|<@!\d+>$/;
+				if (!userRegex.test(args[0])) {
+					message.channel.send("You must @ a user to compare.");
+					return;
+				}
+				let tag = args[0].substring(2, args[0].length - 1);
+				dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, cmdUser) => {
+					if (err) {
+						console.error(err);
+						return;
+					}
+					if (!cmdUser) {
+						message.channel.send('Catch a pokemon to use this command.');
+						return;
+					}
+					const cmdUserCaughtPokemon = cmdUser && cmdUser.caught_pokemon ? JSON.parse(cmdUser.caught_pokemon).flat().map(p => ({
+						name: p.name.startsWith('✨') ? p.name.slice(1) : p.name,
+						gender: p.gender
+					})) : [];
+
+					dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [tag], (err2, tagUser) => {
+						if (err2) {
+							console.error(err2);
+							return;
+						}
+						if (!tagUser) {
+							message.channel.send('Target user has not caught any pokemon yet.');
+							return;
+						}
+						const tagUserCaughtPokemon = tagUser && tagUser.caught_pokemon ? JSON.parse(tagUser.caught_pokemon).flat().map(p => ({
+							name: p.name.startsWith('✨') ? p.name.slice(1) : p.name,
+							gender: p.gender
+						})) : [];
+
+						db.all("SELECT name, dexNum, isLM, gender FROM pokemon WHERE isLM != 3", [], async (err, allPokemonList) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching the Pokémon database.');
+								return;
+							}
+							if (!allPokemonList) {
+								console.message('No Pokémon in database.');
+								return;
+							}
+
+							const hasCaughtPokemon = (pokemon) => {
+								if (pokemon.name === 'Nidoran') {
+									if (pokemon.dexNum === '29') {
+										return cmdUserCaughtPokemon.some(cp => cp.name === 'Nidoran' && cp.gender === 'Female');
+									} else if (pokemon.dexNum === '32') {
+										return cmdUserCaughtPokemon.some(cp => cp.name === 'Nidoran' && cp.gender === 'Male');
+									}
+								}
+								return cmdUserCaughtPokemon.some(cp => cp.name === pokemon.name);
+							};
+
+							const hasCaughtPokemon2 = (pokemon) => {
+								if (pokemon.name === 'Nidoran') {
+									if (pokemon.dexNum === '29') {
+										return tagUserCaughtPokemon.some(cp => cp.name === 'Nidoran' && cp.gender === 'Female');
+									} else if (pokemon.dexNum === '32') {
+										return tagUserCaughtPokemon.some(cp => cp.name === 'Nidoran' && cp.gender === 'Male');
+									}
+								}
+								return tagUserCaughtPokemon.some(cp => cp.name === pokemon.name);
+							};
+
+							const uncaughtPokemon = allPokemonList.filter(pokemon => !hasCaughtPokemon(pokemon));
+
+							const caughtPokemon = allPokemonList.filter(pokemon => hasCaughtPokemon2(pokemon));
+
+							if (uncaughtPokemon.length === 0) {
+								message.channel.send('You have caught all available Pokémon!');
+                    			return;
+							}
+
+							const matchingPokemon = caughtPokemon.filter(caught =>
+								uncaughtPokemon.some(uncaught =>
+									uncaught.name === caught.name && uncaught.dexNum === caught.dexNum
+								)
+							);
+
+							if (matchingPokemon.length === 0) {
+								message.channel.send('The other user has no pokemon you don\'t own.');
+                    			return;
+							}
+
+							const pageSize = 20;
+							let page = 0;
+
+							const generateUncaughtEmbed = async (compareList, page, pageSize) => {
+								const start = page * pageSize;
+								const end = start + pageSize;
+								const pageData = compareList.slice(start, end);
+
+								const tagName = await client.users.fetch(tag)
+									.then(user => user.username)
+									.catch(err => {
+										console.error('An error occurred while fetching the tagged person\'s username');
+										return 'User';
+									});
+
+								return new EmbedBuilder()
+									.setColor('#0099ff')
+									.setTitle(`${tagName}'s pokemon you don't own.`)
+									.setDescription(pageData.map((pokemon) => {
+										// Display gender for Nidoran only
+										if (pokemon.name === 'Nidoran' && pokemon.dexNum === '29') {
+											return `\`${pokemon.dexNum}\` ${pokemon.name} (♀)`;
+										}
+										if (pokemon.name === 'Nidoran' && pokemon.dexNum === '32') {
+											return `\`${pokemon.dexNum}\` ${pokemon.name} (♂)`;
+										}
+										return `\`${pokemon.dexNum}\` ${pokemon.name}`;
+									}).join('\n'))
+									.setFooter({ text: `Page ${page + 1} of ${Math.ceil(compareList.length / pageSize)}` })
+									.setTimestamp();
+							};
+
+							const buttonRow = new ActionRowBuilder()
+								.addComponents(
+									new ButtonBuilder()
+										.setCustomId('prevPage')
+										.setLabel('◀')
+										.setStyle(ButtonStyle.Primary),
+									new ButtonBuilder()
+										.setCustomId('nextPage')
+										.setLabel('▶')
+										.setStyle(ButtonStyle.Primary)
+								);
+							const embed = await generateUncaughtEmbed(matchingPokemon, page, pageSize);
+
+							message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+								const filter = i => i.user.id === userId;
+								const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+								collector.on('collect', async i => {
+									try {
+										if (i.customId === 'prevPage') {
+											page = page - 1;
+											if (page < 0) {
+												page = Math.ceil(matchingPokemon.length / pageSize) - 1;
+											}
+										}
+										else if (i.customId === 'nextPage') {
+											page = page + 1;
+											if (page > Math.ceil(matchingPokemon.length / pageSize) - 1) {
+												page = 0;
+											}
+										}
+
+										const updatedEmbed = await generateUncaughtEmbed(matchingPokemon, page, pageSize);
+										await i.update({ embeds: [updatedEmbed] });
+									} catch (error) {
+										if (error.code === 10008) {
+											console.log('The message was deleted before the interaction was handled.');
+										}
+										else {
+											console.error('An unexpected error occurred:', error);
+										}
+									}
+								});
+
+								collector.on('end', async () => {
+									try {
+										const disabledRow = new ActionRowBuilder()
+											.addComponents(
+												new ButtonBuilder()
+													.setCustomId('prevPage')
+													.setLabel('◀')
+													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true),
+												new ButtonBuilder()
+													.setCustomId('nextPage')
+													.setLabel('▶')
+													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true)
+											);
+										await sentMessage.edit({ components: [disabledRow] });
+									} catch (error) {
+										if (error.code === 10008) {
+											console.log('The message was deleted before the interaction was handled.');
+										}
+										else {
+											console.error('An unexpected error occurred:', error);
+										}
+									}
+								});
+							}).catch(err => {
+								console.error('Error sending the uncaught Pokémon list:', err);
+							});
+						});
+					});
+				});
+			}
+
+			//team
+			else if (teamCommandRegex.test(message.content.toLowerCase())) {
+				//syntax: .team <userName> or .team <userName> <view || v> <1-6>
+				const args = message.content.split(' ').slice(1);
+				const userRegex = /^<@\d+>|<@!\d+>$/;
+				if (!userRegex.test(args[0])) {
+					message.channel.send("You must @ a user to compare.");
+					return;
+				}
+				let tag = args[0].substring(2, args[0].length - 1);
+				if (args.length === 1) {
+					dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [tag], (err, row) => {
+						if (err) {
+							console.error(err.message);
+							return;
+						}
+						if (!row) {
+							message.channel.send('User has not caught any pokemon.');
+							return;
+						}
+						const caughtPokemon = JSON.parse(row.caught_pokemon);
+						const party = caughtPokemon.slice(0, 6);
+
+						client.users.fetch(tag).then(user => {
+
+							const partyArray = party.map((p, index) => ({
+								...p,
+								id: index + 1
+							}));
+
+							const teamEmbed = generatePartyEmbed(partyArray, 0, 10, `${user.username}'s Team`, 0);
+							message.channel.send( {embeds: [teamEmbed]} );
+						}).catch(err => {
+							console.error('Error fetching the user:', err);
+							message.channel.send('An error occurred while fetching the user.');
+						});
+					});
+				}
+				else if (args.length > 2 && (args[1] === 'v' || args[1] === 'view') && (args[2] > 0 && args[2] < 7)) {
+					dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [tag], (err, row) => {
+						if (err) {
+							console.error(err.message);
+							return;
+						}
+						if (!row) {
+							message.channel.send('User has not caught any pokemon.');
+							return;
+						}
+						const caughtPokemon = JSON.parse(row.caught_pokemon);
+						let pokemonToDisplay = caughtPokemon[args[2] - 1];
+						let isShiny = pokemonToDisplay.name.startsWith('✨');
+						let pokemonName = isShiny ? pokemonToDisplay.name.slice(1) : pokemonToDisplay.name;
+						let formName = pokemonToDisplay.form;
+						db.all("SELECT * FROM pokemon", [], (err, pokemonRows) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching Pokémon information.');
+								return;
+							}
+							if (!pokemonRows) {
+								message.channel.send('Pokémon not found in the database.');
+								return;
+							}
+							let defaultMon = pokemonRows.filter(pokemon => pokemon.isLM !== 3 && pokemon.name === pokemonName);
+							if (defaultMon.length < 1){ 
+								message.channel.send('Pokémon not found in the database.');
+								return;
+							}
+							if (defaultMon.length === 1) {
+								defaultMon = defaultMon[0];
+							}
+							else {
+								if (pokemonToDisplay.gender === 'Female') {
+									defaultMon = defaultMon[0];
+								}
+								else {
+									defaultMon = defaultMon[1];
+								}
+							}
+
+							if (formName.includes('Female')) {
+								formName = pokemonToDisplay.form + ' (F)';
+							}
+							else if (formName.includes('Male')) {
+								formName = pokemonToDisplay.form + ' (M)';
+							}
+
+							let shinyImageLinks = JSON.parse(defaultMon.shinyImageLinks);
+							let imgLinks = JSON.parse(defaultMon.imageLinks);
+							let imageLink = isShiny ? shinyImageLinks[formName] || shinyImageLinks.default : imgLinks[formName] || imgLinks.default;
+
+							let curForm = getFormTypes(pokemonName, formName, pokemonRows);
+							let type1Field = '';
+							let type2Field = '';
+							let genderSymbol = '';
+							if (curForm.formFound) {
+								type1Field = curForm.type1;
+								type2Field = curForm.type2 ? ` / ${curForm.type2}` : '';
+							}
+							else {
+								type1Field = defaultMon.type1;
+								type2Field = defaultMon.type2 ? ` / ${defaultMon.type2}` : '';
+							}
+
+							if (formName.toLowerCase() !== 'default') {
+								formName = formName + ' ';
+							}
+							else {
+								formName = '';
+							}
+							if (pokemonToDisplay.gender === 'Male') {
+								genderSymbol = '`♂\u200B`';
+							}
+							else if (pokemonToDisplay.gender === 'Female') {
+								genderSymbol = '`♀\u200B`';
+							}
+
+							if (formName.includes('(F)') || formName.includes('(M)')) {
+								formName = formName.substring(0, formName.length - 4);
+							}
+
+							client.users.fetch(tag).then(user => {
+								const teamEmbed = new EmbedBuilder()
+									.setColor('#0099ff')
+									.setTitle(`${user.username}'s ${isShiny ? '✨' : ''}${formName}${defaultMon.name}${genderSymbol}`)
+									.addFields(
+										{ name: 'Dex Number', value: `${defaultMon.dexNum}`, inline: true },
+										{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
+										{ name: 'Region', value: `${defaultMon.region}`, inline: true }
+									)
+									.setImage(imageLink)
+									.setTimestamp();
+	
+								message.channel.send({ embeds: [teamEmbed]});
+							}).catch(err => {
+								console.error('Error fetching the user:', err);
+								message.channel.send('An error occurred while fetching the user.');
+							});
+						});
+					});
+				}
+				else {
+					message.channel.send("Incorrect command usage. Example: `.team <@user>` or `.team <@user> view 1`");
+					return;
+				}
+			}
+
 			//order
 			else if (orderCommandRegex.test(message.content.toLowerCase())) {
 				//.order <dex> <ignoreNum>
@@ -4482,6 +4832,8 @@ client.on('messageCreate', (message) => {
 						.setDescription('List of available commands:')
 						.addFields(
 							{ name: '.use <itemNum> <partyNum>', value: 'Uses an item. If a partyNum is supplied, uses the item on a Pokémon.' },
+							{ name: '.compare @<user>:', value: 'Posts a list of all the Pokémon you don\'t own that @<user> does.' },
+							{ name: '.team @<user> <view> <1-6>:', value: 'Posts the @<user>\'s first 6 Pokémon.' + '\n' +'If <view> and <1-6> is supplied, looks at that current Pokémon.' },
 							{ name: '.setChannel: #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channel>.' + '\n' + 'Example: .setChannel <text1> <text2>' },
 							{ name: '.resetChannels:', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
 							{ name: '.viewChannels:', value: '`ADMIN ONLY:` Posts a list of channels the server allows bot commands in' }
