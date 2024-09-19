@@ -1945,7 +1945,7 @@ client.on('messageCreate', (message) => {
 								return;
 							}
 							filteredUsers.sort((a, b) => b.value - a.value);
-							const leaderboardTitle = serverLb ? 'Pokédex Completeness Server Leaderboard (/649)' : 'Pokédex Completeness Leaderboard (/649)';
+							const leaderboardTitle = serverLb ? `Pokédex Completeness Server Leaderboard (/${maxDexNum})` : `Pokédex Completeness Leaderboard (/${maxDexNum}|)`;
 							sendLeaderboard(message, filteredUsers, leaderboardTitle);
 						});
 					}
@@ -5276,6 +5276,9 @@ client.on('messageCreate', (message) => {
 								else if (newItem !== null && newItem === 'Frost') {
 									newItem = 'Fridge';
 								}
+								else if (newItem !== null && newItem === 'Mow') {
+									newItem = 'Lawn Mower';
+								}
 
 								if (newItem !== null) {
 									inventoryArr = inventoryArr.concat(newItem);
@@ -5337,7 +5340,28 @@ client.on('messageCreate', (message) => {
 									megaOrbName = selectedItem.substring(0, selectedItem.length - 5);
 								}
 
-								if (selectedMon.name.includes(megaOrbName)) {
+								//edge cases, before general mega transformation
+								if (selectedItem === 'Latiasite') {
+									if (selectedMon.name === 'Latias') {
+										pokemonArr[partyNum - 1].form = 'Mega';
+									}
+								}
+								else if (selectedItem === 'Latiosite') {
+									if (selectedMon.name === 'Latios') {
+										pokemonArr[partyNum - 1].form = 'Mega';
+									}
+								}
+								else if (selectedItem === 'Pidgeotite') {
+									if (selectedMon.name === 'Pidgeot') {
+										pokemonArr[partyNum - 1].form = 'Mega';
+									}
+								}
+								else if (selectedItem === 'Diancite') {
+									if (selectedMon.name === 'Diancie') {
+										pokemonArr[partyNum - 1].form = 'Mega';
+									}
+								}
+								else if (selectedMon.name.startsWith(megaOrbName)) {
 									if (selectedMon.form.toLowerCase() !== 'default') {
 										newItem = selectedMon.form;
 									}
