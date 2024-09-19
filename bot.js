@@ -428,6 +428,9 @@ function fixPokemonName(pokemonIdentifier, args) {
 	else if (pokemonIdentifier === 'Porygon-z') {
 		pokemonIdentifier = 'Porygon-Z';
 	}
+	else if (pokemonIdentifier === 'Flabebe') {
+		pokemonIdentifier = 'Flabébé';
+	}
 	
 	return pokemonIdentifier;
 }
@@ -481,7 +484,7 @@ const useCommandRegex = /^\.(use)\b/;
 const compareCommandRegex = /^\.(compare)\b/;
 const teamCommandRegex = /^\.(team)\b/;
 
-const maxDexNum = 649; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+const maxDexNum = 721; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}`);
@@ -1033,7 +1036,8 @@ client.on('messageCreate', (message) => {
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mimejr.')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'spoink' && message.content.toLowerCase() === 'boingo')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygon z')
-				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygonz'))) { //edge case
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygonz')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'flabébé' && message.content.toLowerCase() === 'flabebe'))) { //edge case
 				
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
@@ -4075,69 +4079,311 @@ client.on('messageCreate', (message) => {
 					if (!allowed) {
 						return;
 					}
-					const shopPages = [
-						new EmbedBuilder()
-							.setColor('#0099ff')
-							.setTitle('Shop (Page 1)')
-							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
-							.addFields(
-								{ name: '` 1:` **Normal Repel (1000)**', value: 'Has a 50% chance to drop an uncaught Pokemon' },
-								{ name: '` 2:` **Super Repel (1500)**', value: 'Has a 75% chance to drop an uncaught Pokemon' },
-								{ name: '` 3:` **Max Repel (2000)**', value: 'Has a 90% chance to drop an uncaught Pokemon' },
-								{ name: '` 4:` **Legendary Repel (10000)**', value: 'Makes your next pokemon drop a legendary pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
-								{ name: '` 5:` **Mythical Repel (15000)**', value: 'Makes your next pokemon drop a mythical pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
-								{ name: '` 6:` **Shiny Repel (20000)**', value: 'Makes your next pokemon drop a shiny pokemon' + '\n' + '__It is recommended to do this in a private place!__' }
-								
-							)
-							.setTimestamp(),
-						new EmbedBuilder()
-							.setColor('#0099ff')
-							.setTitle('Shop (Page 2)')
-							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
-							.addFields(
-								{ name: '` 7:` **Fire Stone (1000)**', value: 'Fire stone (coming soon)' },
-								{ name: '` 8:` **Water Stone (1000)**', value: 'Water evolution stone (coming soon)' },
-								{ name: '` 9:` **Thunder Stone (1000)**', value: 'Electric evolution Stone (coming soon)' },
-								{ name: '`10:` **Leaf Stone (1000)**', value: 'Grass evolution Stone (coming soon)' },
-								{ name: '`11:` **Moon Stone (1000)**', value: 'Moon evolution Stone (coming soon)' }
-							)
-							.setTimestamp(),
-						new EmbedBuilder()
-							.setColor('#0099ff')
-							.setTitle('Shop (Page 3)')
-							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
-							.addFields(
-								{ name: '`12:` **Sun Stone (1000)**', value: 'Sun evolution Stone (coming soon)' },
-								{ name: '`13:` **Shiny Stone (1000)**', value: 'Shiny evolution Stone (coming soon)' },
-								{ name: '`14:` **Dusk Stone (1000)**', value: 'Dusk evolution Stone (coming soon)' },
-								{ name: '`15:` **Dawn Stone (1000)**', value: 'Dawn evolution Stone (coming soon)' },
-								{ name: '`16:` **Ice Stone (1000)**', value: 'Ice evolution Stone (coming soon)' }
-							)
-							.setTimestamp(),
-						new EmbedBuilder()
-							.setColor('#0099ff')
-							.setTitle('Shop (Page 4)')
-							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
-							.addFields(
-								{ name: '`17:` **Defaulter (500)**', value: '**REUSABLE**: Resets the Pokemon\'s form to default' },
-								{ name: '`18:` **Stove (2000)**', value: '**CONSUMABLE**: Stove for Rotom transformation' },
-								{ name: '`19:` **Washing Machine (2000)**', value: '**CONSUMABLE**: Washing machine for Rotom transformation' },
-								{ name: '`20:` **Fridge (2000)**', value: '**CONSUMABLE**: Fridge for Rotom transformation' },
-								{ name: '`21:` **Gracidea Flower (2000)**', value: '**REUSABLE**: Flower for Shaymin Skye Forme transformation' }
-							)
-							.setTimestamp(),
-						new EmbedBuilder()
-							.setColor('#0099ff')
-							.setTitle('Shop (Page 5)')
-							.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
-							.addFields(
-								{ name: '`22:` **Reveal Glass (2000)**', value: '**REUSABLE**: Glass for Tornadus/Thundurus/Landorus Therian transformation' },
-								{ name: '`23:` **White DNA Splicer (2000)**', value: '**REUSABLE**: DNA splicer for Reshiram/White Kyurem transformation' },
-								{ name: '`24:` **Black DNA Splicer (2000)**', value: '**REUSABLE**: DNA splicer for Zekrom/Black Kyurem transformation' },
-								{ name: '`25:` **Rare Candy (500)**', value: 'Levels a pokemon up (coming soon)' },
-							)
-							.setTimestamp(),
-					]
+					let shopPages = null;
+					const args = message.content.split(' ').slice(1);
+					if (!args || args.length < 1 || args[0] === ' ') {
+						shopPages = [
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('General Shop (Page 1/5)')
+								.setDescription('List of available items in the shop' + '\n' + 
+									'Use the command .buy <shopNum> to purchase an item' + '\n' + 
+									'For specific pokemon shops, use `.shop <shop name>`' + '\n' + 
+									'Current shops: `Mega`, `Rotom`, `Arceus`, and `Furfrou`')
+								.addFields(
+									{ name: '` 1:` **Normal Repel (1000)**', value: 'Has a 50% chance to drop an uncaught Pokemon' },
+									{ name: '` 2:` **Super Repel (1500)**', value: 'Has a 75% chance to drop an uncaught Pokemon' },
+									{ name: '` 3:` **Max Repel (2000)**', value: 'Has a 90% chance to drop an uncaught Pokemon' },
+									{ name: '` 4:` **Legendary Repel (10000)**', value: 'Makes your next pokemon drop a legendary pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
+									{ name: '` 5:` **Mythical Repel (15000)**', value: 'Makes your next pokemon drop a mythical pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
+									{ name: '` 6:` **Shiny Repel (20000)**', value: 'Makes your next pokemon drop a shiny pokemon' + '\n' + '__It is recommended to do this in a private place!__' }
+									
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('General Shop (Page 2/5)')
+								.setDescription('List of available items in the shop' + '\n' + 
+									'Use the command .buy <shopNum> to purchase an item' + '\n' + 
+									'For specific pokemon shops, use `.shop <shop name>`' + '\n' + 
+									'Current shops: `Mega`, `Rotom`, `Arceus`, and `Furfrou`')
+								.addFields(
+									{ name: '` 7:` **Fire Stone (1000)**', value: 'Fire stone (coming soon)' },
+									{ name: '` 8:` **Water Stone (1000)**', value: 'Water evolution stone (coming soon)' },
+									{ name: '` 9:` **Thunder Stone (1000)**', value: 'Electric evolution Stone (coming soon)' },
+									{ name: '`10:` **Leaf Stone (1000)**', value: 'Grass evolution Stone (coming soon)' },
+									{ name: '`11:` **Moon Stone (1000)**', value: 'Moon evolution Stone (coming soon)' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('General Shop (Page 3/5)')
+								.setDescription('List of available items in the shop' + '\n' + 
+									'Use the command .buy <shopNum> to purchase an item' + '\n' + 
+									'For specific pokemon shops, use `.shop <shop name>`' + '\n' + 
+									'Current shops: `Mega`, `Rotom`, `Arceus`, and `Furfrou`')
+								.addFields(
+									{ name: '`12:` **Sun Stone (1000)**', value: 'Sun evolution Stone (coming soon)' },
+									{ name: '`13:` **Shiny Stone (1000)**', value: 'Shiny evolution Stone (coming soon)' },
+									{ name: '`14:` **Dusk Stone (1000)**', value: 'Dusk evolution Stone (coming soon)' },
+									{ name: '`15:` **Dawn Stone (1000)**', value: 'Dawn evolution Stone (coming soon)' },
+									{ name: '`16:` **Ice Stone (1000)**', value: 'Ice evolution Stone (coming soon)' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('General Shop (Page 4/5)')
+								.setDescription('List of available items in the shop' + '\n' + 
+									'Use the command .buy <shopNum> to purchase an item' + '\n' + 
+									'For specific pokemon shops, use `.shop <shop name>`' + '\n' + 
+									'Current shops: `Mega`, `Rotom`, `Arceus`, and `Furfrou`')
+								.addFields(
+									{ name: '`17:` **Defaulter (500)**', value: '**REUSABLE**: Resets the Pokemon\'s form to default' },
+									{ name: '`18:` **Gracidea Flower (2000)**', value: '**REUSABLE**: Flower for Shaymin Skye Forme transformation' },
+									{ name: '`19:` **Reveal Glass (2000)**', value: '**REUSABLE**: Glass for Tornadus/Thundurus/Landorus Therian transformation' },
+									{ name: '`20:` **White DNA Splicer (2000)**', value: '**REUSABLE**: DNA splicer for Reshiram/White Kyurem transformation' },
+									{ name: '`21:` **Black DNA Splicer (2000)**', value: '**REUSABLE**: DNA splicer for Zekrom/Black Kyurem transformation' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('General Shop (Page 5/5)')
+								.setDescription('List of available items in the shop' + '\n' + 
+									'Use the command .buy <shopNum> to purchase an item' + '\n' + 
+									'For specific pokemon shops, use `.shop <shop name>`' + '\n' + 
+									'Current shops: `Mega`, `Rotom`, `Arceus`, and `Furfrou`')
+								.addFields(
+									{ name: '`22:` **Prison Bottle (2000)**', value: '**REUSABLE**: Bottle for Hoopa Unbound transformation' },
+									{ name: '`23:` **Rare Candy (500)**', value: 'Levels a pokemon up (coming soon)' }
+								)
+								.setTimestamp()
+						]
+					}
+					//Start at 100
+					else if (args[0].toLowerCase() === 'mega') {
+						shopPages = [
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Mega Stone Shop (Page 1/10)')
+								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+								.addFields(
+									{ name: '`100:` **Venusaurite (2500)**', value: '**REUSABLE**: Mega Stone for Venusaur transformation' },
+									{ name: '`101:` **Charizardite X (2500)**', value: '**REUSABLE**: Mega Stone for Charizard transformation' },
+									{ name: '`102:` **Charizardite Y (2500)**', value: '**REUSABLE**: Mega Stone for Charizard transformation' },
+									{ name: '`103:` **Blastoisinite (2500)**', value: '**REUSABLE**: Mega Stone for Blastoise transformation' },
+									{ name: '`104:` **Beedrillite (2500)**', value: '**REUSABLE**: Mega Stone for Beedrill transformation' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Mega Stone Shop (Page 2/10)')
+								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+								.addFields(
+									{ name: '`105:` **Pidgeotite (2500)**', value: '**REUSABLE**: Mega Stone for Pidgeot transformation' },
+									{ name: '`106:` **Alakazite (2500)**', value: '**REUSABLE**: Mega Stone for Alakazam transformation' },
+									{ name: '`107:` **Slowbronite (2500)**', value: '**REUSABLE**: Mega Stone for Slowbro transformation' },
+									{ name: '`108:` **Gengarite (2500)**', value: '**REUSABLE**: Mega Stone for Gengar transformation' },
+									{ name: '`109:` **Kangaskhanite (2500)**', value: '**REUSABLE**: Mega Stone for Kangaskhan transformation' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Mega Stone Shop (Page 3/10)')
+								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+								.addFields(
+									{ name: '`110:` **Pinsirite (2500)**', value: '**REUSABLE**: Mega Stone for Pinsir transformation' },
+									{ name: '`111:` **Gyaradosite (2500)**', value: '**REUSABLE**: Mega Stone for Gyarados transformation' },
+									{ name: '`112:` **Aerodactylite (2500)**', value: '**REUSABLE**: Mega Stone for Aerodactyl transformation' },
+									{ name: '`113:` **Mewtwonite X (2500)**', value: '**REUSABLE**: Mega Stone for Mewtwo transformation' },
+									{ name: '`114:` **Mewtwonite Y (2500)**', value: '**REUSABLE**: Mega Stone for Mewtwo transformation' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Mega Stone Shop (Page 4/10)')
+								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+								.addFields(
+									{ name: '`115:` **Ampharosite (2500)**', value: '**REUSABLE**: Mega Stone for Ampharos transformation' },
+									{ name: '`116:` **Steelixite (2500)**', value: '**REUSABLE**: Mega Stone for Steelix transformation' },
+									{ name: '`117:` **Scizorite (2500)**', value: '**REUSABLE**: Mega Stone for Scizor transformation' },
+									{ name: '`118:` **Heracronite (2500)**', value: '**REUSABLE**: Mega Stone for Heracross transformation' },
+									{ name: '`119:` **Houndoominite (2500)**', value: '**REUSABLE**: Mega Stone for Houndoom transformation' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Mega Stone Shop (Page 5/10)')
+								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+								.addFields(
+									{ name: '`120:` **Tyranitarite (2500)**', value: '**REUSABLE**: Mega Stone for Tyranitar transformation' },
+									{ name: '`121:` **Sceptilite (2500)**', value: '**REUSABLE**: Mega Stone for Sceptile transformation' },
+									{ name: '`122:` **Blazikenite (2500)**', value: '**REUSABLE**: Mega Stone for Blaziken transformation' },
+									{ name: '`123:` **Swampertite (2500)**', value: '**REUSABLE**: Mega Stone for Swampert transformation' },
+									{ name: '`124:` **Gardevoirite (2500)**', value: '**REUSABLE**: Mega Stone for Gardevoir transformation' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Mega Stone Shop (Page 6/10)')
+								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+								.addFields(
+									{ name: '`125:` **Sablenite (2500)**', value: '**REUSABLE**: Mega Stone for Sableye transformation' },
+									{ name: '`126:` **Mawilite (2500)**', value: '**REUSABLE**: Mega Stone for Mawile transformation' },
+									{ name: '`127:` **Aggronite (2500)**', value: '**REUSABLE**: Mega Stone for Aggron transformation' },
+									{ name: '`128:` **Medichamite (2500)**', value: '**REUSABLE**: Mega Stone for Medicham transformation' },
+									{ name: '`129:` **Manectite (2500)**', value: '**REUSABLE**: Mega Stone for Manectric transformation' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Mega Stone Shop (Page 7/10)')
+								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+								.addFields(
+									{ name: '`130:` **Sharpedonite (2500)**', value: '**REUSABLE**: Mega Stone for Sharpedo transformation' },
+									{ name: '`131:` **Cameruptite (2500)**', value: '**REUSABLE**: Mega Stone for Camerupt transformation' },
+									{ name: '`132:` **Altarianite (2500)**', value: '**REUSABLE**: Mega Stone for Altaria transformation' },
+									{ name: '`133:` **Banettite (2500)**', value: '**REUSABLE**: Mega Stone for Banette transformation' },
+									{ name: '`134:` **Absolite (2500)**', value: '**REUSABLE**: Mega Stone for Absol transformation' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Mega Stone Shop (Page 8/10)')
+								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+								.addFields(
+									{ name: '`135:` **Glalitite (2500)**', value: '**REUSABLE**: Mega Stone for Glalie transformation' },
+									{ name: '`136:` **Salamencite (2500)**', value: '**REUSABLE**: Mega Stone for Salamence transformation' },
+									{ name: '`137:` **Metagrossite (2500)**', value: '**REUSABLE**: Mega Stone for Metagross transformation' },
+									{ name: '`138:` **Latiasite (2500)**', value: '**REUSABLE**: Mega Stone for Latias transformation' },
+									{ name: '`139:` **Latiosite (2500)**', value: '**REUSABLE**: Mega Stone for Latios transformation' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Mega Stone Shop (Page 9/10)')
+								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+								.addFields(
+									{ name: '`140:` **Lopunnite (2500)**', value: '**REUSABLE**: Mega Stone for Lopunny transformation' },
+									{ name: '`141:` **Garchompite (2500)**', value: '**REUSABLE**: Mega Stone for Garchomp transformation' },
+									{ name: '`142:` **Lucarionite (2500)**', value: '**REUSABLE**: Mega Stone for Lucario transformation' },
+									{ name: '`143:` **Abomasite (2500)**', value: '**REUSABLE**: Mega Stone for Abomasnow transformation' },
+									{ name: '`144:` **Galladite (2500)**', value: '**REUSABLE**: Mega Stone for Gallade transformation' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Mega Stone Shop (Page 10/10)')
+								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+								.addFields(
+									{ name: '`145:` **Audinite (2500)**', value: '**REUSABLE**: Mega Stone for Audino transformation' },
+									{ name: '`146:` **Diancite (2500)**', value: '**REUSABLE**: Mega Stone for Diancie transformation' }
+								)
+								.setTimestamp()
+						]
+					}
+					//Start at 200
+					else if (args[0].toLowerCase() === 'gigantamax') {
+						message.channel.send('Not implemented yet!');
+						return;
+					}
+					//Start at 500
+					else if (args[0].toLowerCase() === 'rotom') {
+						shopPages = [
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Rotom Shop')
+								.setDescription('List of available Rotom items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item' + '\n' + 'You will get your appliance back if Rotom is no longer actively using it')
+								.addFields(
+									{ name: '`500:` **Stove (2000)**', value: '**CONSUMABLE**: Stove for Rotom transformation' },
+									{ name: '`501:` **Washing Machine (2000)**', value: '**CONSUMABLE**: Washing machine for Rotom transformation' },
+									{ name: '`502:` **Fridge (2000)**', value: '**CONSUMABLE**: Fridge for Rotom transformation' },
+									{ name: '`503:` **Fan (2000)**', value: '**CONSUMABLE**: Fan for Rotom transformation' },
+									{ name: '`504:` **Lawn Mower (2000)**', value: '**CONSUMABLE**: Lawn mower for Rotom transformation' }
+								)
+								.setTimestamp()
+						]
+					}
+					else if (args[0].toLowerCase() === 'arceus') {
+						shopPages = [
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Arceus Shop (Page 1/4)')
+								.setDescription('List of available Arceus items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item' + '\n' + 'You will get your plates back if Arceus is no longer actively using it')
+								.addFields(
+									{ name: '`505:` **Fist Plate (2000)**', value: '**CONSUMABLE**: Fist plate for Arceus transformation' },
+									{ name: '`506:` **Sky Plate (2000)**', value: '**CONSUMABLE**: Sky plate for Arceus transformation' },
+									{ name: '`507:` **Toxic Plate (2000)**', value: '**CONSUMABLE**: Toxic plate for Arceus transformation' },
+									{ name: '`508:` **Earth Plate (2000)**', value: '**CONSUMABLE**: Earth plate for Arceus transformation' },
+									{ name: '`509:` **Stone Plate (2000)**', value: '**CONSUMABLE**: Stone plate for Arceus transformation' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Arceus Shop (Page 2/4)')
+								.setDescription('List of available Arceus items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item' + '\n' + 'You will get your plates back if Arceus is no longer actively using it')
+								.addFields(
+									{ name: '`510:` **Insect Plate (2000)**', value: '**CONSUMABLE**: Insect plate for Arceus transformation' },
+									{ name: '`511:` **Spooky Plate (2000)**', value: '**CONSUMABLE**: Spooky plate for Arceus transformation' },
+									{ name: '`512:` **Iron Plate (2000)**', value: '**CONSUMABLE**: Iron plate for Arceus transformation' },
+									{ name: '`513:` **Flame Plate (2000)**', value: '**CONSUMABLE**: Flame plate for Arceus transformation' },
+									{ name: '`514:` **Splash Plate (2000)**', value: '**CONSUMABLE**: Splash plate for Arceus transformation' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Arceus Shop (Page 3/4)')
+								.setDescription('List of available Arceus items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item' + '\n' + 'You will get your plates back if Arceus is no longer actively using it')
+								.addFields(
+									{ name: '`515:` **Meadow Plate (2000)**', value: '**CONSUMABLE**: Meadow plate for Arceus transformation' },
+									{ name: '`516:` **Zap Plate (2000)**', value: '**CONSUMABLE**: Zap plate for Arceus transformation' },
+									{ name: '`517:` **Mind Plate (2000)**', value: '**CONSUMABLE**: Mind plate for Arceus transformation' },
+									{ name: '`518:` **Icicle Plate (2000)**', value: '**CONSUMABLE**: Icicle plate for Arceus transformation' },
+									{ name: '`519:` **Draco Plate (2000)**', value: '**CONSUMABLE**: Draco plate for Arceus transformation' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Arceus Shop (Page 4/4)')
+								.setDescription('List of available Arceus items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item' + '\n' + 'You will get your plates back if Arceus is no longer actively using it')
+								.addFields(
+									{ name: '`520:` **Dread Plate (2000)**', value: '**CONSUMABLE**: Dread plate for Arceus transformation' },
+									{ name: '`521:` **Pixie Plate (2000)**', value: '**CONSUMABLE**: Pixie plate for Arceus transformation' }
+								)
+								.setTimestamp()
+						]
+					}
+					else if (args[0].toLowerCase() === 'furfrou') {
+						shopPages = [
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Furfrou Shop (Page 1/2)')
+								.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+								.addFields(
+									{ name: '`522:` **Heart Trim (2000)**', value: '**CONSUMABLE**: Heart trim for Furfrou transformation' },
+									{ name: '`523:` **Star Trim (2000)**', value: '**CONSUMABLE**: Star trim for Furfrou transformation' },
+									{ name: '`524:` **Diamond Trim (2000)**', value: '**CONSUMABLE**: Diamond trim for Furfrou transformation' },
+									{ name: '`525:` **Debutante Trim (2000)**', value: '**CONSUMABLE**: Debutante trim for Furfrou transformation' },
+									{ name: '`526:` **Matron Trim (2000)**', value: '**CONSUMABLE**: Matron trim for Furfrou transformation' }
+
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Furfrou Shop (Page 2/2)')
+								.setDescription('List of available items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
+								.addFields(
+									{ name: '`527:` **Dandy Trim (2000)**', value: '**CONSUMABLE**: Dandy trim for Furfrou transformation' },
+									{ name: '`528:` **La Reine Trim (2000)**', value: '**CONSUMABLE**: La Reine trim for Furfrou transformation' },
+									{ name: '`529:` **Kabuki Trim (2000)**', value: '**CONSUMABLE**: Kabuki trim for Furfrou transformation' },
+									{ name: '`530:` **Pharaoh Trim (2000)**', value: '**CONSUMABLE**: Pharaoh trim for Furfrou transformation' }
+								)
+								.setTimestamp(),
+						]
+					}
+					else {
+						message.channel.send('Shop doesn\'t exist');
+						return;
+					}
 
 					let page = 0;
 					const totalPages = shopPages.length;
@@ -4239,7 +4485,7 @@ client.on('messageCreate', (message) => {
 						quantityNum = 1;
 					}
 					let isNum = !isNaN(shopNum);
-					if (!isNum || shopNum < 1 || shopNum > 25) {
+					if (!isNum) {
 						message.channel.send('Please specify a valid shop number. Usage: `.buy <shopNum>`');
 						return;
 					}
@@ -4258,6 +4504,7 @@ client.on('messageCreate', (message) => {
 						if (userCurrency < 500) {
 							message.channel.send('You do not have enough currency to purchase an item.');
 						}
+						//General Store Start
 						else if (shopNum === '1'  && userCurrency >= 1000 * quantityNum) {
 							userCurrency -= (1000 * quantityNum);
 							boughtItem = 'Normal Repel';
@@ -4345,46 +4592,443 @@ client.on('messageCreate', (message) => {
 						}
 						else if (shopNum === '18'  && userCurrency >= 2000 * quantityNum) {
 							userCurrency -= (2000 * quantityNum);
-							boughtItem = 'Stove';
+							boughtItem = 'Gracidea Flower';
 							amount = 2000;
 						}
 						else if (shopNum === '19'  && userCurrency >= 2000 * quantityNum) {
 							userCurrency -= (2000 * quantityNum);
-							boughtItem = 'Washing Machine';
+							boughtItem = 'Reveal Glass';
 							amount = 2000;
 						}
 						else if (shopNum === '20'  && userCurrency >= 2000 * quantityNum) {
 							userCurrency -= (2000 * quantityNum);
-							boughtItem = 'Fridge';
+							boughtItem = 'White DNA Splicer';
 							amount = 2000;
 						}
 						else if (shopNum === '21'  && userCurrency >= 2000 * quantityNum) {
 							userCurrency -= (2000 * quantityNum);
-							boughtItem = 'Gracidea Flower';
-							amount = 2000;
-						}
-						else if (shopNum === '22'  && userCurrency >= 2000 * quantityNum) {
-							userCurrency -= (2000 * quantityNum);
-							boughtItem = 'Reveal Glass';
-							amount = 2000;
-						}
-						else if (shopNum === '23'  && userCurrency >= 2000 * quantityNum) {
-							userCurrency -= (2000 * quantityNum);
-							boughtItem = 'White DNA Splicer';
-							amount = 2000;
-						}
-						else if (shopNum === '24'  && userCurrency >= 2000 * quantityNum) {
-							userCurrency -= (2000 * quantityNum);
 							boughtItem = 'Black DNA Splicer';
 							amount = 2000;
 						}
-						else if (shopNum === '25' && userCurrency >= 500 * quantityNum) {
+						else if (shopNum === '22' && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Prison Bottle';
+							amount = 2000;
+						}
+						else if (shopNum === '23' && userCurrency >= 500 * quantityNum) {
 							userCurrency -= (500 * quantityNum);
 							boughtItem = 'Rare Candy';
 							amount = 500;
 						}
+						//General Store End
+
+						//Mega Store Start
+						else if (shopNum === '100' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Venusaurite';
+							amount = 2500;
+						}
+						else if (shopNum === '101' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Charizardite X';
+							amount = 2500;
+						}
+						else if (shopNum === '102' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Charizardite Y';
+							amount = 2500;
+						}
+						else if (shopNum === '103' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Blastoisinite';
+							amount = 2500;
+						}
+						else if (shopNum === '104' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Beedrillite';
+							amount = 2500;
+						}
+						else if (shopNum === '105' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Pidgeotite';
+							amount = 2500;
+						}
+						else if (shopNum === '106' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Alakazite';
+							amount = 2500;
+						}
+						else if (shopNum === '107' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Slowbronite';
+							amount = 2500;
+						}
+						else if (shopNum === '108' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Gengarite';
+							amount = 2500;
+						}
+						else if (shopNum === '109' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Kangaskhanite';
+							amount = 2500;
+						}
+						else if (shopNum === '110' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Pinsirite';
+							amount = 2500;
+						}
+						else if (shopNum === '111' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Gyaradosite';
+							amount = 2500;
+						}
+						else if (shopNum === '112' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Aerodactylite';
+							amount = 2500;
+						}
+						else if (shopNum === '113' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Mewtwonite X';
+							amount = 2500;
+						}
+						else if (shopNum === '114' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Mewtwonite Y';
+							amount = 2500;
+						}
+						else if (shopNum === '115' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Ampharosite';
+							amount = 2500;
+						}
+						else if (shopNum === '116' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Steelixite';
+							amount = 2500;
+						}
+						else if (shopNum === '117' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Scizorite';
+							amount = 2500;
+						}
+						else if (shopNum === '118' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Heracronite';
+							amount = 2500;
+						}
+						else if (shopNum === '119' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Houndoominite';
+							amount = 2500;
+						}
+						else if (shopNum === '120' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Tyranitarite';
+							amount = 2500;
+						}
+						else if (shopNum === '121' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Sceptilite';
+							amount = 2500;
+						}
+						else if (shopNum === '122' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Blazikenite';
+							amount = 2500;
+						}
+						else if (shopNum === '123' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Swampertite';
+							amount = 2500;
+						}
+						else if (shopNum === '124' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Gardevoirite';
+							amount = 2500;
+						}
+						else if (shopNum === '125' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Sablenite';
+							amount = 2500;
+						}
+						else if (shopNum === '126' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Mawilite';
+							amount = 2500;
+						}
+						else if (shopNum === '127' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Aggronite';
+							amount = 2500;
+						}
+						else if (shopNum === '128' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Medichamite';
+							amount = 2500;
+						}
+						else if (shopNum === '129' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Manectite';
+							amount = 2500;
+						}
+						else if (shopNum === '130' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Sharpedonite';
+							amount = 2500;
+						}
+						else if (shopNum === '131' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Cameruptite';
+							amount = 2500;
+						}
+						else if (shopNum === '132' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Altarianite';
+							amount = 2500;
+						}
+						else if (shopNum === '133' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Banettite';
+							amount = 2500;
+						}
+						else if (shopNum === '134' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Absolite';
+							amount = 2500;
+						}
+						else if (shopNum === '135' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Glalitite';
+							amount = 2500;
+						}
+						else if (shopNum === '136' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Salamencite';
+							amount = 2500;
+						}
+						else if (shopNum === '137' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Metagrossite';
+							amount = 2500;
+						}
+						else if (shopNum === '138' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Latiasite';
+							amount = 2500;
+						}
+						else if (shopNum === '139' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Latiosite';
+							amount = 2500;
+						}
+						else if (shopNum === '140' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Lopunnite';
+							amount = 2500;
+						}
+						else if (shopNum === '141' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Garchompite';
+							amount = 2500;
+						}
+						else if (shopNum === '142' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Lucarionite';
+							amount = 2500;
+						}
+						else if (shopNum === '143' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Abomasite';
+							amount = 2500;
+						}
+						else if (shopNum === '144' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Galladite';
+							amount = 2500;
+						}
+						else if (shopNum === '145' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Audinite';
+							amount = 2500;
+						}
+						else if (shopNum === '146' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Diancite';
+							amount = 2500;
+						}
+						//Mega Store End
+
+						//Gigantamax Store Start
+						//Gigantamax Store End
+
+						//Rotom Store Start
+						else if (shopNum === '500'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Stove';
+							amount = 2000;
+						}
+						else if (shopNum === '501'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Washing Machine';
+							amount = 2000;
+						}
+						else if (shopNum === '502'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Fridge';
+							amount = 2000;
+						}
+						else if (shopNum === '503'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Fan';
+							amount = 2000;
+						}
+						else if (shopNum === '504'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Lawn Mower';
+							amount = 2000;
+						}
+						//Rotom Store End
+
+						//Arceus Store Start
+						else if (shopNum === '505'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Fist Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '506'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Sky Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '507'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Toxic Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '508'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Earth Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '509'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Stone Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '510'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Insect Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '511'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Spooky Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '512'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Iron Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '513'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Flame Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '514'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Splash Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '515'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Meadow Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '516'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Zap Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '517'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Mind Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '518'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Icicle Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '519'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Draco Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '520'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Dread Plate';
+							amount = 2000;
+						}
+						else if (shopNum === '521'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Pixie Plate';
+							amount = 2000;
+						}
+						//Arceus Store End
+
+						//Furfrou Store Start
+						else if (shopNum === '522'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Heart Trim';
+							amount = 2000;
+						}
+						else if (shopNum === '523'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Star Trim';
+							amount = 2000;
+						}
+						else if (shopNum === '524'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Diamond Trim';
+							amount = 2000;
+						}
+						else if (shopNum === '525'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Debutante Trim';
+							amount = 2000;
+						}
+						else if (shopNum === '526'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Matron Trim';
+							amount = 2000;
+						}
+						else if (shopNum === '527'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Dandy Trim';
+							amount = 2000;
+						}
+						else if (shopNum === '528'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'La Reine Trim';
+							amount = 2000;
+						}
+						else if (shopNum === '529'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Kabuki Trim';
+							amount = 2000;
+						}
+						else if (shopNum === '530'  && userCurrency >= 2000 * quantityNum) {
+							userCurrency -= (2000 * quantityNum);
+							boughtItem = 'Pharaoh Trim';
+							amount = 2000;
+						}
+						//Furfrou Store end
+
 						else {
-							message.channel.send('You do not have enough currency to purchase requested item.');
+							message.channel.send('You do not have enough currency to purchase requested item or it doesn\'t exist.');
 						}
 						if (boughtItem !== '') {
 							const embed = new EmbedBuilder()
@@ -4598,6 +5242,20 @@ client.on('messageCreate', (message) => {
 									inventoryArr.splice(itemNum - 1, 1);
 									pokemonArr[partyNum - 1].form = 'Frost';
 								}
+								else if (selectedItem === 'Fan') {
+									if (selectedMon.form.toLowerCase() !== 'default') {
+										newItem = selectedMon.form;
+									}
+									inventoryArr.splice(itemNum - 1, 1);
+									pokemonArr[partyNum - 1].form = 'Fan';
+								}
+								else if (selectedItem === 'Lawn Mower') {
+									if (selectedMon.form.toLowerCase() !== 'default') {
+										newItem = selectedMon.form;
+									}
+									inventoryArr.splice(itemNum - 1, 1);
+									pokemonArr[partyNum - 1].form = 'Mow';
+								}
 								else if (selectedItem === 'Defaulter') {
 									if (selectedMon.form.toLowerCase() !== 'default') {
 										newItem = selectedMon.form;
@@ -4623,6 +5281,7 @@ client.on('messageCreate', (message) => {
 									inventoryArr = inventoryArr.concat(newItem);
 								}
 							}
+							
 							else if (selectedMon.name === 'Shaymin') {
 								if (selectedItem === 'Gracidea Flower') {
 									pokemonArr[partyNum - 1].form = 'Sky Forme';
@@ -4660,6 +5319,46 @@ client.on('messageCreate', (message) => {
 								else {
 									message.channel.send('Could not use selected item on selected pokemon.');
 									return;
+								}
+							}
+							//Mega
+							else if (selectedItem.substring(selectedItem.length - 5, selectedItem.length).includes('ite')) {
+								let megaOrbName = '';
+								let xyFlag = '';
+								if (selectedItem.charAt(selectedItem.length - 1) === 'X') {
+									megaOrbName = selectedItem.substring(0, selectedItem.length - 7);
+									xyFlag = 'X';
+								}
+								else if (selectedItem.charAt(selectedItem.length - 1) === 'Y') {
+									megaOrbName = selectedItem.substring(0, selectedItem.length - 7);
+									xyFlag = 'Y';
+								}
+								else {
+									megaOrbName = selectedItem.substring(0, selectedItem.length - 5);
+								}
+
+								if (selectedMon.name.includes(megaOrbName)) {
+									if (selectedMon.form.toLowerCase() !== 'default') {
+										newItem = selectedMon.form;
+									}
+									if (xyFlag === 'X') {
+										pokemonArr[partyNum - 1].form = 'Mega X';
+									}
+									else if (xyFlag === 'Y') {
+										pokemonArr[partyNum - 1].form = 'Mega Y';
+									}
+									else {
+										pokemonArr[partyNum - 1].form = 'Mega';
+									}
+								}
+								else {
+									message.channel.send('Could not use selected item on selected pokemon.');
+									return;
+								}
+							}
+							else if (selectedItem === 'Defaulter') {
+								if (selectedMon.form.toLowerCase().includes('mega')) {
+									pokemonArr[partyNum - 1].form = 'Default';
 								}
 							}
 							else {
