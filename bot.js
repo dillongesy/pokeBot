@@ -5345,20 +5345,36 @@ client.on('messageCreate', (message) => {
 									if (selectedMon.name === 'Latias') {
 										pokemonArr[partyNum - 1].form = 'Mega';
 									}
+									else {
+										message.channel.send('Could not use selected item on selected pokemon.');
+										return;
+									}
 								}
 								else if (selectedItem === 'Latiosite') {
 									if (selectedMon.name === 'Latios') {
 										pokemonArr[partyNum - 1].form = 'Mega';
+									}
+									else {
+										message.channel.send('Could not use selected item on selected pokemon.');
+										return;
 									}
 								}
 								else if (selectedItem === 'Pidgeotite') {
 									if (selectedMon.name === 'Pidgeot') {
 										pokemonArr[partyNum - 1].form = 'Mega';
 									}
+									else {
+										message.channel.send('Could not use selected item on selected pokemon.');
+										return;
+									}
 								}
 								else if (selectedItem === 'Diancite') {
 									if (selectedMon.name === 'Diancie') {
 										pokemonArr[partyNum - 1].form = 'Mega';
+									}
+									else {
+										message.channel.send('Could not use selected item on selected pokemon.');
+										return;
 									}
 								}
 								else if (selectedMon.name.startsWith(megaOrbName)) {
