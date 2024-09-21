@@ -614,7 +614,7 @@ client.on('messageCreate', (message) => {
 										}
 
 
-										//user caught all pokemon
+										// user caught all pokemon
 										if (uncaughtPokemon.length === 0) {
 											message.channel.send('You have caught all pokemon, repel will be given back.');
 											uncaughtPokemon = rows.filter(row => row.isLM !== 3);
@@ -1077,10 +1077,10 @@ client.on('messageCreate', (message) => {
 
 						let genderSymbol = '';
 						if (gender === 'Male') {
-							genderSymbol = '♂\u200B ';//'♂️';
+							genderSymbol = '♂\u200B';//'♂️';
 						}
 						else if (gender === 'Female') {
-							genderSymbol = '♀\u200B ';//'♀';
+							genderSymbol = '♀\u200B';//'♀';
 						}
 
 						let formName = '';
@@ -1945,7 +1945,7 @@ client.on('messageCreate', (message) => {
 								return;
 							}
 							filteredUsers.sort((a, b) => b.value - a.value);
-							const leaderboardTitle = serverLb ? `Pokédex Completeness Server Leaderboard (/${maxDexNum})` : `Pokédex Completeness Leaderboard (/${maxDexNum}|)`;
+							const leaderboardTitle = serverLb ? `Pokédex Completeness Server Leaderboard (/${maxDexNum})` : `Pokédex Completeness Leaderboard (/${maxDexNum})`;
 							sendLeaderboard(message, filteredUsers, leaderboardTitle);
 						});
 					}
@@ -4164,7 +4164,7 @@ client.on('messageCreate', (message) => {
 						shopPages = [
 							new EmbedBuilder()
 								.setColor('#0099ff')
-								.setTitle('Mega Stone Shop (Page 1/10)')
+								.setTitle('Mega Stone Shop (Page 1/11)')
 								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 								.addFields(
 									{ name: '`100:` **Venusaurite (2500)**', value: '**REUSABLE**: Mega Stone for Venusaur transformation' },
@@ -4176,7 +4176,7 @@ client.on('messageCreate', (message) => {
 								.setTimestamp(),
 							new EmbedBuilder()
 								.setColor('#0099ff')
-								.setTitle('Mega Stone Shop (Page 2/10)')
+								.setTitle('Mega Stone Shop (Page 2/11)')
 								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 								.addFields(
 									{ name: '`105:` **Pidgeotite (2500)**', value: '**REUSABLE**: Mega Stone for Pidgeot transformation' },
@@ -4188,7 +4188,7 @@ client.on('messageCreate', (message) => {
 								.setTimestamp(),
 							new EmbedBuilder()
 								.setColor('#0099ff')
-								.setTitle('Mega Stone Shop (Page 3/10)')
+								.setTitle('Mega Stone Shop (Page 3/11)')
 								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 								.addFields(
 									{ name: '`110:` **Pinsirite (2500)**', value: '**REUSABLE**: Mega Stone for Pinsir transformation' },
@@ -4200,7 +4200,7 @@ client.on('messageCreate', (message) => {
 								.setTimestamp(),
 							new EmbedBuilder()
 								.setColor('#0099ff')
-								.setTitle('Mega Stone Shop (Page 4/10)')
+								.setTitle('Mega Stone Shop (Page 4/11)')
 								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 								.addFields(
 									{ name: '`115:` **Ampharosite (2500)**', value: '**REUSABLE**: Mega Stone for Ampharos transformation' },
@@ -4212,7 +4212,7 @@ client.on('messageCreate', (message) => {
 								.setTimestamp(),
 							new EmbedBuilder()
 								.setColor('#0099ff')
-								.setTitle('Mega Stone Shop (Page 5/10)')
+								.setTitle('Mega Stone Shop (Page 5/11)')
 								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 								.addFields(
 									{ name: '`120:` **Tyranitarite (2500)**', value: '**REUSABLE**: Mega Stone for Tyranitar transformation' },
@@ -4224,7 +4224,7 @@ client.on('messageCreate', (message) => {
 								.setTimestamp(),
 							new EmbedBuilder()
 								.setColor('#0099ff')
-								.setTitle('Mega Stone Shop (Page 6/10)')
+								.setTitle('Mega Stone Shop (Page 6/11)')
 								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 								.addFields(
 									{ name: '`125:` **Sablenite (2500)**', value: '**REUSABLE**: Mega Stone for Sableye transformation' },
@@ -4236,7 +4236,7 @@ client.on('messageCreate', (message) => {
 								.setTimestamp(),
 							new EmbedBuilder()
 								.setColor('#0099ff')
-								.setTitle('Mega Stone Shop (Page 7/10)')
+								.setTitle('Mega Stone Shop (Page 7/11)')
 								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 								.addFields(
 									{ name: '`130:` **Sharpedonite (2500)**', value: '**REUSABLE**: Mega Stone for Sharpedo transformation' },
@@ -4248,7 +4248,7 @@ client.on('messageCreate', (message) => {
 								.setTimestamp(),
 							new EmbedBuilder()
 								.setColor('#0099ff')
-								.setTitle('Mega Stone Shop (Page 8/10)')
+								.setTitle('Mega Stone Shop (Page 8/11)')
 								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 								.addFields(
 									{ name: '`135:` **Glalitite (2500)**', value: '**REUSABLE**: Mega Stone for Glalie transformation' },
@@ -4260,7 +4260,7 @@ client.on('messageCreate', (message) => {
 								.setTimestamp(),
 							new EmbedBuilder()
 								.setColor('#0099ff')
-								.setTitle('Mega Stone Shop (Page 9/10)')
+								.setTitle('Mega Stone Shop (Page 9/11)')
 								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 								.addFields(
 									{ name: '`140:` **Lopunnite (2500)**', value: '**REUSABLE**: Mega Stone for Lopunny transformation' },
@@ -4272,11 +4272,20 @@ client.on('messageCreate', (message) => {
 								.setTimestamp(),
 							new EmbedBuilder()
 								.setColor('#0099ff')
-								.setTitle('Mega Stone Shop (Page 10/10)')
+								.setTitle('Mega Stone Shop (Page 10/11)')
 								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 								.addFields(
 									{ name: '`145:` **Audinite (2500)**', value: '**REUSABLE**: Mega Stone for Audino transformation' },
 									{ name: '`146:` **Diancite (2500)**', value: '**REUSABLE**: Mega Stone for Diancie transformation' }
+								)
+								.setTimestamp(),
+							new EmbedBuilder()
+								.setColor('#0099ff')
+								.setTitle('Mega Stone Shop (Page 11/11)')
+								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item' + '\n' + 'You will get your appliance back if Rotom is no longer actively using it')
+								.addFields(
+									{ name: '`147:` **Blue Orb (2500)**', value: '**CONSUMABLE**: Mega Stone for Kyogre primal transformation' },
+									{ name: '`148:` **Red Orb (2500)**', value: '**CONSUMABLE**: Mega Stone for Groudon primal transformation' }
 								)
 								.setTimestamp()
 						]
@@ -4377,7 +4386,7 @@ client.on('messageCreate', (message) => {
 									{ name: '`529:` **Kabuki Trim (2000)**', value: '**CONSUMABLE**: Kabuki trim for Furfrou transformation' },
 									{ name: '`530:` **Pharaoh Trim (2000)**', value: '**CONSUMABLE**: Pharaoh trim for Furfrou transformation' }
 								)
-								.setTimestamp(),
+								.setTimestamp()
 						]
 					}
 					else {
@@ -4858,6 +4867,16 @@ client.on('messageCreate', (message) => {
 							boughtItem = 'Diancite';
 							amount = 2500;
 						}
+						else if (shopNum === '147' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Blue Orb';
+							amount = 2500;
+						}
+						else if (shopNum === '148' && userCurrency >= 2500 * quantityNum) {
+							userCurrency -= (2500 * quantityNum);
+							boughtItem = 'Red Orb';
+							amount = 2500;
+						}
 						//Mega Store End
 
 						//Gigantamax Store Start
@@ -5221,67 +5240,42 @@ client.on('messageCreate', (message) => {
 							let newItem = null;
 
 							if (selectedMon.name === 'Rotom') {
-								if (selectedItem === 'Stove') {
+								const forms = {
+									'Stove': 'Heat',
+									'Washing Machine': 'Wash',
+									'Fridge': 'Frost',
+									'Fan': 'Fan',
+									'Lawn Mower': 'Mow',
+									'Defaulter': 'Default'
+								};
+								const formToItem = {
+									'Heat': 'Stove',
+									'Wash': 'Washing Machine',
+									'Frost': 'Fridge',
+									'Fan': 'Fan',
+									'Mow': 'Lawn Mower'
+								};
+								const itemToForm = forms[selectedItem];
+
+								if (itemToForm) {
 									if (selectedMon.form.toLowerCase() !== 'default') {
 										newItem = selectedMon.form;
 									}
-									inventoryArr.splice(itemNum - 1, 1);
-									pokemonArr[partyNum - 1].form = 'Heat';
-								}
-								else if (selectedItem === 'Washing Machine') {
-									if (selectedMon.form.toLowerCase() !== 'default') {
-										newItem = selectedMon.form;
+
+									if (itemToForm !== 'Default') {
+										inventoryArr.splice(itemNum - 1, 1);
 									}
-									inventoryArr.splice(itemNum - 1, 1);
-									pokemonArr[partyNum - 1].form = 'Wash';
-								}
-								else if (selectedItem === 'Fridge') {
-									if (selectedMon.form.toLowerCase() !== 'default') {
-										newItem = selectedMon.form;
-									}
-									inventoryArr.splice(itemNum - 1, 1);
-									pokemonArr[partyNum - 1].form = 'Frost';
-								}
-								else if (selectedItem === 'Fan') {
-									if (selectedMon.form.toLowerCase() !== 'default') {
-										newItem = selectedMon.form;
-									}
-									inventoryArr.splice(itemNum - 1, 1);
-									pokemonArr[partyNum - 1].form = 'Fan';
-								}
-								else if (selectedItem === 'Lawn Mower') {
-									if (selectedMon.form.toLowerCase() !== 'default') {
-										newItem = selectedMon.form;
-									}
-									inventoryArr.splice(itemNum - 1, 1);
-									pokemonArr[partyNum - 1].form = 'Mow';
-								}
-								else if (selectedItem === 'Defaulter') {
-									if (selectedMon.form.toLowerCase() !== 'default') {
-										newItem = selectedMon.form;
-									}
-									pokemonArr[partyNum - 1].form = 'Default';
+
+									pokemonArr[partyNum - 1].form = itemToForm;
+
+									if (newItem && formToItem[newItem]) {
+										newItem = formToItem[newItem];
+										inventoryArr = inventoryArr.concat(newItem);
+									}									
 								}
 								else {
 									message.channel.send('Could not use selected item on selected pokemon.');
 									return;
-								}
-
-								if (newItem !== null && newItem === 'Heat') {
-									newItem = 'Stove';
-								}
-								else if (newItem !== null && newItem === 'Wash') {
-									newItem = 'Washing Machine';
-								}
-								else if (newItem !== null && newItem === 'Frost') {
-									newItem = 'Fridge';
-								}
-								else if (newItem !== null && newItem === 'Mow') {
-									newItem = 'Lawn Mower';
-								}
-
-								if (newItem !== null) {
-									inventoryArr = inventoryArr.concat(newItem);
 								}
 							}
 							
@@ -5396,11 +5390,139 @@ client.on('messageCreate', (message) => {
 									return;
 								}
 							}
+							else if (selectedMon.name === 'Kyogre') {
+								const forms = {
+									'Blue Orb': 'Primal',
+									'Defaulter': 'Default'
+								};
+								const formToItem = {
+									'Primal': 'Blue Orb'
+								};
+								const itemToForm = forms[selectedItem];
+
+								if (itemToForm) {
+									if (selectedMon.form.toLowerCase() !== 'default') {
+										newItem = selectedMon.form;
+									}
+
+									if (itemToForm !== 'Default') {
+										inventoryArr.splice(itemNum - 1, 1);
+									}
+
+									pokemonArr[partyNum - 1].form = itemToForm;
+
+									if (newItem && formToItem[newItem]) {
+										newItem = formToItem[newItem];
+										inventoryArr = inventoryArr.concat(newItem);
+									}									
+								}
+								else {
+									message.channel.send('Could not use selected item on selected pokemon.');
+									return;
+								}
+							}
+							else if (selectedMon.name === 'Groudon') {
+								const forms = {
+									'Red Orb': 'Primal',
+									'Defaulter': 'Default'
+								};
+								const formToItem = {
+									'Primal': 'Red Orb'
+								};
+								const itemToForm = forms[selectedItem];
+
+								if (itemToForm) {
+									if (selectedMon.form.toLowerCase() !== 'default') {
+										newItem = selectedMon.form;
+									}
+
+									if (itemToForm !== 'Default') {
+										inventoryArr.splice(itemNum - 1, 1);
+									}
+
+									pokemonArr[partyNum - 1].form = itemToForm;
+
+									if (newItem && formToItem[newItem]) {
+										newItem = formToItem[newItem];
+										inventoryArr = inventoryArr.concat(newItem);
+									}									
+								}
+								else {
+									message.channel.send('Could not use selected item on selected pokemon.');
+									return;
+								}
+							}
+							else if (selectedMon.name === 'Arceus') {
+								const forms = {
+									'Fist Plate': 'Fist',
+									'Sky Plate': 'Sky',
+									'Toxic Plate': 'Toxic',
+									'Earth Plate': 'Earth',
+									'Stone Plate': 'Stone',
+									'Insect Plate': 'Insect',
+									'Spooky Plate': 'Spooky',
+									'Iron Plate': 'Iron',
+									'Flame Plate': 'Flame',
+									'Splash Plate': 'Splash',
+									'Meadow Plate': 'Meadow',
+									'Zap Plate': 'Zap',
+									'Mind Plate': 'Mind',
+									'Icicle Plate': 'Icicle',
+									'Draco Plate': 'Draco',
+									'Dread Plate': 'Dread',
+									'Pixie Plate': 'Pixie',
+									'Defaulter': 'Default'
+								};
+								const itemToForm = forms[selectedItem];
+
+								if (itemToForm) {
+									if (selectedMon.form.toLowerCase() !== 'default') {
+										newItem = selectedMon.form + ' Plate';
+									}
+
+									if (itemToForm !== 'Default') {
+										inventoryArr.splice(itemNum - 1, 1);
+									}
+
+									pokemonArr[partyNum - 1].form = itemToForm;
+
+									if (newItem) {
+										inventoryArr = inventoryArr.concat(newItem);
+									}									
+								}
+							}
+							else if (selectedMon.name === 'Furfrou') {
+								const forms = {
+									'Heart Trim': 'Heart Trim',
+									'Star Trim': 'Star Trim',
+									'Diamond Trim': 'Diamond Trim',
+									'Debutante Trim': 'Debutante Trim',
+									'Matron Trim': 'Matron Trim',
+									'Dandy Trim': 'Dandy Trim',
+									'La Reine Trim': 'La Reine Trim',
+									'Kabuki Trim': 'Kabuki Trim',
+									'Pharaoh Trim': 'Pharaoh Trim',
+									'Defaulter': 'Default'
+								};
+								const itemToForm = forms[selectedItem];
+
+								if (itemToForm) {
+									if (itemToForm !== 'Default' && itemToForm !== pokemonArr[partyNum - 1].form) {
+										inventoryArr.splice(itemNum - 1, 1);
+									}
+									pokemonArr[partyNum - 1].form = itemToForm;								
+								}
+								else {
+									message.channel.send('Could not use selected item on selected pokemon.');
+									return;
+								}
+							}
 							else if (selectedItem === 'Defaulter') {
 								if (selectedMon.form.toLowerCase().includes('mega')) {
 									pokemonArr[partyNum - 1].form = 'Default';
 								}
 							}
+
 							else {
 								message.channel.send('Could not use selected item on selected pokemon.');
 								return;
