@@ -1767,7 +1767,8 @@ client.on('messageCreate', (message) => {
 							'Raikou', 'Entei', 'Suicune', 'Lugia', 'Ho-Oh',
 							'Regirock', 'Regice', 'Registeel', 'Latias', 'Latios', 'Kyogre', 'Groudon', 'Rayquaza',
 							'Uxie', 'Mesprit', 'Azelf', 'Dialga', 'Palkia', 'Heatran', 'Regigigas', 'Giratina', 'Cresselia',
-							'Cobalion', 'Terrakion', 'Virizion', 'Tornadus', 'Thundurus', 'Reshiram', 'Zekrom', 'Landorus', 'Kyurem'
+							'Cobalion', 'Terrakion', 'Virizion', 'Tornadus', 'Thundurus', 'Reshiram', 'Zekrom', 'Landorus', 'Kyurem',
+							'Xerneas', 'Yveltal', 'Zygarde'
 						];
 						dbUser.all("SELECT user_id, caught_pokemon, servers FROM user", [], async (err, rows) => {
 							if (err) {
@@ -1831,7 +1832,8 @@ client.on('messageCreate', (message) => {
 							'Celebi',
 							'Jirachi', 'Deoxys',
 							'Phione', 'Manaphy', 'Darkrai', 'Shaymin', 'Arceus',
-							'Victini', 'Keldeo', 'Meloetta', 'Genesect'
+							'Victini', 'Keldeo', 'Meloetta', 'Genesect',
+							'Diancie', 'Hoopa', 'Volcanion'
 						];
 						dbUser.all("SELECT user_id, caught_pokemon, servers FROM user", [], async (err, rows) => {
 							if (err) {
