@@ -4,6 +4,7 @@ const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database('./pokemon.db');
 const dbUser = new sqlite3.Database('./user.db');
 const dbServer = new sqlite3.Database('./server.db');
+const dbShop = new sqlite3.Database('./shop.db')
 
 const token = process.env.DISCORD_TOKEN;
 
@@ -616,27 +617,36 @@ client.on('messageCreate', (message) => {
 
 										// user caught all pokemon
 										if (uncaughtPokemon.length === 0) {
-											message.channel.send('You have caught all pokemon, repel will be given back.');
+											message.channel.send('You have caught all pokemon!');
 											uncaughtPokemon = rows.filter(row => row.isLM !== 3);
 										}
 
 										const randRepelNum = Math.random();
 										if (standardRepel === 'Normal Repel') {
 											if (randRepelNum < 0.5) {
-												message.channel.send('Repel worked successfully.');
+												message.channel.send('Repel worked **successfully**.');
 												repelList = uncaughtPokemon;
+											}
+											else {
+												message.channel.send('Repel was **unsuccessful**.');
 											}
 										}
 										else if (standardRepel === 'Super Repel') {
 											if (randRepelNum < 0.75) {
-												message.channel.send('Repel worked successfully.');
+												message.channel.send('Repel worked **successfully**.');
 												repelList = uncaughtPokemon;
+											}
+											else {
+												message.channel.send('Repel was **unsuccessful**.');
 											}
 										}
 										else if (standardRepel === 'Max Repel') {
 											if (randRepelNum < 0.9) {
-												message.channel.send('Repel worked successfully.');
+												message.channel.send('Repel worked **successfully**.');
 												repelList = uncaughtPokemon;
+											}
+											else {
+												message.channel.send('Repel was **unsuccessful**.');
 											}
 										}
 									}
@@ -4286,10 +4296,11 @@ client.on('messageCreate', (message) => {
 							new EmbedBuilder()
 								.setColor('#0099ff')
 								.setTitle('Mega Stone Shop (Page 11/11)')
-								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item' + '\n' + 'You will get your appliance back if Rotom is no longer actively using it')
+								.setDescription('List of available Mega Stone items in the shop' + '\n' + 'Use the command .buy <shopNum> to purchase an item')
 								.addFields(
 									{ name: '`147:` **Blue Orb (2500)**', value: '**CONSUMABLE**: Mega Stone for Kyogre primal transformation' },
-									{ name: '`148:` **Red Orb (2500)**', value: '**CONSUMABLE**: Mega Stone for Groudon primal transformation' }
+									{ name: '`148:` **Red Orb (2500)**', value: '**CONSUMABLE**: Mega Stone for Groudon primal transformation' },
+									{ name: '`149:` **Meteorite (2500)**', value: '**CONSUMABLE**: Mega Stone for Rayquaza primal transformation' }
 								)
 								.setTimestamp()
 						]
@@ -5201,6 +5212,249 @@ client.on('messageCreate', (message) => {
 						}).catch(err => {
 							console.error('Error sending the inventory message:', err);
 						});
+					});
+				});
+			}
+
+			//trash, TODO
+			else if (message.content.startsWith('.trash') && userId === '177580797165961216') {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+
+					const args = message.content.split(' ').slice(1);
+					let itemNum = parseInt(args[0], 10);
+					dbUser.get("SELECT inventory FROM user WHERE user_id = ?", [userId], (err, row) => {
+						if (err) {
+							console.error(err.message);
+							return;
+						}
+						if (!row) {
+							message.channel.send('User has not caught a pokemon yet.');
+							return;
+						}
+						let inventoryArr = JSON.parse(row.inventory).flat();
+						inventoryArr.splice(itemNum - 1, 1);
+						dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(inventoryArr), userId], (err) => {
+							if (err) {
+								console.error('Error updating user inventory and caught pokemon:', err.message);
+								return;
+							}
+							message.channel.send('Trashed that item.')
+						});
+					});
+				});
+			}
+
+			else if (message.content.startsWith('.use2') && userId === '177580797165961216') {
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					const allList = [
+						'Kyogre', 'Groudon', 'Rayquaza',
+						'Rotom', 'Shaymin', 'Arceus',
+						'Tornadus', 'Thundurus', 'Landorus',
+						'Kyurem',
+						'Furfrou'
+					];
+
+					const args = message.content.split(' ').slice(1);
+
+					dbUser.get("SELECT caught_pokemon, inventory FROM user WHERE user_id = ?", [userId], (err, row) => {
+						if (err) {
+							console.error(err.message);
+							return;
+						}
+						if (!row) {
+							message.channel.send('User has not caught a pokemon yet.');
+							return;
+						}
+						let inventoryArr = JSON.parse(row.inventory).flat();
+						let pokemonArr = JSON.parse(row.caught_pokemon).flat();
+						if (inventoryArr.length < 1 || pokemonArr.length < 1) {
+							message.channel.send('You have no items or you have no caught pokemon!');
+							return;
+						}
+
+						dbShop.all("SELECT * FROM shop", [], (error, shopItems) => {
+							if (error) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching the shop.');
+								return;
+							}
+							if (!shopItems) {
+								message.channel.send('There are no items in the shop database.');
+								return;
+							}
+
+							let itemNum;
+							if (args.length > 0) {
+								itemNum = parseInt(args[0], 10);
+							}
+							else {
+								message.channel.send('Improper command usage, you must supply an item number! Usage: `.use <itemNum> <partyNum>`');
+								return;
+							}
+							if (isNaN(itemNum)) {
+								message.channel.send('Improper command usage. Usage: `.use <itemNum> <partyNum>`');
+								return;
+							}
+							if (itemNum < 1 || itemNum > inventoryArr.length) {
+								message.channel.send('Improper command usage: You have no pokemon in that party slot!`');
+								return;
+							}
+
+							const selectedItem = inventoryArr[itemNum - 1];
+							const itemRowArr = shopItems.filter(shopItem => shopItem.item_name === selectedItem).flat();  //item_name: selectedItem)
+							const itemRow = itemRowArr[0];
+							//CHECK
+							//TODO: delete this check in the future, just a failsafe
+							if (itemRow.length > 1) {
+								message.channel.send('Came across a bug in using items, sorry for the inconvenience.');
+								return;
+							}
+
+							if (itemRow.item_class === 0) {
+								if (itemRow.reusable === 0) {
+									// use and delete from inv
+								}
+								else if (itemRow.reusable === 1) {
+									//just use, do not delete
+								}
+							}
+							else if (itemRow.item_class === 1) {
+								let partyNum;
+								if (args.length > 1) {
+									partyNum = parseInt(args[1], 10);
+								}
+								else {
+									message.channel.send('Improper command usage, you must supply a party number! Usage: `.use <itemNum> <partyNum>`');
+									return;
+								}
+								if (isNaN(partyNum)) {
+									message.channel.send('Improper command usage. Usage: `.use <itemNum> <partyNum>`');
+									return;
+								}
+								if (partyNum < 1 || partyNum > pokemonArr.length) {
+									message.channel.send('Improper command usage: You have no pokemon in that party slot!`');
+									return;
+								}
+								const selectedMon = pokemonArr[partyNum - 1];
+								if (itemRow.pokemon_usage === selectedMon.name) {
+									let oldItem = null;
+									if (itemRow.reusable === 2 && selectedMon.form !== 'Default') {
+										const oldItemRow = shopItems.filter(shopItem => shopItem.new_form === selectedMon.form && shopItem.reusable === 2);
+										//CHECK
+										//TODO: delete this check in the future, just a failsafe
+										if (oldItemRow.length > 1) {
+											message.channel.send('Came across a bug in using items, sorry for the inconvenience.');
+											return;
+										}
+										if (oldItemRow.length === 1) {
+											oldItem = oldItemRow[0].item_name;
+										}
+									}
+									pokemonArr[partyNum - 1].form = itemRow.new_form;
+									inventoryArr.splice(itemNum - 1, 1);
+									if (oldItem) {
+										inventoryArr = inventoryArr.concat(oldItem);
+									}
+									dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], (err) => {
+										if (err) {
+											console.error('Error updating user inventory and caught pokemon:', err.message);
+											return;
+										}
+										message.channel.send('Transformation Successful.')
+									});
+								}
+								else if (itemRow.pokemon_usage === 'All') {
+									if (allList.includes(selectedMon.name)) {
+
+										let oldItem = null;
+										const oldItemRow = shopItems.filter(shopItem => shopItem.new_form === selectedMon.form && shopItem.reusable === 2);
+										//CHECK
+										//TODO: delete this check in the future, just a failsafe
+										if (oldItemRow.length > 1) {
+											message.channel.send('Came across a bug in using items, sorry for the inconvenience.');
+											return;
+										}
+										if (oldItemRow.length === 1) {
+											oldItem = oldItemRow[0].item_name;
+										}
+
+										if (selectedMon.name === 'Shaymin') {
+											pokemonArr[partyNum - 1].form = 'Land Forme';
+										}
+										else if (selectedMon.name === 'Tornadus' || selectedMon.name === 'Thundurus' || selectedMon.name === 'Landorus') {
+											pokemonArr[partyNum - 1].form = 'Incarnate';
+										}
+										else {
+											pokemonArr[partyNum - 1].form = 'Default';
+										}
+
+										if (oldItem) {
+											inventoryArr = inventoryArr.concat(oldItem);
+										}
+										dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], (err) => {
+											if (err) {
+												console.error('Error updating user inventory and caught pokemon:', err.message);
+												return;
+											}
+											message.channel.send('Transformation Successful.')
+										});
+									}
+								}
+								else {
+									message.channel.send('Could not use selected item on selected pokemon.');
+									return;
+								}
+							}
+
+						});
+
+						/* new psuedocode
+
+						const itemNum = parseInt(args[0], 10);
+						if (isNaN(itemNum)) {
+							message.channel.send('Improper command usage. Usage: `.use <itemNum> <partyNum>`');
+							return;
+						}
+						if (itemNum < 1 || itemNum > inventoryArr.length) {
+							message.channel.send('Improper command usage: You have no pokemon in that party slot!`');
+							return;
+						}
+						const selectedItem = inventoryArr[itemNum - 1];
+						itemRow = shopItems.filter(item_name: selectedItem)
+
+						if itemRow.item_class = 0
+							if itemRow.reusable === 0
+								// use and delete from inventory
+							else if itemRow.reusable === 1
+								// use
+						
+						else if itemRow.item_class = 1
+							const partyNum = parseInt(args[1], 10);
+							if (isNaN(partyNum)) {
+								message.channel.send('Improper command usage. Usage: `.use <itemNum>`');
+								return;
+							}
+							if (partyNum < 1 || partyNum > pokemonArr.length) {
+								message.channel.send('Improper command usage: You have no pokemon in that party slot!`');
+								return;
+							}
+							const selectedMon = pokemonArr[partyNum - 1];
+							if itemRow.pokemon_usage === selectedMon.name
+								if (itemRow.reusable === 2 && selectedMon.form !== 'Default')
+									oldItemRow = shopItems.filter( new_form: selectedMon.form)
+									oldItem = oldItemRow.item_name
+								selectedMon.form = itemRow.new_form
+								//get rid of item in inventory
+								if oldItem !== null
+									//add oldItem to end of inventory list
+
+					*/
 					});
 				});
 			}
