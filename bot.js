@@ -1087,10 +1087,10 @@ client.on('messageCreate', (message) => {
 
 						let genderSymbol = '';
 						if (gender === 'Male') {
-							genderSymbol = '`♂\u200B`';//'♂️';
+							genderSymbol = ' `♂\u200B`';//'♂️';
 						}
 						else if (gender === 'Female') {
-							genderSymbol = '`♀\u200B`';//'♀';
+							genderSymbol = ' `♀\u200B`';//'♀';
 						}
 
 						let formName = '';
@@ -1107,8 +1107,8 @@ client.on('messageCreate', (message) => {
 						}
 						
 						const messageText = isShinyVar
-							? `Added ✨${formName}${curMonName} ${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
-							: `Added ${formName}${curMonName} ${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
+							? `Added ✨${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
+							: `Added ${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
 						
 						message.channel.send(messageText);
 						
@@ -1402,15 +1402,12 @@ client.on('messageCreate', (message) => {
 						.setDescription('Recently added Changes')
 						.addFields(
 							{ name: 'ANNOUNCEMENT:', value: 'For any bug found, you may recieve currency in the range 100-5000!' },
+							{ name: 'Add shop.db:', value: 'Changed pretty much nothing on user end but built a shop database and made it so specific pokemon commands work in .shop.' },
 							{ name: 'Add .team:', value: 'Allows users to look at the first 6 of someone else\'s party.' },
 							{ name: 'Add .compare:', value: 'Allows users to see what pokemon a user has compared to what they don\'t have.' },
 							{ name: 'Dex Update:', value: 'Added how many you own when you look at pokemon in .dex.' },
 							{ name: 'Repel Exploit:', value: 'Fixed a repel exploit where users had the dex filled out, forcing a mythical.' },
 							{ name: 'Updated Shop/Drop:', value: 'Added repels to the store for drops.' },
-							{ name: 'Updated Buy:', value: 'Added quantity option.' },
-							{ name: 'Updated Shop:', value: 'Added various items to the store for pokemon\'s forms.' },
-							{ name: 'Remind Command:', value: 'Added .remind to get notified when your drop is off cooldown.' },
-							{ name: 'Use Command:', value: 'Allows you to use some items on pokemon to change their forms.' },
 						)
 						.setTimestamp();
 
@@ -4768,7 +4765,7 @@ client.on('messageCreate', (message) => {
 					const helpPages = [
 					 new EmbedBuilder()
 						.setColor('#0099ff')
-						.setTitle('Help (Page 1)')
+						.setTitle('Help (Page 1/4)')
 						.setDescription('List of available commands:')
 						.addFields(
 							{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
@@ -4780,7 +4777,7 @@ client.on('messageCreate', (message) => {
 						.setTimestamp(),
 					new EmbedBuilder()
 						.setColor('#0099ff')
-						.setTitle('Help (Page 2)')
+						.setTitle('Help (Page 2/4)')
 						.setDescription('List of available commands:')
 						.addFields(
 							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
@@ -4792,7 +4789,7 @@ client.on('messageCreate', (message) => {
 						.setTimestamp(),
 					new EmbedBuilder()
 						.setColor('#0099ff')
-						.setTitle('Help (Page 3)')
+						.setTitle('Help (Page 3/4)')
 						.setDescription('List of available commands:')
 						.addFields(
 							{ name: '.uncaught (.u)', value: 'Displays a list of your uncaught pokémon' },
@@ -4804,7 +4801,7 @@ client.on('messageCreate', (message) => {
 						.setTimestamp(),
 					new EmbedBuilder()
 						.setColor('#0099ff')
-						.setTitle('Help (Page 4)')
+						.setTitle('Help (Page 4/4)')
 						.setDescription('List of available commands:')
 						.addFields(
 							{ name: '.use <itemNum> <partyNum>', value: 'Uses an item. If a partyNum is supplied, uses the item on a Pokémon.' },
