@@ -2042,9 +2042,9 @@ client.on('messageCreate', (message) => {
 									return acc;
 								}, 0);
 
-								return mythicalCount > 0 ? {
+								return ultraBeastCount > 0 ? {
 									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
-									value: mythicalCount
+									value: ultraBeastCount
 								} : null;
 							}));
 
@@ -5065,7 +5065,8 @@ client.on('messageCreate', (message) => {
 							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party.' + '\n' + 'Example: .release 1' },
 							{ name: '.trade @<user> (.t)', value: 'Initiates a trade with another user.' },
 							{ name: '.count', value: 'Displays the amount of each pokémon you\'ve caught.'},
-							{ name: '.leaderboard (.lb)', value: 'Display a leaderboard.' + '\n' + 'Usages: .lb currency *|* .lb shiny *|* .lb legendary *|* .lb mythical *|* .lb pokedex *|* .lb {pokémon}' }
+							{ name: '.leaderboard (.lb)', value: 'Display a leaderboard.' + '\n' + 'Usages: .lb currency *|* .lb shiny *|* .lb legendary *|* .lb mythical *|* .lb pokedex *|* .lb {pokémon}' },
+							{ name: '.remind', value: 'Reminds you when your drop is off cooldown.'},
 						)
 						.setTimestamp(),
 					new EmbedBuilder()
