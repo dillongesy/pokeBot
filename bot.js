@@ -4797,7 +4797,7 @@ client.on('messageCreate', (message) => {
 						'Tornadus', 'Thundurus', 'Landorus',
 						'Kyurem',
 						'Furfrou', 'Hoopa',
-						'Silvally'
+						'Silvally', 'Necrozma'
 					];
 					const geniesList = [
 						'Tornadus', 'Thundurus', 'Landorus'
