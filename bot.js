@@ -39,10 +39,10 @@ const cooldowns = new Map(); 	//Map<userId, cooldownEnd>
 const cooldownAlerts = new Map(); //Map<userId, alertEnabled>
 const activeDrops = new Map();	//Map<serverId_channelId, activePokemon {name, isShiny, form}>
 const activeTrades = new Map();	//Map<serverId, {user1, user2, user1Pokemon, user2Pokemon, user1Confirmed, user2Confirmed}>
-const activeUserRepels = new Map(); //Map<userId, { standard, rare }
+const activeUserRepels = new Map(); //Map<userId, { standard, rare }>
 
 //Helper function, .party Embed Generator
-//isSLM: 0 = default/name, 1 = shiny, 2 = legendary, 3 = mythical
+//isSLM: 0 = default/name, 1 = shiny, 2 = legendary, 3 = mythical, 4 = ultra beast
 function generatePartyEmbed(pokemonList, page, pageSize, title, isSLM) {
 	const start = page * pageSize;
 	const end = start + pageSize;
@@ -61,7 +61,7 @@ function generatePartyEmbed(pokemonList, page, pageSize, title, isSLM) {
 				}
 
 				if (p.form && p.form.toLowerCase() !== 'default') {
-					const formPrefix = p.form; //.split(' ')[0];
+					const formPrefix = p.form;
 					displayName = `${formPrefix} ${displayName}`;
 					if (isShiny) {
 						displayName = `✨${displayName}`;
@@ -96,6 +96,9 @@ function generatePartyEmbed(pokemonList, page, pageSize, title, isSLM) {
 	}
 	else if (isSLM === 3) { //mythical
 		color = '#FF96C5';
+	}
+	else if (isSLM === 4) { //ultra beast
+		color = '#CF9FFF';
 	}
 	
 	const embed = new EmbedBuilder()
@@ -166,15 +169,21 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, ge
 	const formTypes = getFormTypes(pokemonRow.name, selectedForm, pokeList);
 	let type1Field = '';
 	let type2Field = '';
+	let regionField = '';
 	let genderRatio = '';
 	let ownedVar = '';
 	if (formTypes.formFound === true) {
 		type1Field = formTypes.type1;
 		type2Field = formTypes.type2 ? ` / ${formTypes.type2}` : '';
+		regionField = formTypes.region;
 	}
 	else {
 		type1Field = pokemonRow.type1;
 		type2Field = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
+		regionField = pokemonRow.region;
+	}
+	if (selectedForm.toLowerCase() === 'alolan') {
+		selectedForm = '';
 	}
 	if (selectedForm.toLowerCase() !== 'default' && selectedForm.toLowerCase() !== '') {
 		selectedForm = `(${selectedForm})`;
@@ -214,7 +223,7 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, ge
 		.setTitle(`${pokemonRow.name} - #${dexNumber} ${selectedForm}`)
 		.addFields(
 			{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
-			{ name: 'Region', value: `${pokemonRow.region}`, inline: true },
+			{ name: 'Region', value: `${regionField}`, inline: true },
 			{ name: 'Gender Ratio', value: `${genderRatio}`, inline: true },
 			{ name: 'Owned:', value: `${ownedVar}`, inline: true },
 		)
@@ -232,14 +241,16 @@ function getFormTypes(name, form, pokeList) {
 		return {
 			formFound: true,
 			type1: foundPokemon.type1,
-			type2: foundPokemon.type2
+			type2: foundPokemon.type2,
+			region: foundPokemon.region
 		};
 	}
 	else {
 		return {
 			formFound: false,
 			type1: '',
-			type2: ''
+			type2: '',
+			region: ''
 		};
 	}
 }
@@ -432,6 +443,66 @@ function fixPokemonName(pokemonIdentifier, args) {
 	else if (pokemonIdentifier === 'Flabebe') {
 		pokemonIdentifier = 'Flabébé';
 	}
+	else if (pokemonIdentifier === 'Type:' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'null') {
+			pokemonIdentifier = 'Type: Null';
+		}
+	}
+	else if (pokemonIdentifier === 'Type' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'null') {
+			pokemonIdentifier = 'Type: Null';
+		}
+	}
+	else if (pokemonIdentifier === 'Type:null') {
+		pokemonIdentifier = 'Type: Null';
+	}
+	else if (pokemonIdentifier === 'Typenull') {
+		pokemonIdentifier = 'Type: Null';
+	}
+	else if (pokemonIdentifier === 'Jangmo' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'o') {
+			pokemonIdentifier = 'Jangmo-o';
+		}
+	}
+	else if (pokemonIdentifier === 'Jangmoo') {
+		pokemonIdentifier = 'Jangmo-o';
+	}
+	else if (pokemonIdentifier === 'Hakamo' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'o') {
+			pokemonIdentifier = 'Hakamo-o';
+		}
+	}
+	else if (pokemonIdentifier === 'Hakamoo') {
+		pokemonIdentifier = 'Hakamo-o';
+	}
+	else if (pokemonIdentifier === 'Kommo' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'o') {
+			pokemonIdentifier = 'Kommo-o';
+		}
+	}
+	else if (pokemonIdentifier === 'Kommoo') {
+		pokemonIdentifier = 'Kommo-o';
+	}
+	else if (pokemonIdentifier === 'Tapu' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'koko') {
+			pokemonIdentifier = 'Tapu Koko';
+		}
+	}
+	else if (pokemonIdentifier === 'Tapu' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'lele') {
+			pokemonIdentifier = 'Tapu Lele';
+		}
+	}
+	else if (pokemonIdentifier === 'Tapu' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'bulu') {
+			pokemonIdentifier = 'Tapu Bulu';
+		}
+	}
+	else if (pokemonIdentifier === 'Tapu' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'fini') {
+			pokemonIdentifier = 'Tapu Fini';
+		}
+	}
 	
 	return pokemonIdentifier;
 }
@@ -485,7 +556,7 @@ const useCommandRegex = /^\.(use)\b/;
 const compareCommandRegex = /^\.(compare)\b/;
 const teamCommandRegex = /^\.(team)\b/;
 
-const maxDexNum = 721; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+const maxDexNum = 809; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}`);
@@ -552,6 +623,8 @@ client.on('messageCreate', (message) => {
 							if (rows.length > 0) {
 								const shinyNumber = Math.random();
 								let isShiny = false;
+								const ultraBeastNumber = Math.random();
+								let isUltraBeast = false;
 								const legendaryNumber = Math.random();
 								let isLegendary = false;
 								const mythicalNumber = Math.random();
@@ -563,6 +636,7 @@ client.on('messageCreate', (message) => {
 								const userRepels = activeUserRepels.get(userId);
 								let repelList = rows.filter(row => row.isLM !== 3);
 
+								let ub = false; //ultra beast
 								let s = false; //shiny
 								let l = false; //legendary
 								let m = false; //mythical
@@ -578,7 +652,10 @@ client.on('messageCreate', (message) => {
 									}
 
 									if (rareRepel) {
-										if (rareRepel === 'Legendary Incense') {
+										if (rareRepel === 'Ultra Beast Incense') {
+											ub = true;
+										}
+										else if (rareRepel === 'Legendary Incense') {
 											l = true;
 										}
 										else if (rareRepel === 'Mythical Incense') {
@@ -612,6 +689,9 @@ client.on('messageCreate', (message) => {
 										}
 										else if (m) {
 											uncaughtPokemon = uncaughtPokemon.filter(pokemon => pokemon.isLM == 2);
+										}
+										else if (ub) {
+											uncaughtPokemon = uncaughtPokemon.filter(pokemon => pokemon.isLM == 4);
 										}
 
 
@@ -658,17 +738,23 @@ client.on('messageCreate', (message) => {
 									isShiny = true;
 								}
 
-								if ((mythicalNumber < 0.005 || m) && !l) {
+								if ((mythicalNumber < 0.005 || m) && !l && !ub) {
 										isMythical = true;
 								}
 								else if (s && mythicalNumber < 0.025) {
 									isMythical = true;
 								}
-								else if (legendaryNumber < 0.0075 || l) {
+								else if ((legendaryNumber < 0.0075 || l) && !ub) { 
 									isLegendary = true;
 								}
 								else if (s && legendaryNumber < 0.05) {
 									isLegendary = true;
+								}
+								else if (ultraBeastNumber < 0.0075 || ub) {
+									isUltraBeast = true;
+								}
+								else if (s && ultraBeastNumber < 0.025) {
+									isUltraBeast = true;
 								}
 
 								if (isMythical) {
@@ -691,6 +777,19 @@ client.on('messageCreate', (message) => {
 									}
 									if (rowsL.length > 0) {
 										pokemon = rowsL[getRandomInt(rowsL.length)];
+										embedColor = '#66FF00';
+									}
+									else {
+										console.log("Error, no mythical pokemon!");
+									}
+								}
+								else if (isUltraBeast) {
+									let rowsUB = repelList.filter(row => row.isLM === 4);
+									if (rowsUB.length === 0) {
+										rowsUB = rows.filter(row => row.isLM === 4);
+									}
+									if (rowsUB.length > 0) {
+										pokemon = rowsUB[getRandomInt(rowsUB.length)];
 										embedColor = '#66FF00';
 									}
 									else {
@@ -770,6 +869,7 @@ client.on('messageCreate', (message) => {
 									'ShinyNum:     ' + shinyNumber + ' (<0.00025)' + '\n' + 
 									'MythicalNum:  ' + mythicalNumber + ' (<0.005)' + '\n' + 
 									'LegendaryNum: ' + legendaryNumber + ' (<0.0075)' +'\n' +
+									'UltraBeastNum: ' + ultraBeastNumber + ' (<0.0075)' +'\n' +
 									'Form: ' + selectForm.name + '\n' +
 									'Gender: ' + selectGender.name + '\n');
 								
@@ -1047,7 +1147,20 @@ client.on('messageCreate', (message) => {
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'spoink' && message.content.toLowerCase() === 'boingo')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygon z')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygonz')
-				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'flabébé' && message.content.toLowerCase() === 'flabebe'))) { //edge case
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'flabébé' && message.content.toLowerCase() === 'flabebe')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'type: null' && message.content.toLowerCase() === 'type null')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'type: null' && message.content.toLowerCase() === 'type:null')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'type: null' && message.content.toLowerCase() === 'typenull')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'jangmo-o' && message.content.toLowerCase() === 'jangmo o')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'jangmo-o' && message.content.toLowerCase() === 'jangmoo')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'hakamo-o' && message.content.toLowerCase() === 'hakamo o')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'hakamo-o' && message.content.toLowerCase() === 'hakamoo')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'Kommo-o' && message.content.toLowerCase() === 'kommo o')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'Kommo-o' && message.content.toLowerCase() === 'kommoo')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'tapu koko' && message.content.toLowerCase() === 'tapukoko')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'tapu lele' && message.content.toLowerCase() === 'tapulele')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'tapu bulu' && message.content.toLowerCase() === 'tapubulu')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'tapu fini' && message.content.toLowerCase() === 'tapufini'))) { //edge case
 				
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
@@ -1402,12 +1515,10 @@ client.on('messageCreate', (message) => {
 						.setDescription('Recently added Changes')
 						.addFields(
 							{ name: 'ANNOUNCEMENT:', value: 'For any bug found, you may recieve currency in the range 100-5000!' },
+							{ name: 'Add gen 7:', value: 'Added gen 7 pokemon and their items' },
 							{ name: 'Add shop.db:', value: 'Changed pretty much nothing on user end but built a shop database and made it so specific pokemon commands work in .shop.' },
 							{ name: 'Add .team:', value: 'Allows users to look at the first 6 of someone else\'s party.' },
 							{ name: 'Add .compare:', value: 'Allows users to see what pokemon a user has compared to what they don\'t have.' },
-							{ name: 'Dex Update:', value: 'Added how many you own when you look at pokemon in .dex.' },
-							{ name: 'Repel Exploit:', value: 'Fixed a repel exploit where users had the dex filled out, forcing a mythical.' },
-							{ name: 'Updated Shop/Drop:', value: 'Added repels to the store for drops.' },
 						)
 						.setTimestamp();
 
@@ -1625,6 +1736,7 @@ client.on('messageCreate', (message) => {
 							sendLeaderboard(message, filteredUsers, 'Total Pokémon Caught Leaderboard');
 						});
 					}
+
 					else if (args[0].toLowerCase() === 'c' || args[0].toLowerCase() === 'currency') {
 						//display currency leaderboard
 						let serverLb = false;
@@ -1775,7 +1887,8 @@ client.on('messageCreate', (message) => {
 							'Regirock', 'Regice', 'Registeel', 'Latias', 'Latios', 'Kyogre', 'Groudon', 'Rayquaza',
 							'Uxie', 'Mesprit', 'Azelf', 'Dialga', 'Palkia', 'Heatran', 'Regigigas', 'Giratina', 'Cresselia',
 							'Cobalion', 'Terrakion', 'Virizion', 'Tornadus', 'Thundurus', 'Reshiram', 'Zekrom', 'Landorus', 'Kyurem',
-							'Xerneas', 'Yveltal', 'Zygarde'
+							'Xerneas', 'Yveltal', 'Zygarde',
+							'Type: Null', 'Silvally', 'Tapu Koko', 'Tapu Lele', 'Tapu Bulu', 'Tapu Fini', 'Cosmog', 'Cosmoem', 'Solgaleo', 'Lunala', 'Necrozma'
 						];
 						dbUser.all("SELECT user_id, caught_pokemon, servers FROM user", [], async (err, rows) => {
 							if (err) {
@@ -1840,7 +1953,8 @@ client.on('messageCreate', (message) => {
 							'Jirachi', 'Deoxys',
 							'Phione', 'Manaphy', 'Darkrai', 'Shaymin', 'Arceus',
 							'Victini', 'Keldeo', 'Meloetta', 'Genesect',
-							'Diancie', 'Hoopa', 'Volcanion'
+							'Diancie', 'Hoopa', 'Volcanion',
+							'Magearna', 'Marshadow', 'Zeraora', 'Meltan', 'Melmetal'
 						];
 						dbUser.all("SELECT user_id, caught_pokemon, servers FROM user", [], async (err, rows) => {
 							if (err) {
@@ -1887,6 +2001,66 @@ client.on('messageCreate', (message) => {
 							}
 							filteredUsers.sort((a, b) => b.value - a.value);
 							const leaderboardTitle = serverLb ? 'Server Mythical Pokémon Leaderboard' : 'Mythical Pokémon Leaderboard';
+							sendLeaderboard(message, filteredUsers, leaderboardTitle);
+						});
+					}
+
+					else if (args[0].toLowerCase() === 'ultrabeasts' || args[0].toLowerCase() === 'ultra' 
+						|| args[0].toLowerCase() === 'ultrabeast' || args[0].toLowerCase() === 'ub') {
+						//display mythical leaderboard
+						let serverLb = false;
+						if (args.length > 1 && args[1].toLowerCase() === 'server') {
+							serverLb = true;
+						}
+						// Use in-memory data to make this call a lot faster
+						const ultraBeastPokemon = [
+							'Nihilego', 'Buzzwole', 'Pheromosa', 'Xurkitree', 'Celesteela', 'Kartana', 'Guzzlord', 'Poipole', 'Naganadel', 'Stakataka', 'Blacephalon'
+						];
+						dbUser.all("SELECT user_id, caught_pokemon, servers FROM user", [], async (err, rows) => {
+							if (err) {
+								console.error(err.message);
+								message.channel.send('An error occurred while fetching the ultra beast leaderboard.');
+								return;
+							}
+
+							const users = await Promise.all(rows.map(async row => {
+								if (!row.caught_pokemon || (serverLb && !row.servers)) {
+									return null;
+								}
+
+								if (serverLb) {
+									const userServers = JSON.parse(row.servers);
+									if (!userServers.includes(serverId)) {
+										return null;
+									}
+								}
+
+								const user = await client.users.fetch(row.user_id).catch(() => null);
+								const caughtPokemon = JSON.parse(row.caught_pokemon).flat().map(pokemon => pokemon.name) || [];
+
+								const ultraBeastCount = caughtPokemon.reduce((acc, pokemonName) => {
+									if (typeof pokemonName === 'string') {
+										let finalName = pokemonName.startsWith('✨') ? pokemonName.substring(1) : pokemonName;
+										if (ultraBeastPokemon.includes(finalName)) {
+											acc += 1;
+										}
+									}
+									return acc;
+								}, 0);
+
+								return mythicalCount > 0 ? {
+									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									value: mythicalCount
+								} : null;
+							}));
+
+							const filteredUsers = users.filter(user => user !== null);
+							if (filteredUsers.length < 1) {
+								message.channel.send(serverLb ? 'No users in this server have caught an ultra beast yet.' : 'No users have caught an ultra beast yet.');
+								return;
+							}
+							filteredUsers.sort((a, b) => b.value - a.value);
+							const leaderboardTitle = serverLb ? 'Server Ultra Beast Pokémon Leaderboard' : 'Ultra Beast Pokémon Leaderboard';
 							sendLeaderboard(message, filteredUsers, leaderboardTitle);
 						});
 					}
@@ -1958,7 +2132,7 @@ client.on('messageCreate', (message) => {
 							sendLeaderboard(message, filteredUsers, leaderboardTitle);
 						});
 					}
-
+					
 					else if (args.length > 0) {
 						//lb by pokemon name
 						let serverLb = false;
@@ -2993,6 +3167,101 @@ client.on('messageCreate', (message) => {
 							}
 						}
 
+						else if (args[0].toLowerCase() === 'ultrabeast' || args[0].toLowerCase() === 'ub' 
+								|| args[0].toLowerCase() === 'ultra' || args[0].toLowerCase() === 'ultrabeasts') {
+							const ultraBeastPokemon = [
+								'Nihilego', 'Buzzwole', 'Pheromosa', 'Xurkitree', 'Celesteela', 'Kartana', 'Guzzlord', 'Poipole', 'Naganadel', 'Stakataka', 'Blacephalon'
+							];
+			
+							const ultraBeastsCaught = caughtPokemon
+								.map((pokemonObj, index) => {
+									let pokemonName = pokemonObj.name;
+			
+									if (pokemonName.startsWith('✨')) {
+										pokemonName = pokemonName.substring(1);
+									}
+			
+									if (ultraBeastPokemon.includes(pokemonName)) {
+										return {
+											...pokemonObj,
+											id: index + 1
+										};
+									}
+									else {
+										return null;
+									}
+								})
+								.filter(p => p !== null);
+								
+							if (ultraBeastsCaught.length === 0) {
+								message.channel.send("You do not have any legendary Pokémon.");
+							}
+							else {
+								const pageSize = 20;
+								let page = 0;
+			
+								const embed = generatePartyEmbed(ultraBeastsCaught, page, pageSize, `Your Ultra Beast Pokémon`, 4);
+								const buttonRow = getPartyBtns();
+			
+								message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+									const filter = i => i.user.id === userId;
+									const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+			
+									collector.on('collect', async i => {
+										try {
+											if (i.customId === 'prev') {
+												if (page > 0) {
+													page--;
+												} 
+												else {
+													page = Math.ceil(ultraBeastsCaught.length / pageSize) - 1;
+												}
+											} 
+											else if (i.customId === 'next') {
+												if ((page + 1) * pageSize < ultraBeastsCaught.length) {
+													page++;
+												} 
+												else {
+													page = 0;
+												}
+											} 
+											else if (i.customId === 'rewind') {
+												page = 0;
+											} 
+											else if (i.customId === 'fforward') {
+												page = Math.ceil(ultraBeastsCaught.length / pageSize) - 1;
+											}
+			
+											await i.update({ embeds: [generatePartyEmbed(ultraBeastsCaught, page, pageSize, `Your Ultra Beast Pokémon`, 4)] });
+										} catch (error) {
+											if (error.code === 10008) {
+												console.log('The message was deleted before the interaction was handled.');
+											}
+											else {
+												console.error('An unexpected error occurred:', error);
+											}
+										}
+									});
+			
+									collector.on('end', async () => {
+										try {
+											const disabledRow = getDisablePartyBtns();
+											await sentMessage.edit({ components: [disabledRow] });
+										} catch (error) {
+											if (error.code === 10008) {
+												console.log('The message was deleted before the interaction was handled.');
+											}
+											else {
+												console.error('An unexpected error occurred:', error);
+											}
+										}
+									});
+								}).catch(err => {
+									console.error('Error sending the party message:', err);
+								});
+							}
+						}
+
 						else if (args[0].toLowerCase() === 'legendary' || args[0].toLowerCase() === 'l') {
 							const legendaryPokemon = [
 								'Articuno', 'Zapdos', 'Moltres', 'Mewtwo', 
@@ -3000,7 +3269,8 @@ client.on('messageCreate', (message) => {
 								'Regirock', 'Regice', 'Registeel', 'Latias', 'Latios', 'Kyogre', 'Groudon', 'Rayquaza',
 								'Uxie', 'Mesprit', 'Azelf', 'Dialga', 'Palkia', 'Heatran', 'Regigigas', 'Giratina', 'Cresselia',
 								'Cobalion', 'Terrakion', 'Virizion', 'Tornadus', 'Thundurus', 'Reshiram', 'Zekrom', 'Landorus', 'Kyurem',
-								'Xerneas', 'Yveltal', 'Zygarde'
+								'Xerneas', 'Yveltal', 'Zygarde',
+								'Type: Null', 'Silvally', 'Tapu Koko', 'Tapu Lele', 'Tapu Bulu', 'Tapu Fini', 'Cosmog', 'Cosmoem', 'Solgaleo', 'Lunala', 'Necrozma'
 							];
 
 							const legendaryCaught = caughtPokemon
@@ -3099,7 +3369,8 @@ client.on('messageCreate', (message) => {
 								'Jirachi', 'Deoxys',
 								'Phione', 'Manaphy', 'Darkrai', 'Shaymin', 'Arceus',
 								'Victini', 'Keldeo', 'Meloetta', 'Genesect',
-								'Diancie', 'Hoopa', 'Volcanion'
+								'Diancie', 'Hoopa', 'Volcanion',
+								'Magearna', 'Marshadow', 'Zeraora', 'Meltan', 'Melmetal'
 							];
 
 							const mythicalCaught = caughtPokemon
@@ -3114,8 +3385,6 @@ client.on('messageCreate', (message) => {
 										return {
 											...pokemonObj,
 											id: index + 1
-											//name: isShiny ? `✨${pokemonName}` : pokemonName,
-											//id: index + 1
 										};
 									 }
 									 else {
@@ -3197,7 +3466,7 @@ client.on('messageCreate', (message) => {
 						}
 					});
 				});
-			}
+			}		
 
 			//compare
 			else if (compareCommandRegex.test(message.content.toLowerCase())) {
@@ -4112,7 +4381,7 @@ client.on('messageCreate', (message) => {
 						let shopDescription;
 
 						if (!args || args.length < 1 || args[0] === ' ') {
-							const generalItemsMaxNum = 18;
+							const generalItemsMaxNum = 19;
 							const generalItemsMinNum = 1;
 
 							filteredItems = shopItems.filter(item => item.itemNum <= generalItemsMaxNum && item.itemNum >= generalItemsMinNum);
@@ -4163,7 +4432,7 @@ client.on('messageCreate', (message) => {
 							
 						}
 
-						const itemsPerPage = 6;
+						const itemsPerPage = 5;
 						const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
 
 						const generateShopEmbed = (page, header, description) => {
@@ -4516,6 +4785,7 @@ client.on('messageCreate', (message) => {
 				});
 			}
 
+			//use
 			else if (useCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
@@ -4526,7 +4796,8 @@ client.on('messageCreate', (message) => {
 						'Rotom', 'Shaymin', 'Arceus',
 						'Tornadus', 'Thundurus', 'Landorus',
 						'Kyurem',
-						'Furfrou', 'Hoopa'
+						'Furfrou', 'Hoopa',
+						'Silvally', 'Necrozma'
 					];
 					const geniesList = [
 						'Tornadus', 'Thundurus', 'Landorus'
@@ -4590,7 +4861,7 @@ client.on('messageCreate', (message) => {
 
 							if (itemRow.item_class === 0) {
 								if (itemRow.reusable === 0) {
-									//use and delete
+									// use and delete
 									const userRepels = activeUserRepels.get(userId);
 									let standardRepel = null;
 									let rareRepel = null;
@@ -4633,7 +4904,7 @@ client.on('messageCreate', (message) => {
 
 								}
 								else if (itemRow.reusable === 1) {
-									//just use, do not delete
+									//just use, do not delete the item
 									//TODO?
 								}
 							}
@@ -4672,6 +4943,10 @@ client.on('messageCreate', (message) => {
 										if (oldItemRow.length === 1) {
 											oldItem = oldItemRow[0].item_name;
 										}
+									}
+									if (itemRow.itemNum === 558 && !(selectedMon.form === 'Dusk Mane' || selectedMon.form === 'Dawn Wings')) {
+										message.channel.send('This item requires Dusk Mane or Dawn Wings form to use!');
+										return;
 									}
 									pokemonArr[partyNum - 1].form = itemRow.new_form;
 									
@@ -4923,6 +5198,19 @@ client.on('messageCreate', (message) => {
 						else if (curMon.toLowerCase() === 'porygon-z') {
 							curMonHint = curMonHint.replaceAt(7, '-');
 						}
+						else if (curMon.toLowerCase() === 'type: null') {
+							curMonHint = curMonHint.replaceAt(4, ':');
+						}
+						else if (curMon.toLowerCase() === 'jangmo-o') {
+							curMonHint = curMonHint.replaceAt(6, '-');
+						}
+						else if (curMon.toLowerCase() === 'hakamo-o') {
+							curMonHint = curMonHint.replaceAt(6, '-');
+						}
+						else if (curMon.toLowerCase() === 'kommo-o') {
+							curMonHint = curMonHint.replaceAt(5, '-');
+						}
+
 						const regex = new RegExp("_", 'g');
 						let finalHint = curMonHint.replace(regex, "\\_");
 						message.channel.send(finalHint);

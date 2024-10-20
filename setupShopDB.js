@@ -16,24 +16,25 @@ db.serialize(() => {
 		{ itemNum: 1, item_name: 'Normal Repel', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Has a 50% chance to drop an uncaught Pokemon' },
 		{ itemNum: 2, item_name: 'Super Repel', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 1500, explanation: 'Has a 75% chance to drop an uncaught Pokemon' },
 		{ itemNum: 3, item_name: 'Max Repel', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 2000, explanation: 'Has a 90% chance to drop an uncaught Pokemon' },
-		{ itemNum: 4, item_name: 'Legendary Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 10000, explanation: 'Makes your next pokemon drop a legendary pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
-		{ itemNum: 5, item_name: 'Mythical Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 15000, explanation: 'Makes your next pokemon drop a mythical pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
-		{ itemNum: 6, item_name: 'Shiny Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 20000, explanation: 'Makes your next pokemon drop a shiny pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
+		{ itemNum: 4, item_name: 'Ultra Beast Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 10000, explanation: 'Makes your next pokemon drop a legendary pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
+		{ itemNum: 5, item_name: 'Legendary Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 10000, explanation: 'Makes your next pokemon drop a legendary pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
+		{ itemNum: 6, item_name: 'Mythical Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 15000, explanation: 'Makes your next pokemon drop a mythical pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
+		{ itemNum: 7, item_name: 'Shiny Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 20000, explanation: 'Makes your next pokemon drop a shiny pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
 		
 		//TODO: Stone/evolution implementation
-		{ itemNum: 7, item_name: 'Fire Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Fire stone (coming soon)' },
-		{ itemNum: 8, item_name: 'Water Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Water evolution stone (coming soon)' },
-		{ itemNum: 9, item_name: 'Thunder Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Electric evolution Stone (coming soon)' },
-		{ itemNum: 10, item_name: 'Leaf Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Grass evolution Stone (coming soon)' },
-		{ itemNum: 11, item_name: 'Moon Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Moon evolution Stone (coming soon)' },
-		{ itemNum: 12, item_name: 'Sun Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Sun evolution Stone (coming soon)' },
-		{ itemNum: 13, item_name: 'Shiny Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Shiny evolution Stone (coming soon)' },
-		{ itemNum: 14, item_name: 'Dusk Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Dusk evolution Stone (coming soon)' },
-		{ itemNum: 15, item_name: 'Dawn Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Dawn evolution Stone (coming soon)' },
-		{ itemNum: 16, item_name: 'Ice Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Ice evolution Stone (coming soon)' },
+		{ itemNum: 8, item_name: 'Fire Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Fire stone (coming soon)' },
+		{ itemNum: 9, item_name: 'Water Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Water evolution stone (coming soon)' },
+		{ itemNum: 10, item_name: 'Thunder Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Electric evolution Stone (coming soon)' },
+		{ itemNum: 11, item_name: 'Leaf Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Grass evolution Stone (coming soon)' },
+		{ itemNum: 12, item_name: 'Moon Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Moon evolution Stone (coming soon)' },
+		{ itemNum: 13, item_name: 'Sun Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Sun evolution Stone (coming soon)' },
+		{ itemNum: 14, item_name: 'Shiny Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Shiny evolution Stone (coming soon)' },
+		{ itemNum: 15, item_name: 'Dusk Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Dusk evolution Stone (coming soon)' },
+		{ itemNum: 16, item_name: 'Dawn Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Dawn evolution Stone (coming soon)' },
+		{ itemNum: 17, item_name: 'Ice Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Ice evolution Stone (coming soon)' },
 		
-		{ itemNum: 17, item_name: 'Defaulter', item_class: 1, pokemon_usage: 'Form_All', new_form: 'Default', reusable: 1, price: 500, explanation: '**REUSABLE**: Resets the Pokemon\'s form to default' }, //Form_All
-		{ itemNum: 18, item_name: 'Rare Candy', item_class: 1, pokemon_usage: 'All', new_form: 'Default', reusable: 1, price: 500, explanation: '**REUSABLE**: Resets the Pokemon\'s form to default' }, //All
+		{ itemNum: 18, item_name: 'Defaulter', item_class: 1, pokemon_usage: 'Form_All', new_form: 'Default', reusable: 1, price: 500, explanation: '**REUSABLE**: Resets the Pokemon\'s form to default' }, //Form_All
+		{ itemNum: 19, item_name: 'Rare Candy', item_class: 1, pokemon_usage: 'All', new_form: 'Default', reusable: 0, price: 500, explanation: '**REUSABLE**: Resets the Pokemon\'s form to default' }, //All
 		
 		//Mega Evolution Store
 		{ itemNum: 100, item_name: 'Venusaurite', item_class: 1, pokemon_usage: 'Venusaur', new_form: 'Mega', reusable: 2, price: 2500, explanation: '**CONSUMABLE**: Mega Stone for Venusaur transformation' },
@@ -136,6 +137,36 @@ db.serialize(() => {
 		
 		//Hoopa Store
 		{ itemNum: 534, item_name: 'Prison Bottle', item_class: 1, pokemon_usage: 'Hoopa', new_form: 'Unbound', reusable: 1, price: 2000, explanation: '**REUSABLE**: Bottle for Hoopa Unbound transformation' },
+		
+		//Oricorio Store
+		{ itemNum: 535, item_name: 'Red Nectar', item_class: 1, pokemon_usage: 'Oricorio', new_form: 'Baile Style', reusable: 0, price: 500, explanation: '**CONSUMABLE**: Red nectar for Oricorio transformation' },
+		{ itemNum: 536, item_name: 'Yellow Nectar', item_class: 1, pokemon_usage: 'Oricorio', new_form: 'Pom-Pom Style', reusable: 0, price: 500, explanation: '**CONSUMABLE**: Yellow nectar for Oricorio transformation' },
+		{ itemNum: 537, item_name: 'Pink Nectar', item_class: 1, pokemon_usage: 'Oricorio', new_form: 'Pa\'u Style', reusable: 0, price: 500, explanation: '**CONSUMABLE**: Pink nectar for Oricorio transformation' },
+		{ itemNum: 538, item_name: 'Purple Nectar', item_class: 1, pokemon_usage: 'Oricorio', new_form: 'Sensu Style', reusable: 0, price: 500, explanation: '**CONSUMABLE**: Purple nectar for Oricorio transformation' },
+		
+		//Silvally Store
+		{ itemNum: 539, item_name: 'Fighting Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Fighting', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Fighting memory for Silvally transformation' },
+		{ itemNum: 540, item_name: 'Flying Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Flying', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Flying memory for Silvally transformation' },
+		{ itemNum: 541, item_name: 'Poison Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Poison', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Poison memory for Silvally transformation' },
+		{ itemNum: 542, item_name: 'Ground Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Ground', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Ground memory for Silvally transformation' },
+		{ itemNum: 543, item_name: 'Rock Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Rock', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Rock memory for Silvally transformation' },
+		{ itemNum: 544, item_name: 'Bug Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Bug', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Bug memory for Silvally transformation' },
+		{ itemNum: 545, item_name: 'Ghost Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Ghost', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Ghost memory for Silvally transformation' },
+		{ itemNum: 546, item_name: 'Steel Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Steel', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Steel memory for Silvally transformation' },
+		{ itemNum: 547, item_name: 'Fire Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Fire', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Fire memory for Silvally transformation' },
+		{ itemNum: 548, item_name: 'Water Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Water', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Water memory for Silvally transformation' },
+		{ itemNum: 549, item_name: 'Grass Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Grass', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Grass memory for Silvally transformation' },
+		{ itemNum: 550, item_name: 'Electric Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Electric', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Electric memory for Silvally transformation' },
+		{ itemNum: 551, item_name: 'Psychic Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Psychic', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Psychic memory for Silvally transformation' },
+		{ itemNum: 552, item_name: 'Ice Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Ice', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Ice memory for Silvally transformation' },
+		{ itemNum: 553, item_name: 'Dragon Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Dragon', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Dragon memory for Silvally transformation' },
+		{ itemNum: 554, item_name: 'Dark Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Dark', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Dark memory for Silvally transformation' },
+		{ itemNum: 555, item_name: 'Fairy Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Fairy', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Fairy memory for Silvally transformation' },
+		
+		//Necrozma Store
+		{ itemNum: 556, item_name: 'N-Solarizer', item_class: 1, pokemon_usage: 'Necrozma', new_form: 'Dusk Mane', reusable: 1, price: 2000, explanation: '**REUSABLE**: N-Solarizer for Dusk Mane Necrozma transformation' },
+		{ itemNum: 557, item_name: 'N-Lunarizer', item_class: 1, pokemon_usage: 'Necrozma', new_form: 'Dawn Wings', reusable: 1, price: 2000, explanation: '**REUSABLE**: N-Lunarizer for Dawn Wings Necrozma transformation' },
+		{ itemNum: 558, item_name: 'Ultranecrozium Z', item_class: 1, pokemon_usage: 'Necrozma', new_form: 'Ultra', reusable: 0, price: 2000, explanation: '**CONSUMABLE**: Ultranecrozium Z for Ultra Necrozma transformation \n __**REQUIRES** Dusk Mane or Dawn Wings Necrozma!!!__' },
 	]; 
 	//{ itemNum: , item_name: '', item_class: , pokemon_usage: null, new_form: null, reusable: , price: , explanation: '' },
 
