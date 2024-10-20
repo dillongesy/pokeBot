@@ -487,19 +487,13 @@ function fixPokemonName(pokemonIdentifier, args) {
 		if (args[2].toLowerCase() === 'koko') {
 			pokemonIdentifier = 'Tapu Koko';
 		}
-	}
-	else if (pokemonIdentifier === 'Tapu' && args.length > 2) { //length > 2
-		if (args[2].toLowerCase() === 'lele') {
+		else if (args[2].toLowerCase() === 'lele') {
 			pokemonIdentifier = 'Tapu Lele';
 		}
-	}
-	else if (pokemonIdentifier === 'Tapu' && args.length > 2) { //length > 2
-		if (args[2].toLowerCase() === 'bulu') {
+		else if (args[2].toLowerCase() === 'bulu') {
 			pokemonIdentifier = 'Tapu Bulu';
 		}
-	}
-	else if (pokemonIdentifier === 'Tapu' && args.length > 2) { //length > 2
-		if (args[2].toLowerCase() === 'fini') {
+		else if (args[2].toLowerCase() === 'fini') {
 			pokemonIdentifier = 'Tapu Fini';
 		}
 	}
@@ -780,7 +774,7 @@ client.on('messageCreate', (message) => {
 										embedColor = '#66FF00';
 									}
 									else {
-										console.log("Error, no mythical pokemon!");
+										console.log("Error, no legendary pokemon!");
 									}
 								}
 								else if (isUltraBeast) {
@@ -793,7 +787,7 @@ client.on('messageCreate', (message) => {
 										embedColor = '#66FF00';
 									}
 									else {
-										console.log("Error, no mythical pokemon!");
+										console.log("Error, no ultra beast pokemon!");
 									}
 								}
 								else {
