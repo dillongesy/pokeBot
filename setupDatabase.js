@@ -2327,13 +2327,19 @@ db.serialize(() => {
 		{ name: 'Yveltal', dexNum: '717', type1: 'Dark', type2: 'Flying', region: 'Kalos', isLM: 1, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/1/1d/0717Yveltal.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlryk5-8b0b904e-6fb5-414a-ba8b-30bf8212db98.png' }) },
 		{ name: 'Zygarde', dexNum: '718', type1: 'Dragon', type2: 'Ground', region: 'Kalos', isLM: 1, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
 			forms: JSON.stringify([ 
-				{name: '50% Forme', percentage: 100 }
+				{name: '50% Forme', percentage: 65 },
+				{name: '10% Forme', percentage: 25 },
+				{name: 'Complete Forme', percentage: 10 }
 			]), 
 			imageLinks: JSON.stringify({ 
-				default: 'https://archives.bulbagarden.net/media/upload/9/92/0718Zygarde.png' 
+				default: 'https://archives.bulbagarden.net/media/upload/9/92/0718Zygarde.png',
+				'10% Forme': 'https://archives.bulbagarden.net/media/upload/f/f8/0718Zygarde-10Percent.png',
+				'Complete Forme': 'https://archives.bulbagarden.net/media/upload/f/fb/0718Zygarde-Complete.png'
 			}), 
 			shinyImageLinks: JSON.stringify({ 
-				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlryn1-05da0c1e-b789-4fbe-9be9-bfd4d5dfb837.png' 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlryn1-05da0c1e-b789-4fbe-9be9-bfd4d5dfb837.png',
+				'10% Forme': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlryq3-d7784a98-b3a6-470a-866b-3639a445f0cd.png',
+				'Complete Forme': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrysu-a6d2cf6b-e4f6-4b9c-b87d-5af88da69e8c.png'
 			}) 
 		},
 		{ name: 'Diancie', dexNum: '719', type1: 'Rock', type2: 'Fairy', region: 'Kalos', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
@@ -2602,7 +2608,7 @@ db.serialize(() => {
 				{name: 'Default', percentage: 100 },
 				{name: 'Dusk Mane', percentage: 0 },
 				{name: 'Dawn Wings', percentage: 0 },
-				{name: 'Ultra', percentage: 0 },
+				{name: 'Ultra', percentage: 0 }
 			]), 
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/0/00/0800Necrozma.png',
@@ -2620,7 +2626,7 @@ db.serialize(() => {
 		{ name: 'Magearna', dexNum: '801', type1: 'Steel', type2: 'Fairy', region: 'Alola', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Default', percentage: 95 },
-				{name: 'Original', percentage: 5 },
+				{name: 'Original', percentage: 5 }
 			]), 
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/c/cb/0801Magearna.png',
@@ -2743,14 +2749,9 @@ db.serialize(() => {
 		{ name: 'Type: Dragon Silvally', dexNum: '773O', type1: 'Dragon', type2: null, region: 'Alola', isLM: 3, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dekpej6-d244e1db-ed93-42d3-9e7c-3c572eba6285.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGVrcGVqNi1kMjQ0ZTFkYi1lZDkzLTQyZDMtOWU3Yy0zYzU3MmViYTYyODUucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.aT5eRJyWFMmuz62WhGA1Ws7lZfeUXPSKGI19-suZJK4' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dem11nr-8af0a5b0-f660-43ac-b6cc-0e1b2100aa6a.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGVtMTFuci04YWYwYTViMC1mNjYwLTQzYWMtYjZjYy0wZTFiMjEwMGFhNmEucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.EHczSoUQeTzlO4Ap8D7M64cafy6p6JPfNICw1xkLBbE' }) },
 		{ name: 'Type: Dark Silvally', dexNum: '773P', type1: 'Dark', type2: null, region: 'Alola', isLM: 3, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dekpehu-470b8949-201e-4342-9cf8-10f5acefcbed.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGVrcGVodS00NzBiODk0OS0yMDFlLTQzNDItOWNmOC0xMGY1YWNlZmNiZWQucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.2kf51g_OBFXvgV4CjuQ7T-NnuFAz_UfYkmGroAaBE6Y' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dem11m8-19f95be1-67aa-495c-85f7-fa92c716152b.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGVtMTFtOC0xOWY5NWJlMS02N2FhLTQ5NWMtODVmNy1mYTkyYzcxNjE1MmIucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.RS3MJ7mpapn5TBB399ikJPUkNnpRqrr_vuMhcsVBEqQ' }) },
 		{ name: 'Type: Fairy Silvally', dexNum: '773Q', type1: 'Fairy', type2: null, region: 'Alola', isLM: 3, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dekpeg7-a288b795-3c6f-4164-bd7a-1078edb3fb92.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGVrcGVnNy1hMjg4Yjc5NS0zYzZmLTQxNjQtYmQ3YS0xMDc4ZWRiM2ZiOTIucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.OBAAe1ipsS0j5DWTEDxaWlCN_u-r-4ZWqVrOFeHLgAQ' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dem11id-41ef1190-4b61-479b-ac4b-4d8a2e58aa9e.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGVtMTFpZC00MWVmMTE5MC00YjYxLTQ3OWItYWM0Yi00ZDhhMmU1OGFhOWUucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.HMOF0AArzB-Lj6Mp7HaSAcXqWLOxmHsHd7Eag-rLJeY' }) },
-	]; //remember to remove comma on the last one
+	];
 	
 	//{ name: '', dexNum: '801', type1: '', type2: null, region: 'Alola', isLM: 3, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: '' }), shinyImageLinks: JSON.stringify({ default: '' }) },
-	//TODO: add entries for pokemon with different forms of different types
-	//GEN7 TODO: Test pa'u style ocorio
-	//get items again for forms
-	//update older pokemon
-	//get images
 	
 	//isLM tags: 0 = regular, 1 = legendary, 2 = mythical, 3 = dex only entry, 4 = ultra beast
 	//paradox pokemon: regular & legendary, not its own

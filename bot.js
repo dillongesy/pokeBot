@@ -378,6 +378,17 @@ async function sendLeaderboard(message, users, title) {
 	});
 }
 
+function getFixedName(user) {
+	// for (let i = 0; i < user.length; i++) {
+	// 	if (user.charAt(i) === '_') {
+	// 		user = user.replaceAt(i, '\_');
+	// 		i++;
+	// 	}
+	// }
+	// return user;
+	return user.replace(/_/g, '\\_');
+}
+
 //Helper function, replaces a char in a string
 String.prototype.replaceAt = function(index, char) {
     var a = this.split("");
@@ -1702,6 +1713,8 @@ client.on('messageCreate', (message) => {
 					const args = message.content.split(' ').slice(1);
 					
 					if (args.length === 0) {
+						// const p = getFixedName('_user_');
+						// console.log(p);
 						//default, display total pokemon caught
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
 							if (err) {
@@ -1720,7 +1733,8 @@ client.on('messageCreate', (message) => {
 								let totalPokemonCount = caughtPokemonList.length;
 
 								return totalPokemonCount > 0 ? {
-									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									//name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									name: user ? getFixedName(user.username) : `User ID: ${row.user_id}`,
 									value: totalPokemonCount
 								} : null;
 							}));
@@ -1763,7 +1777,7 @@ client.on('messageCreate', (message) => {
 								const value = row.currency || 0;
 
 								return value > 0 ? {
-									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									name: user ? getFixedName(user.username) : `User ID: ${row.user_id}`,
 									value
 								} : null;
 							}));
@@ -1813,7 +1827,7 @@ client.on('messageCreate', (message) => {
 								.length;
 
 								return shinyCount > 0 ? {
-									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									name: user ? getFixedName(user.username) : `User ID: ${row.user_id}`,
 									value: shinyCount
 								} : null;
 							}));
@@ -1856,7 +1870,7 @@ client.on('messageCreate', (message) => {
 					
 								// Return the user and total Pokémon count, or null if none caught
 								return totalPokemonCount > 0 ? {
-									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									name: user ? getFixedName(user.username) : `User ID: ${row.user_id}`,
 									value: totalPokemonCount
 								} : null;
 							}));
@@ -1922,7 +1936,7 @@ client.on('messageCreate', (message) => {
 								}, 0);
 
 								return legendaryCount > 0 ? {
-									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									name: user ? getFixedName(user.username) : `User ID: ${row.user_id}`,
 									value: legendaryCount
 								} : null;
 							}));
@@ -1987,7 +2001,7 @@ client.on('messageCreate', (message) => {
 								}, 0);
 
 								return mythicalCount > 0 ? {
-									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									name: user ? getFixedName(user.username) : `User ID: ${row.user_id}`,
 									value: mythicalCount
 								} : null;
 							}));
@@ -2047,7 +2061,7 @@ client.on('messageCreate', (message) => {
 								}, 0);
 
 								return ultraBeastCount > 0 ? {
-									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									name: user ? getFixedName(user.username) : `User ID: ${row.user_id}`,
 									value: ultraBeastCount
 								} : null;
 							}));
@@ -2115,7 +2129,7 @@ client.on('messageCreate', (message) => {
 								const value = uniquePokemon.size;
 
 								return value > 0 ? {
-									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									name: user ? getFixedName(user.username) : `User ID: ${row.user_id}`,
 									value
 								} : null;
 							}));
@@ -2183,7 +2197,7 @@ client.on('messageCreate', (message) => {
 								}).length;
 
 								return count > 0 ? {
-									name: user ? `${user.username}` : `User ID: ${row.user_id}`,
+									name: user ? getFixedName(user.username) : `User ID: ${row.user_id}`,
 									value: count
 								} : null;
 							}));
@@ -3697,7 +3711,7 @@ client.on('messageCreate', (message) => {
 								id: index + 1
 							}));
 
-							const teamEmbed = generatePartyEmbed(partyArray, 0, 10, `${user.username}'s Team`, 0);
+							const teamEmbed = generatePartyEmbed(partyArray, 0, 10, getFixedName(user.username) + `'s Team`, 0);
 							message.channel.send( {embeds: [teamEmbed]} );
 						}).catch(err => {
 							console.error('Error fetching the user:', err);
@@ -3791,7 +3805,7 @@ client.on('messageCreate', (message) => {
 							client.users.fetch(tag).then(user => {
 								const teamEmbed = new EmbedBuilder()
 									.setColor('#0099ff')
-									.setTitle(`${user.username}'s ${isShiny ? '✨' : ''}${formName}${defaultMon.name}${genderSymbol}`)
+									.setTitle(getFixedName(user.username) + `'s ${isShiny ? '✨' : ''}${formName}${defaultMon.name}${genderSymbol}`)
 									.addFields(
 										{ name: 'Dex Number', value: `${defaultMon.dexNum}`, inline: true },
 										{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
