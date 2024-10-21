@@ -160,7 +160,7 @@ function getDisablePartyBtns() {
 }
 
 //Helper function, .dex Embed Generator
-function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, genders, caughtCount) {
+function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, genders, totalCaught, formCaughtCount, ) {
 	const shinyImageLinks = JSON.parse(pokemonRow.shinyImageLinks);
 	const imgLinks = JSON.parse(pokemonRow.imageLinks);
 
@@ -171,7 +171,7 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, ge
 	let type2Field = '';
 	let regionField = '';
 	let genderRatio = '';
-	let ownedVar = '';
+	let formOwnedVar = '';
 	if (formTypes.formFound === true) {
 		type1Field = formTypes.type1;
 		type2Field = formTypes.type2 ? ` / ${formTypes.type2}` : '';
@@ -182,10 +182,10 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, ge
 		type2Field = pokemonRow.type2 ? ` / ${pokemonRow.type2}` : '';
 		regionField = pokemonRow.region;
 	}
-	if (selectedForm.toLowerCase() === 'alolan') {
+	if (selectedForm.toLowerCase() === 'alolan' || selectedForm.toLowerCase() === 'default') {
 		selectedForm = '';
 	}
-	if (selectedForm.toLowerCase() !== 'default' && selectedForm.toLowerCase() !== '') {
+	if (selectedForm.toLowerCase() !== '') {
 		selectedForm = `(${selectedForm})`;
 	}
 
@@ -211,11 +211,14 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, ge
 		genderRatio = 'Unknown';
 	}
 
-	if (caughtCount === 0) {
-		ownedVar = 'Not owned';
+	if (totalCaught === 0) {
+		totalCaught = 'Not owned';
+	}
+	if (formCaughtCount === 0) {
+		formOwnedVar = 'Not owned';
 	}
 	else {
-		ownedVar = `${caughtCount}`;
+		formOwnedVar = `${formCaughtCount}`;
 	}
 
 	return new EmbedBuilder()
@@ -225,7 +228,8 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, ge
 			{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
 			{ name: 'Region', value: `${regionField}`, inline: true },
 			{ name: 'Gender Ratio', value: `${genderRatio}`, inline: true },
-			{ name: 'Owned:', value: `${ownedVar}`, inline: true },
+			{ name: 'Total Owned:', value: `${totalCaught}`, inline: true },
+			{ name: 'Form Owned:', value: `${formOwnedVar}`, inline: true }
 		)
 		.setImage(imageLink)
 		.setTimestamp();
@@ -234,7 +238,7 @@ function updateEmbed(shinyImg, dexNumber, pokemonRow, selectedForm, pokeList, ge
 //Helper function, query for form + name to get typings
 function getFormTypes(name, form, pokeList) {
 	const dexEntry = `${form} ${name}`.trim();
-	//filter by: pokeList[i].isLM = 3 && pokeList[i].name = dexEntry\
+	//filter by: pokeList[i].isLM = 3 && pokeList[i].name = dexEntry
 	const filteredList = pokeList.filter(pokemon => pokemon.isLM === 3 && pokemon.name === dexEntry);
 	if (filteredList.length > 0) {
 		const foundPokemon = filteredList[0];
@@ -784,7 +788,7 @@ client.on('messageCreate', (message) => {
 									}
 									if (rowsUB.length > 0) {
 										pokemon = rowsUB[getRandomInt(rowsUB.length)];
-										embedColor = '#66FF00';
+										embedColor = '#CF9FFF';
 									}
 									else {
 										console.log("Error, no ultra beast pokemon!");
@@ -2288,14 +2292,14 @@ client.on('messageCreate', (message) => {
 							let forms = JSON.parse(curMon.forms);
 							let genders = JSON.parse(curMon.gender);
 
-							let caughtCount = inUser.length || 0;
+							let totalCaughtCount = inUser.length || 0;
 	
 							if (forms.length > 0) {
 								if (forms[0].name.toLowerCase() !== 'default') {
 									selectedForm = forms[0].name;
 								}
 								else {
-									selectedForm = '';
+									selectedForm = 'Default';
 								}
 							}
 							let formSelectMenu = new Discord.StringSelectMenuBuilder()
@@ -2308,7 +2312,8 @@ client.on('messageCreate', (message) => {
 									}))
 								);
 							
-							let embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, caughtCount);
+							let caughtCount = inUser.filter(pokemon => pokemon.form === selectedForm).length || 0;	
+							let embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, totalCaughtCount, caughtCount);
 	
 							let shinyButtonStyle = shinyImg ? ButtonStyle.Danger : ButtonStyle.Primary;
 							
@@ -2364,7 +2369,7 @@ client.on('messageCreate', (message) => {
 											else {
 												inUser = userCaughtPokemon.filter(pokemon => pokemon.name === curMon.name);
 											}
-											caughtCount = inUser.length || 0;
+											totalCaughtCount = inUser.length || 0;
 		
 											formSelectMenu = new Discord.StringSelectMenuBuilder()
 												.setCustomId('formSelect')
@@ -2376,7 +2381,8 @@ client.on('messageCreate', (message) => {
 													}))
 												);
 		
-											embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, caughtCount);
+											caughtCount = inUser.filter(pokemon => pokemon.form === selectedForm).length || 0;	
+											embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, totalCaughtCount, caughtCount);
 											i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
 											
 										} 
@@ -2406,7 +2412,7 @@ client.on('messageCreate', (message) => {
 											else {
 												inUser = userCaughtPokemon.filter(pokemon => pokemon.name === curMon.name);
 											}
-											caughtCount = inUser.length || 0;
+											totalCaughtCount = inUser.length || 0;
 	
 											formSelectMenu = new Discord.StringSelectMenuBuilder()
 												.setCustomId('formSelect')
@@ -2417,8 +2423,8 @@ client.on('messageCreate', (message) => {
 														value: form.name,
 													}))
 												);
-		
-											embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, caughtCount);
+											caughtCount = inUser.filter(pokemon => pokemon.form === selectedForm).length || 0;	
+											embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, totalCaughtCount, caughtCount);
 											i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
 										} 
 										else if (i.customId === 'shinyBtn') {
@@ -2440,15 +2446,14 @@ client.on('messageCreate', (message) => {
 														.setStyle(ButtonStyle.Primary)
 												);
 	
-											embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, caughtCount);
+											embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, totalCaughtCount, caughtCount);
 											i.update({ embeds: [embed], components: [new ActionRowBuilder().addComponents(formSelectMenu), buttonRow] });
 										}
 										else if (i.customId === 'formSelect') {
 											selectedForm = i.values[0];
-											if (selectedForm.toLowerCase() === 'default') {
-												selectedForm = '';
-											}
-											embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, caughtCount);
+											totalCaughtCount = inUser.length || 0;
+											caughtCount = inUser.filter(pokemon => pokemon.form === selectedForm).length || 0;	
+											embed = updateEmbed(shinyImg, curMon.dexNum, curMon, selectedForm, pokeList, genders, totalCaughtCount, caughtCount);
 											i.update({ embeds: [embed] });
 										}
 									} catch (error) {
@@ -4844,7 +4849,7 @@ client.on('messageCreate', (message) => {
 							}
 
 							const selectedItem = inventoryArr[itemNum - 1];
-							const itemRowArr = shopItems.filter(shopItem => shopItem.item_name === selectedItem).flat();  //item_name: selectedItem)
+							const itemRowArr = shopItems.filter(shopItem => shopItem.item_name === selectedItem).flat();
 							const itemRow = itemRowArr[0];
 							//CHECK
 							//TODO: delete this check in the future, just a failsafe
