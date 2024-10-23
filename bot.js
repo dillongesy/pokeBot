@@ -379,13 +379,6 @@ async function sendLeaderboard(message, users, title) {
 }
 
 function getFixedName(user) {
-	// for (let i = 0; i < user.length; i++) {
-	// 	if (user.charAt(i) === '_') {
-	// 		user = user.replaceAt(i, '\_');
-	// 		i++;
-	// 	}
-	// }
-	// return user;
 	return user.replace(/_/g, '\\_');
 }
 
@@ -1241,7 +1234,7 @@ client.on('messageCreate', (message) => {
 							}
 							if (!row) {
 								// User isn't in the database, add them
-								dbUser.run("INSERT INTO user (user_id, caught_pokemon, currency, servers) VALUES (?, ?, ?, ?)", [userId, JSON.stringify(shinyMon), coinsToAdd, JSON.stringify(serverId)], (err) => {
+								dbUser.run("INSERT INTO user (user_id, caught_pokemon, currency, servers) VALUES (?, ?, ?, ?)", [userId, JSON.stringify(shinyMon), coinsToAdd, JSON.stringify([serverId])], (err) => {
 									if (err) {
 										console.error(err.message);
 									}
@@ -1464,6 +1457,27 @@ client.on('messageCreate', (message) => {
 					});
 				}).catch(err => {
 					console.error('Error sending the reset channels message:', err);
+				});
+			}
+
+			//fix servers
+			else if(message.content.toLowerCase() === '.fixshit' && userId === '177580797165961216') {
+				dbUser.all("SELECT * FROM user", [], (err, rows) => {
+					if (err) {
+						console.error(err.message);
+						return;
+					}
+					rows.forEach((row) => {
+						let serverList = JSON.parse(row.servers);
+						if (typeof serverList === 'string') {
+							dbUser.run("UPDATE user SET servers = ? WHERE user_id =?", [JSON.stringify([serverList]), row.user_id], (err) => {
+								if (err) {
+									console.error(err.message);
+								}
+								message.channel.send(`Fixed <@${row.user_id}>'s servers list`);
+							});
+						}
+					})
 				});
 			}
 
@@ -1713,9 +1727,6 @@ client.on('messageCreate', (message) => {
 					const args = message.content.split(' ').slice(1);
 					
 					if (args.length === 0) {
-						// const p = getFixedName('_user_');
-						// console.log(p);
-						//default, display total pokemon caught
 						dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
 							if (err) {
 								console.error(err.message);
@@ -1733,7 +1744,6 @@ client.on('messageCreate', (message) => {
 								let totalPokemonCount = caughtPokemonList.length;
 
 								return totalPokemonCount > 0 ? {
-									//name: user ? `${user.username}` : `User ID: ${row.user_id}`,
 									name: user ? getFixedName(user.username) : `User ID: ${row.user_id}`,
 									value: totalPokemonCount
 								} : null;
