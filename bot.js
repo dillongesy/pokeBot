@@ -739,7 +739,7 @@ client.on('messageCreate', (message) => {
 								if (shinyNumber < 0.00025 || s) {
 									isShiny = true;
 								}
-
+								
 								if ((mythicalNumber < 0.005 || m) && !l && !ub) {
 										isMythical = true;
 								}
@@ -3828,7 +3828,7 @@ client.on('messageCreate', (message) => {
 				}
 			}
 
-			//order
+			//order //sort
 			else if (orderCommandRegex.test(message.content.toLowerCase())) {
 				//.order <dex> <ignoreNum>
 				//orders: flexdex (mythical -> legendary -> dex), dex, count num, alphabetical order
@@ -4204,7 +4204,7 @@ client.on('messageCreate', (message) => {
 
 									const countMap = new Map();
 									sortableList.forEach(pokemon => {
-										let name = pokemon.name.startsWith('✨') ? pokemon.name.substring(1) : pokemon.name;
+										let name = pokemon.name;
 										if (name === 'Nidoran') {
 											if (pokemon.gender === 'Female') {
 												name = 'Nidoran-Female';
@@ -4214,13 +4214,10 @@ client.on('messageCreate', (message) => {
 											}
 										}
 										if (!countMap.has(name)) {
-											countMap.set(name, { count: 0, shiny: 0 });
+											countMap.set(name, { count: 0 });
 										}
 										let entry = countMap.get(name);
 										entry.count += 1;
-										if (pokemon.name.startsWith('✨')) {
-											entry.shiny += 1;
-										}
 										countMap.set(name, entry);
 									});
 
@@ -4249,8 +4246,8 @@ client.on('messageCreate', (message) => {
 										let dexA = dexMap.get(nameA) || { dexNum: 9999, isLM: 0 };
 										let dexB = dexMap.get(nameB) || { dexNum: 9999, isLM: 0 };
 
-										let countA = countMap.get(nameA);
-										let countB = countMap.get(nameB);
+										let countA = countMap.get(a.name);
+										let countB = countMap.get(b.name);
 
 										//shiny
 										if (a.name.startsWith('✨') && !b.name.startsWith('✨')) {
@@ -4260,13 +4257,15 @@ client.on('messageCreate', (message) => {
 											return 1;
 										}
 
-										//within shiny: count low to high -> mythical -> legendary -> regular
+										//within shiny: count low to high -> mythical -> ultra beast -> legendary -> regular
 										if (a.name.startsWith('✨') && b.name.startsWith('✨')) {
+											//Order: Mythical (2), Ultra Beast (4), Legendary (1), Regular (0)
+											const shinyOrder = { 2: 0, 4: 1, 1: 2, 0: 3 }; //mapping for shiny priority
+											if (shinyOrder[dexA.isLM] !== shinyOrder[dexB.isLM]) {
+												return shinyOrder[dexA.isLM] - shinyOrder[dexB.isLM];
+											}
 											if (countA.count !== countB.count) {
 												return countA.count - countB.count;
-											}
-											if (dexA.isLM !== dexB.isLM) {
-												return dexB.isLM - dexA.isLM;
 											}
 											if (dexA.dexNum !== dexB.dexNum) {
 												return dexA.dexNum - dexB.dexNum;
@@ -4284,6 +4283,25 @@ client.on('messageCreate', (message) => {
 
 										//within mythical: count low to high -> dex num -> alphabetical
 										if (dexA.isLM === 2 && dexB.isLM === 2) {
+											if (countA.count !== countB.count) {
+												return countA.count - countB.count;
+											}
+											if (dexA.dexNum !== dexB.dexNum) {
+												return dexA.dexNum - dexB.dexNum;
+											}
+											return nameA.localeCompare(nameB);
+										}
+
+										//ultra beast
+										if (dexA.isLM === 4 && dexB.isLM !== 4) {
+											return -1;
+										}
+										if (dexA.isLM !== 4 && dexB.isLM === 4) {
+											return 1;
+										}
+
+										//within ultra beast: count low to high -> dex num -> alphabetical
+										if (dexA.isLM === 4 && dexB.isLM === 4) {
 											if (countA.count !== countB.count) {
 												return countA.count - countB.count;
 											}
