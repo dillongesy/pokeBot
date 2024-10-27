@@ -833,7 +833,15 @@ client.on('messageCreate', (message) => {
 										break;
 									}
 								}
-	
+
+								let realRegion;
+								if (selectForm.name === 'Alolan') {
+									realRegion = 'Alola';
+								}
+								else {
+									realRegion = pokemon.region;
+								}
+
 								if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
 									selectGender = {
 										name: 'Male',
@@ -881,7 +889,7 @@ client.on('messageCreate', (message) => {
 									.setColor(embedColor)
 									.addFields(
 										{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
-										{ name: 'Region', value: `${pokemon.region}`, inline: true }
+										{ name: 'Region', value: `${realRegion}`, inline: true }
 									)
 									.setImage(imageLink)
 									.setTimestamp()
@@ -1457,27 +1465,6 @@ client.on('messageCreate', (message) => {
 					});
 				}).catch(err => {
 					console.error('Error sending the reset channels message:', err);
-				});
-			}
-
-			//fix servers
-			else if(message.content.toLowerCase() === '.fixshit' && userId === '177580797165961216') {
-				dbUser.all("SELECT * FROM user", [], (err, rows) => {
-					if (err) {
-						console.error(err.message);
-						return;
-					}
-					rows.forEach((row) => {
-						let serverList = JSON.parse(row.servers);
-						if (typeof serverList === 'string') {
-							dbUser.run("UPDATE user SET servers = ? WHERE user_id =?", [JSON.stringify([serverList]), row.user_id], (err) => {
-								if (err) {
-									console.error(err.message);
-								}
-								message.channel.send(`Fixed <@${row.user_id}>'s servers list`);
-							});
-						}
-					})
 				});
 			}
 
@@ -2529,7 +2516,7 @@ client.on('messageCreate', (message) => {
 				});
 			}
 			
-			//View
+			//view
 			else if (viewCommandRegex.test(message.content.toLowerCase())) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
@@ -2612,14 +2599,17 @@ client.on('messageCreate', (message) => {
 							let curForm = getFormTypes(pokemonName, formName, pokemonRows);
 							let type1Field = '';
 							let type2Field = '';
+							let regionField = '';
 							let genderSymbol = '';
 							if (curForm.formFound) {
 								type1Field = curForm.type1;
 								type2Field = curForm.type2 ? ` / ${curForm.type2}` : '';
+								regionField = curForm.region;
 							}
 							else {
 								type1Field = defaultMon.type1;
 								type2Field = defaultMon.type2 ? ` / ${defaultMon.type2}` : '';
+								regionField = defaultMon.region;
 							}
 
 							if (formName.toLowerCase() !== 'default') {
@@ -2645,7 +2635,7 @@ client.on('messageCreate', (message) => {
 									.addFields(
 										{ name: 'Dex Number', value: `${defaultMon.dexNum}`, inline: true },
 										{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
-										{ name: 'Region', value: `${defaultMon.region}`, inline: true }
+										{ name: 'Region', value: `${regionField}`, inline: true }
 									)
 									.setImage(imageLink)
 									.setTimestamp();
@@ -3697,7 +3687,7 @@ client.on('messageCreate', (message) => {
 				const args = message.content.split(' ').slice(1);
 				const userRegex = /^<@\d+>|<@!\d+>$/;
 				if (!userRegex.test(args[0])) {
-					message.channel.send("You must @ a user to compare.");
+					message.channel.send("You must @ a user to view their team.");
 					return;
 				}
 				let tag = args[0].substring(2, args[0].length - 1);
