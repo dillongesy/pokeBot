@@ -28,11 +28,11 @@ const requiredPermissions = new PermissionsBitField([
 
 const Discord = require('discord.js');
 const client = new Client({
-  intents: [
-    GatewayIntentBits.GuildMessages,
-	GatewayIntentBits.Guilds,
-	GatewayIntentBits.MessageContent,
-  ],
+	intents: [
+		GatewayIntentBits.GuildMessages,
+		GatewayIntentBits.Guilds,
+		GatewayIntentBits.MessageContent,
+ 	],
 });
 
 const cooldowns = new Map(); 	//Map<userId, cooldownEnd>
@@ -2318,7 +2318,7 @@ client.on('messageCreate', (message) => {
 								.setPlaceholder('Select a Form')
 								.addOptions(
 									forms.slice(0, 25).map(form => ({
-										label: form.name,
+										label: `${form.name} (${form.percentage}%)`,
 										value: form.name,
 									}))
 								);
@@ -2387,7 +2387,7 @@ client.on('messageCreate', (message) => {
 												.setPlaceholder('Select a Form')
 												.addOptions(
 													forms.slice(0, 25).map(form => ({
-														label: form.name,
+														label: `${form.name} (${form.percentage}%)`,
 														value: form.name,
 													}))
 												);
@@ -2430,7 +2430,7 @@ client.on('messageCreate', (message) => {
 												.setPlaceholder('Select a Form')
 												.addOptions(
 													forms.slice(0, 25).map(form => ({
-														label: form.name,
+														label: `${form.name} (${form.percentage}%)`,
 														value: form.name,
 													}))
 												);
