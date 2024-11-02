@@ -2547,7 +2547,7 @@ client.on('messageCreate', (message) => {
 							return;
 						}
 
-						const caughtPokemon = JSON.parse(row.caught_pokemon).flat();
+						const caughtPokemon = JSON.parse(row.caught_pokemon);
 
 						if (index < 0 || index >= caughtPokemon.length) {
 							message.channel.send('Please specify a valid party number.');
@@ -2585,7 +2585,7 @@ client.on('messageCreate', (message) => {
 								}
 							}
 
-							if (formName.includes('Female')) {
+							if (formName.includes('Female') || formName.includes('Spiky-eared')) {
 								formName = pokemonToDisplay.form + ' (F)';
 							}
 							else if (formName.includes('Male')) {
@@ -2684,7 +2684,7 @@ client.on('messageCreate', (message) => {
 												}
 											}
 
-											if (formName.includes('Female')) {
+											if (formName.includes('Female') || formName.includes('Spiky-eared')) {
 												formName = pokemonToDisplay.form + ' (F)';
 											}
 											else if (formName.includes('Male')) {
@@ -2764,7 +2764,7 @@ client.on('messageCreate', (message) => {
 												}
 											}
 
-											if (formName.includes('Female')) {
+											if (formName.includes('Female') || formName.includes('Spiky-eared')) {
 												formName = pokemonToDisplay.form + ' (F)';
 											}
 											else if (formName.includes('Male')) {
@@ -3761,7 +3761,7 @@ client.on('messageCreate', (message) => {
 								}
 							}
 
-							if (formName.includes('Female')) {
+							if (formName.includes('Female') || formName.includes('Spiky-eared')) {
 								formName = pokemonToDisplay.form + ' (F)';
 							}
 							else if (formName.includes('Male')) {
