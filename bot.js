@@ -873,7 +873,15 @@ client.on('messageCreate', (message) => {
 									};
 								}
 								
-								const type2 = pokemon.type2 ? ` / ${pokemon.type2}` : '';
+								const formTypes = getFormTypes(pokemon.name, selectForm.name, rows);
+								let type1Field = pokemon.type1;
+								let type2Field = pokemon.type2 ? ` / ${pokemon.type2}` : '';
+								if (formTypes.formFound === true) {
+									type1Field = formTypes.type1;
+									type2Field = formTypes.type2 ? ` / ${formTypes.type2}` : '';
+								}
+								
+
 								const curMon = pokemon.name ? `${pokemon.name}` : '';
 								console.log('Current pokemon: ' + curMon + '\n' + 
 									'ShinyNum:     ' + shinyNumber + ' (<0.00025)' + '\n' + 
@@ -888,7 +896,7 @@ client.on('messageCreate', (message) => {
 								const embed = new EmbedBuilder()
 									.setColor(embedColor)
 									.addFields(
-										{ name: 'Type', value: `${pokemon.type1}${type2}`, inline: true },
+										{ name: 'Type', value: `${type1Field}${type2Field}`, inline: true },
 										{ name: 'Region', value: `${realRegion}`, inline: true }
 									)
 									.setImage(imageLink)
