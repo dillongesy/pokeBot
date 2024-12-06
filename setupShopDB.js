@@ -35,6 +35,7 @@ db.serialize(() => {
 		
 		{ itemNum: 18, item_name: 'Defaulter', item_class: 1, pokemon_usage: 'Form_All', new_form: 'Default', reusable: 1, price: 500, explanation: '**REUSABLE**: Resets the Pokemon\'s form to default' }, //Form_All
 		{ itemNum: 19, item_name: 'Rare Candy', item_class: 1, pokemon_usage: 'All', new_form: 'Default', reusable: 0, price: 500, explanation: '**REUSABLE**: Resets the Pokemon\'s form to default' }, //All
+		{ itemNum: 20, item_name: 'Dynamax Band', item_class: 1, pokemon_usage: 'Gigantamax', new_form: 'Gigantamax', reusable: 1, price: 5000, explanation: '**REUSABLE**: Evolves the Pokemon into their Gigantamax form' }, //Gigantamax
 		
 		//Mega Evolution Store
 		{ itemNum: 100, item_name: 'Venusaurite', item_class: 1, pokemon_usage: 'Venusaur', new_form: 'Mega', reusable: 2, price: 2500, explanation: '**CONSUMABLE**: Mega Stone for Venusaur transformation' },
@@ -117,8 +118,8 @@ db.serialize(() => {
 		{ itemNum: 521, item_name: 'Dread Plate', item_class: 1, pokemon_usage: 'Arceus', new_form: 'Dread', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Dread plate for Arceus transformation' },
 		{ itemNum: 522, item_name: 'Pixie Plate', item_class: 1, pokemon_usage: 'Arceus', new_form: 'Pixie', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Pixie plate for Arceus transformation' },
 		
-		//Tornadus/Thundurus/Landrous Store
-		{ itemNum: 523, item_name: 'Reveal Glass', item_class: 1, pokemon_usage: 'Genies', new_form: 'Therian', reusable: 1, price: 2000, explanation: '**REUSABLE**: Glass for Tornadus/Thundurus/Landorus Therian transformation' }, //Genies
+		//Tornadus/Thundurus/Landrous/Enamorus Store
+		{ itemNum: 523, item_name: 'Reveal Glass', item_class: 1, pokemon_usage: 'Genies', new_form: 'Therian', reusable: 1, price: 2000, explanation: '**REUSABLE**: Glass for Tornadus/Thundurus/Landorus/Enamorus Therian transformation' }, //Genies
 		
 		//Kyurem Store
 		{ itemNum: 524, item_name: 'White DNA Splicer', item_class: 1, pokemon_usage: 'Kyurem', new_form: 'White', reusable: 1, price: 2000, explanation: '**REUSABLE**: DNA splicer for Reshiram/White Kyurem transformation' },
@@ -167,6 +168,21 @@ db.serialize(() => {
 		{ itemNum: 556, item_name: 'N-Solarizer', item_class: 1, pokemon_usage: 'Necrozma', new_form: 'Dusk Mane', reusable: 1, price: 2000, explanation: '**REUSABLE**: N-Solarizer for Dusk Mane Necrozma transformation' },
 		{ itemNum: 557, item_name: 'N-Lunarizer', item_class: 1, pokemon_usage: 'Necrozma', new_form: 'Dawn Wings', reusable: 1, price: 2000, explanation: '**REUSABLE**: N-Lunarizer for Dawn Wings Necrozma transformation' },
 		{ itemNum: 558, item_name: 'Ultranecrozium Z', item_class: 1, pokemon_usage: 'Necrozma', new_form: 'Ultra', reusable: 0, price: 2000, explanation: '**CONSUMABLE**: Ultranecrozium Z for Ultra Necrozma transformation \n __**REQUIRES** Dusk Mane or Dawn Wings Necrozma!!!__' },
+		
+		//Zacian Store
+		{ itemNum: 559, item_name: 'Rusted Sword', item_class: 1, pokemon_usage: 'Zacian', new_form: 'Crowned Sword', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Rusted sword for Crowned Sword Zacian transformation' },
+		
+		//Zamazenta Store
+		{ itemNum: 560, item_name: 'Rusted Shield', item_class: 1, pokemon_usage: 'Zamazenta', new_form: 'Crowned Shield', reusable: 2, price: 2000, explanation: '**CONSUMABLE**: Rusted sword for Crowned Shield Zamazenta transformation' },
+		
+		//Dialga
+		{ itemNum: 561, item_name: 'Adamant Crystal', item_class: 1, pokemon_usage: 'Dialga', new_form: 'Origin', reusable: 2, price: 1000, explanation: '**CONSUMABLE**: Adamant Crystal for Origin Dialga transformation' },
+		
+		//Palkia
+		{ itemNum: 562, item_name: 'Lustrous Globe', item_class: 1, pokemon_usage: 'Palkia', new_form: 'Origin', reusable: 2, price: 1000, explanation: '**CONSUMABLE**: Lustrous Globe for Origin Palkia transformation' },
+		
+		//Giratina
+		{ itemNum: 563, item_name: 'Griseous Core', item_class: 1, pokemon_usage: 'Giratina', new_form: 'Origin', reusable: 2, price: 1000, explanation: '**CONSUMABLE**: Griseous Core for Origin Giratina transformation' },
 	]; 
 	//{ itemNum: , item_name: '', item_class: , pokemon_usage: null, new_form: null, reusable: , price: , explanation: '' },
 
