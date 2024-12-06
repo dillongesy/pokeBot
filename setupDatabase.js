@@ -3714,8 +3714,8 @@ db.serialize(() => {
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/5/57/0892Urshifu-Single_Strike.png',
 				'Rapid Strike': 'https://archives.bulbagarden.net/media/upload/4/4a/0892Urshifu-Rapid_Strike.png',
-				'Single Strike Gigantamax': 'https://archives.bulbagarden.net/media/upload/9/92/0892Urshifu-Gigantamax_Single_Strike.png',
-				'Rapid Strike Gigantamax': 'https://archives.bulbagarden.net/media/upload/a/a3/0892Urshifu-Gigantamax_Rapid_Strike.png'
+				'Gigantamax Single Strike': 'https://archives.bulbagarden.net/media/upload/9/92/0892Urshifu-Gigantamax_Single_Strike.png',
+				'Gigantamax Rapid Strike': 'https://archives.bulbagarden.net/media/upload/a/a3/0892Urshifu-Gigantamax_Rapid_Strike.png'
 			}), 
 			shinyImageLinks: JSON.stringify({ 
 				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/9546f6b7-1b5e-400b-9ef5-831d57f4558a/dhk7kht-08630c72-7ec9-4c6a-9922-9398b9108fa3.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcLzk1NDZmNmI3LTFiNWUtNDAwYi05ZWY1LTgzMWQ1N2Y0NTU4YVwvZGhrN2todC0wODYzMGM3Mi03ZWM5LTRjNmEtOTkyMi05Mzk4YjkxMDhmYTMucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.5TBkJcLHgacnRw3WxfaZvRTTFsX-DeXf-Dx85q6GsnU',
