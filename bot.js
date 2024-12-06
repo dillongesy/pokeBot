@@ -405,6 +405,9 @@ function fixPokemonName(pokemonIdentifier, args) {
 	if (pokemonIdentifier === 'Farfetchd' || pokemonIdentifier === 'Farfetch’d' || pokemonIdentifier === 'Farfetch‘d') {
 		pokemonIdentifier = 'Farfetch\'d';
 	}
+	else if (pokemonIdentifier === 'Sirfetchd' || pokemonIdentifier === 'Sirfetch’d' || pokemonIdentifier === 'Sirfetch‘d') {
+		pokemonIdentifier = 'Sirfetch\'d';
+	}
 	else if (pokemonIdentifier === 'Mr' && args.length > 2) { //args.length > 2
 		if (args[2].toLowerCase() === 'mime') {
 			pokemonIdentifier = 'Mr. Mime';
@@ -417,6 +420,19 @@ function fixPokemonName(pokemonIdentifier, args) {
 	}
 	else if (pokemonIdentifier === 'Mr.mime' || pokemonIdentifier === 'Mrmime') { //length > 2
 		pokemonIdentifier = 'Mr. Mime';
+	}
+	else if (pokemonIdentifier === 'Mr' && args.length > 2) { //args.length > 2
+		if (args[2].toLowerCase() === 'rime') {
+			pokemonIdentifier = 'Mr. Rime';
+		}
+	}
+	else if (pokemonIdentifier === 'Mr.' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'rime') {
+			pokemonIdentifier = 'Mr. Rime';
+		}
+	}
+	else if (pokemonIdentifier === 'Mr.rime' || pokemonIdentifier === 'Mrrime') { //length > 2
+		pokemonIdentifier = 'Mr. Rime';
 	}
 	else if (pokemonIdentifier === 'Ho' && args.length > 2) { //args.length > 2
 		if (args[2].toLowerCase() === 'oh') {
@@ -558,7 +574,7 @@ const useCommandRegex = /^\.(use)\b/;
 const compareCommandRegex = /^\.(compare)\b/;
 const teamCommandRegex = /^\.(team)\b/;
 
-const maxDexNum = 809; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+const maxDexNum = 905; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}`);
@@ -834,14 +850,6 @@ client.on('messageCreate', (message) => {
 									}
 								}
 
-								let realRegion;
-								if (selectForm.name === 'Alolan') {
-									realRegion = 'Alola';
-								}
-								else {
-									realRegion = pokemon.region;
-								}
-
 								if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
 									selectGender = {
 										name: 'Male',
@@ -876,9 +884,11 @@ client.on('messageCreate', (message) => {
 								const formTypes = getFormTypes(pokemon.name, selectForm.name, rows);
 								let type1Field = pokemon.type1;
 								let type2Field = pokemon.type2 ? ` / ${pokemon.type2}` : '';
+								let realRegion = pokemon.region;
 								if (formTypes.formFound === true) {
 									type1Field = formTypes.type1;
 									type2Field = formTypes.type2 ? ` / ${formTypes.type2}` : '';
+									realRegion = formTypes.region;
 								}
 								
 
@@ -1178,7 +1188,13 @@ client.on('messageCreate', (message) => {
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'tapu koko' && message.content.toLowerCase() === 'tapukoko')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'tapu lele' && message.content.toLowerCase() === 'tapulele')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'tapu bulu' && message.content.toLowerCase() === 'tapubulu')
-				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'tapu fini' && message.content.toLowerCase() === 'tapufini'))) { //edge case
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'tapu fini' && message.content.toLowerCase() === 'tapufini')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'sirfetch\'d' && message.content.toLowerCase() === 'sirfetchd')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'sirfetch\'d' && message.content.toLowerCase() === 'sirfetch’d')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'sirfetch\'d' && message.content.toLowerCase() === 'sirfetch‘d')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mr. rime' && message.content.toLowerCase() === 'mr rime')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mr. rime' && message.content.toLowerCase() === 'mr.rime')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mr. rime' && message.content.toLowerCase() === 'mrrime'))) { //edge case
 				
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
@@ -4399,7 +4415,7 @@ client.on('messageCreate', (message) => {
 						return;
 					}
 					const genies = [
-						'Tornadus', 'Thundurus', 'Landorus'
+						'Tornadus', 'Thundurus', 'Landorus', 'Enamorus'
 					];
 
 					const args = message.content.split(' ').slice(1);
@@ -4420,7 +4436,7 @@ client.on('messageCreate', (message) => {
 						let shopDescription;
 
 						if (!args || args.length < 1 || args[0] === ' ') {
-							const generalItemsMaxNum = 19;
+							const generalItemsMaxNum = 20;
 							const generalItemsMinNum = 1;
 
 							filteredItems = shopItems.filter(item => item.itemNum <= generalItemsMaxNum && item.itemNum >= generalItemsMinNum);
@@ -4437,10 +4453,6 @@ client.on('messageCreate', (message) => {
 							shopHeader = 'Mega Stone Shop';
 							shopDescription = 'List of available Mega Stone items in the shop' + '\n' + 
 									'Use the command .buy <shopNum> to purchase an item';
-						}
-						else if (args[0].toLowerCase() === 'gigantamax') {
-							message.channel.send('Not implemented yet!');
-							return;
 						}
 						else {
 							let pokemonName = args[0].toLowerCase();
@@ -4830,16 +4842,24 @@ client.on('messageCreate', (message) => {
 					if (!allowed) {
 						return;
 					}
+					//For pokemon that aren't mega/gigantamax that can transfer back
 					const defaultList = [
 						'Kyogre', 'Groudon', 'Rayquaza',
 						'Rotom', 'Shaymin', 'Arceus',
 						'Tornadus', 'Thundurus', 'Landorus',
 						'Kyurem',
 						'Furfrou', 'Hoopa',
-						'Silvally', 'Necrozma'
+						'Silvally', 'Necrozma',
+						'Enamorus', 'Alcremie', 'Zacian', 'Zamazenta'
 					];
 					const geniesList = [
-						'Tornadus', 'Thundurus', 'Landorus'
+						'Tornadus', 'Thundurus', 'Landorus', 'Enamorus'
+					];
+					const gigantamaxList = [
+						'Venusaur', 'Charizard', 'Blastoise', 'Butterfree', 'Pikachu', 'Meowth', 'Machamp', 'Gengar', 'Kingler', 'Lapras', 'Eevee', 'Snorlax', 'Garbodor',
+						'Melmetal',
+						'Rillaboom', 'Cinderace', 'Inteleon', 'Corviknight', 'Orbeetle', 'Drednaw', 'Coalossal', 'Flapple', 'Appletun', 'sandaconda', 'Toxtricity',
+						'Centiskorch', 'Hatterene', 'Grimmsnarl', 'Alcremie', 'Copperajah', 'Duraludon', 'Urshifu'
 					];
 
 					const args = message.content.split(' ').slice(1);
@@ -5005,7 +5025,8 @@ client.on('messageCreate', (message) => {
 								}
 								else if (itemRow.pokemon_usage === 'Form_All') {
 									if (defaultList.includes(selectedMon.name) 
-										|| selectedMon.form.startsWith('Mega')) {
+										|| selectedMon.form.startsWith('Mega')
+										|| selectedMon.form.includes('Gigantamax')) {
 										let oldItem = null;
 										const oldItemRow = shopItems
 											.filter(shopItem => 
@@ -5025,12 +5046,40 @@ client.on('messageCreate', (message) => {
 										if (selectedMon.name === 'Shaymin') {
 											pokemonArr[partyNum - 1].form = 'Land Forme';
 										}
-										else if (selectedMon.name === 'Tornadus' || selectedMon.name === 'Thundurus' || selectedMon.name === 'Landorus') {
+										else if (selectedMon.name === 'Tornadus' || selectedMon.name === 'Thundurus' || selectedMon.name === 'Landorus' || selectedMon.name === 'Enamorus') {
 											pokemonArr[partyNum - 1].form = 'Incarnate';
 										}
 										else if (selectedMon.name === 'Hoopa') {
 											pokemonArr[partyNum - 1].form = 'Confined';
 										}
+										else if (selectedMon.name === 'Alcremie') {
+											pokemonArr[partyNum - 1].form = 'Strawberry Vanilla Cream';
+										}
+										else if (selectedMon.name === 'Toxtricity') {
+											if (selectedMon.form === 'Amped Gigantamax') {
+												pokemonArr[partyNum - 1].form = 'Amped';
+											}
+											else if (selectedMon.form === 'Low Key Gigantamax') {
+												pokemonArr[partyNum - 1].form = 'Low Key';
+											}
+											else {
+												message.channel.send('Could not use selected item on selected pokemon.');
+												return;
+											}
+										}
+										else if (selectedMon.name === 'Urshifu') {
+											if (selectedMon.form === 'Single Strike Gigantamax') {
+												pokemonArr[partyNum - 1].form = 'Single Strike';
+											}
+											else if (selectedMon.form === 'Rapid Strike Gigantamax') {
+												pokemonArr[partyNum - 1].form = 'Rapid Strike';
+											}
+											else {
+												message.channel.send('Could not use selected item on selected pokemon.');
+												return;
+											}
+										}
+
 										else {
 											pokemonArr[partyNum - 1].form = itemRow.new_form;
 										}
@@ -5050,21 +5099,76 @@ client.on('messageCreate', (message) => {
 								else if (itemRow.pokemon_usage === 'Genies') {
 									if (geniesList.includes(selectedMon.name)) {
 										pokemonArr[partyNum - 1].form = itemRow.new_form;
+										dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], (err) => {
+											if (err) {
+												console.error('Error updating user inventory and caught pokemon:', err.message);
+												return;
+											}
+											message.channel.send('Transformation Successful.')
+										});
 									}
-									dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], (err) => {
-										if (err) {
-											console.error('Error updating user inventory and caught pokemon:', err.message);
-											return;
+									else {
+										message.channel.send('Could not use selected item on selected pokemon.');
+										return;
+									}
+								}
+								else if (itemRow.pokemon_usage === 'Gigantamax') {
+									if (gigantamaxList.includes(selectedMon.name)) {
+										if (selectedMon.name === 'Toxtricity') {
+											if (selectedMon.form === 'Amped') {
+												pokemonArr[partyNum - 1].form = 'Amped Gigantamax';
+											}
+											else {
+												pokemonArr[partyNum - 1].form = 'Low Key Gigantamax';
+											}
 										}
-										message.channel.send('Transformation Successful.')
-									});
+										else if (selectedMon.name === 'Urshifu') {
+											if (selectedMon.form === 'Single Strike') {
+												pokemonArr[partyNum - 1].form = 'Single Strike Gigantamax';
+											}
+											else  {
+												pokemonArr[partyNum - 1].form = 'Rapid Strike Gigantamax';
+											}
+										}
+										else if (selectedMon.name === 'Meowth') {
+											if (selectedMon.form === 'Default') {
+												pokemonArr[partyNum - 1].form = 'Gigantamax';
+											}
+											else {
+												message.channel.send('Could not use selected item on selected pokemon.');
+												return;
+											}
+										}
+										else if (selectedMon.name === 'Slowbro') {
+											if (selectedMon.form === 'Default') {
+												pokemonArr[partyNum - 1].form = 'Mega';
+											}
+											else {
+												message.channel.send('Could not use selected item on selected pokemon.');
+												return;
+											}
+										}
+										else {
+											pokemonArr[partyNum - 1].form = 'Gigantamax';
+										}
+										dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], (err) => {
+											if (err) {
+												console.error('Error updating user inventory and caught pokemon:', err.message);
+												return;
+											}
+											message.channel.send('Transformation Successful.')
+										});
+									}
+									else {
+										message.channel.send('Could not use selected item on selected pokemon.');
+										return;
+									}
 								}
 								else {
 									message.channel.send('Could not use selected item on selected pokemon.');
 									return;
 								}
 							}
-
 						});
 					});
 				});
@@ -5249,6 +5353,12 @@ client.on('messageCreate', (message) => {
 						}
 						else if (curMon.toLowerCase() === 'kommo-o') {
 							curMonHint = curMonHint.replaceAt(5, '-');
+						}
+						else if (curMon.toLowerCase() === 'sirfetch\'d') {
+							curMonHint = curMonHint.replaceAt(8, '\'');
+						}
+						else if (curMon.toLowerCase() === 'mr. rime') {
+							curMonHint = curMonHint.replaceAt(2, '.');
 						}
 
 						const regex = new RegExp("_", 'g');
