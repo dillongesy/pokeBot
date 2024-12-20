@@ -913,6 +913,9 @@ client.on('messageCreate', (message) => {
 									.setTimestamp()
 	
 								message.channel.send({ embeds: [embed] });
+								if (userId === '216789962459185152' && curMon.toLowerCase() === 'Koffing') {
+									message.channel.send('L000000L EVERYONE LOOK LOOK LOOK EVERYONE LOOK BRENDA DROPPED A KOFFING LMFAOOOOOOOOOOOOOOOO LOOK GUYS IT\'S HILARIOUS BETTER TYPE KOFFING BRENDAAAA YOU REALLLLLY NEED TO CLAIM IT MAKE SURE YOU GRAB IT FAST IT MIGHT GET STOLEN L000000L JK NICE KOFFING');
+								}
 							}
 							else {
 								message.channel.send('No Pokémon found in the database.');
