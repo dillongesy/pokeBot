@@ -1108,6 +1108,13 @@ client.on('messageCreate', (message) => {
 									break;
 								}
 							}
+							
+							if (pokemonIdentifier === '384') {
+								selectForm = {
+									name: 'Top 3 2024',
+									percentage: 0
+								}
+							}
 
 							if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
 								selectGender = {

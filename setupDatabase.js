@@ -1631,15 +1631,18 @@ db.serialize(() => {
 		{ name: 'Rayquaza', dexNum: '384', type1: 'Dragon', type2: 'Flying', region: 'Hoenn', isLM: 1, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Default', percentage: 100 },
-				{name: 'Mega', percentage: 0}
+				{name: 'Mega', percentage: 0},
+				{name: 'Top 3 2024', percentage: 0}
 			]), 
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/8/80/0384Rayquaza.png',
-				'Mega': 'https://archives.bulbagarden.net/media/upload/d/de/0384Rayquaza-Mega.png'
+				'Mega': 'https://archives.bulbagarden.net/media/upload/d/de/0384Rayquaza-Mega.png',
+				'Top 3 2024': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dei2o8s-d7cfdc9a-e5ab-44e4-96dd-522a00b9d15b.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGVpMm84cy1kN2NmZGM5YS1lNWFiLTQ0ZTQtOTZkZC01MjJhMDBiOWQxNWIucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.8xe0LEb27dYaqaVWbk2fZ6bkxtVvDdafiutevBPIxvM'
 			}), 
 			shinyImageLinks: JSON.stringify({ 
 				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjoz92-2a87f30e-149a-4804-b256-1af8743c014f.png/v1/fit/w_828,h_828/_384_rayquaza_by_tonofdirt726_ddjoz92-414w-2x.png',
-				'Mega': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddnyg3d-eb709dbd-3363-4a8e-9a2f-76614915a7c1.png'
+				'Mega': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddnyg3d-eb709dbd-3363-4a8e-9a2f-76614915a7c1.png',
+				'Top 3 2024': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dei2o8s-d7cfdc9a-e5ab-44e4-96dd-522a00b9d15b.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGVpMm84cy1kN2NmZGM5YS1lNWFiLTQ0ZTQtOTZkZC01MjJhMDBiOWQxNWIucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.8xe0LEb27dYaqaVWbk2fZ6bkxtVvDdafiutevBPIxvM'
 			}) 
 		},
 		{ name: 'Jirachi', dexNum: '385', type1: 'Steel', type2: 'Psychic', region: 'Hoenn', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/6/61/0385Jirachi.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjozck-6ba17318-5621-4ae7-bae1-845295cc85f4.png/v1/fit/w_828,h_828/_385_jirachi_by_tonofdirt726_ddjozck-414w-2x.png' }) },
