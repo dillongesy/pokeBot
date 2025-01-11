@@ -597,6 +597,13 @@ client.on('messageCreate', (message) => {
 					return;
 				});
 			}
+
+			if (serverId === '945102690113953802' && message.content === '<:Hmm:1325888545906233446>') {
+				message.channel.send('<:Hehe:1327059514771509329>');
+			}
+			else if (serverId === '945102690113953802' && (message.content === '<:Hehe:1327059514771509329>')) {
+				message.channel.send('<:Hmm:1325888545906233446>');
+			}
 			
 			//drop
 			if (dropCommandRegex.test(message.content.toLowerCase())) {
