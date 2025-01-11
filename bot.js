@@ -598,10 +598,12 @@ client.on('messageCreate', (message) => {
 				});
 			}
 
-			if (serverId === '945102690113953802' && message.content === '<:Hmm:1325888545906233446>') {
+			//hard coded for stella
+		
+			if (serverId === '945102690113953802' && message.content.includes('<:Hmm:1325888545906233446>')) {
 				message.channel.send('<:Hehe:1327059514771509329>');
 			}
-			else if (serverId === '945102690113953802' && (message.content === '<:Hehe:1327059514771509329>')) {
+			else if (serverId === '945102690113953802' && message.content.includes('<:Hehe:1327059514771509329>')) {
 				message.channel.send('<:Hmm:1325888545906233446>');
 			}
 			
