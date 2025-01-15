@@ -183,6 +183,11 @@ db.serialize(() => {
 		
 		//Giratina
 		{ itemNum: 563, item_name: 'Griseous Core', item_class: 1, pokemon_usage: 'Giratina', new_form: 'Origin', reusable: 2, price: 1000, explanation: '**CONSUMABLE**: Griseous Core for Origin Giratina transformation' },
+		
+		//Ogerpon
+		{ itemNum: 564, item_name: 'Wellspring Mask', item_class: 1, pokemon_usage: 'Ogerpon', new_form: 'Wellspring', reusable: 2, price: 3000, explanation: '**CONSUMABLE**: Wellspring Mask for Wellspring Ogerpon transformation' },
+		{ itemNum: 565, item_name: 'Hearthflame Mask', item_class: 1, pokemon_usage: 'Ogerpon', new_form: 'Hearthflame', reusable: 2, price: 3000, explanation: '**CONSUMABLE**: Hearthflame Mask for Hearthflame Ogerpon transformation' },
+		{ itemNum: 566, item_name: 'Cornerstone Mask', item_class: 1, pokemon_usage: 'Ogerpon', new_form: 'Cornerstone', reusable: 2, price: 3000, explanation: '**CONSUMABLE**: Cornerstone Mask for Cornerstone Ogerpon transformation' }
 	]; 
 	//{ itemNum: , item_name: '', item_class: , pokemon_usage: null, new_form: null, reusable: , price: , explanation: '' },
 
