@@ -573,46 +573,48 @@ function fixPokemonName(pokemonIdentifier, args) {
 		if (args[2].toLowerCase() === 'treads') {
 			pokemonIdentifier = 'Iron Treads';
 		}
+		else if (args[2].toLowerCase() === 'bundle') {
+			pokemonIdentifier = 'Iron Bundle';
+		}
+		else if (args[2].toLowerCase() === 'hands') {
+			pokemonIdentifier = 'Iron Hands';
+		}
+		else if (args[2].toLowerCase() === 'jugulis') {
+			pokemonIdentifier = 'Iron Jugulis';
+		}
+		else if (args[2].toLowerCase() === 'moth') {
+			pokemonIdentifier = 'Iron Moth';
+		}
+		else if (args[2].toLowerCase() === 'thorns') {
+			pokemonIdentifier = 'Iron Thorns';
+		}
+		else if (args[2].toLowerCase() === 'valiant') {
+			pokemonIdentifier = 'Iron Valiant';
+		}
+		else if (args[2].toLowerCase() === 'leaves') {
+			pokemonIdentifier = 'Iron Leaves';
+		}
+		else if (args[2].toLowerCase() === 'boulder') {
+			pokemonIdentifier = 'Iron Boulder';
+		}
+		else if (args[2].toLowerCase() === 'crown') {
+			pokemonIdentifier = 'Iron Crown';
+		}
 	}
 	else if (pokemonIdentifier === 'Irontreads') {
 		pokemonIdentifier = 'Iron Treads';
 	}
-	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
-		if (args[2].toLowerCase() === 'bundle') {
-			pokemonIdentifier = 'Iron Bundle';
-		}
-	}
 	else if (pokemonIdentifier === 'Ironbundle') {
 		pokemonIdentifier = 'Iron Bundle';
-	}
-	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
-		if (args[2].toLowerCase() === 'hands') {
-			pokemonIdentifier = 'Iron Hands';
-		}
 	}
 	else if (pokemonIdentifier === 'Ironhands') {
 		pokemonIdentifier = 'Iron Hands';
 	}
-	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
-		if (args[2].toLowerCase() === 'jugulis') {
-			pokemonIdentifier = 'Iron Jugulis';
-		}
-	}
 	else if (pokemonIdentifier === 'Ironjugulis') {
 		pokemonIdentifier = 'Iron Jugulis';
 	}
-	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
-		if (args[2].toLowerCase() === 'moth') {
-			pokemonIdentifier = 'Iron Moth';
-		}
-	}
 	else if (pokemonIdentifier === 'Ironmoth') {
 		pokemonIdentifier = 'Iron Moth';
-	}
-	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
-		if (args[2].toLowerCase() === 'thorns') {
-			pokemonIdentifier = 'Iron Thorns';
-		}
 	}
 	else if (pokemonIdentifier === 'Ironthorns') {
 		pokemonIdentifier = 'Iron Thorns';
@@ -657,11 +659,6 @@ function fixPokemonName(pokemonIdentifier, args) {
 	else if (pokemonIdentifier === 'Roaringmoon') {
 		pokemonIdentifier = 'Roaring Moon';
 	}
-	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
-		if (args[2].toLowerCase() === 'valiant') {
-			pokemonIdentifier = 'Iron Valiant';
-		}
-	}
 	else if (pokemonIdentifier === 'Ironvaliant') {
 		pokemonIdentifier = 'Iron Valiant';
 	}
@@ -672,11 +669,6 @@ function fixPokemonName(pokemonIdentifier, args) {
 	}
 	else if (pokemonIdentifier === 'Walkingwake') {
 		pokemonIdentifier = 'Walking Wake';
-	}
-	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
-		if (args[2].toLowerCase() === 'leaves') {
-			pokemonIdentifier = 'Iron Leaves';
-		}
 	}
 	else if (pokemonIdentifier === 'Ironleaves') {
 		pokemonIdentifier = 'Iron Leaves';
@@ -697,18 +689,8 @@ function fixPokemonName(pokemonIdentifier, args) {
 	else if (pokemonIdentifier === 'Ragingbolt') {
 		pokemonIdentifier = 'Raging Bolt';
 	}
-	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
-		if (args[2].toLowerCase() === 'boulder') {
-			pokemonIdentifier = 'Iron Boulder';
-		}
-	}
 	else if (pokemonIdentifier === 'Ironboulder') {
 		pokemonIdentifier = 'Iron Boulder';
-	}
-	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
-		if (args[2].toLowerCase() === 'crown') {
-			pokemonIdentifier = 'Iron Crown';
-		}
 	}
 	else if (pokemonIdentifier === 'Ironcrown') {
 		pokemonIdentifier = 'Iron Crown';
