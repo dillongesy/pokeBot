@@ -521,6 +521,198 @@ function fixPokemonName(pokemonIdentifier, args) {
 			pokemonIdentifier = 'Tapu Fini';
 		}
 	}
+	else if (pokemonIdentifier === 'Great' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'tusk') {
+			pokemonIdentifier = 'Great Tusk';
+		}
+	}
+	else if (pokemonIdentifier === 'Greattusk') {
+		pokemonIdentifier = 'Great Tusk';
+	}
+	else if (pokemonIdentifier === 'Scream' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'tail') {
+			pokemonIdentifier = 'Scream Tail';
+		}
+	}
+	else if (pokemonIdentifier === 'Screamtail') {
+		pokemonIdentifier = 'Scream Tail';
+	}
+	else if (pokemonIdentifier === 'Brute' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'bonnet') {
+			pokemonIdentifier = 'Brute Bonnet';
+		}
+	}
+	else if (pokemonIdentifier === 'Brutebonnet') {
+		pokemonIdentifier = 'Brute Bonnet';
+	}
+	else if (pokemonIdentifier === 'Flutter' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'mane') {
+			pokemonIdentifier = 'Flutter Mane';
+		}
+	}
+	else if (pokemonIdentifier === 'Fluttermane') {
+		pokemonIdentifier = 'Flutter Mane';
+	}
+	else if (pokemonIdentifier === 'Slither' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'wing') {
+			pokemonIdentifier = 'Slither Wing';
+		}
+	}
+	else if (pokemonIdentifier === 'Slitherwing') {
+		pokemonIdentifier = 'Slither Wing';
+	}
+	else if (pokemonIdentifier === 'Sandy' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'shocks') {
+			pokemonIdentifier = 'Sandy Shocks';
+		}
+	}
+	else if (pokemonIdentifier === 'Sandyshocks') {
+		pokemonIdentifier = 'Sandy Shocks';
+	}
+	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'treads') {
+			pokemonIdentifier = 'Iron Treads';
+		}
+	}
+	else if (pokemonIdentifier === 'Irontreads') {
+		pokemonIdentifier = 'Iron Treads';
+	}
+	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'bundle') {
+			pokemonIdentifier = 'Iron Bundle';
+		}
+	}
+	else if (pokemonIdentifier === 'Ironbundle') {
+		pokemonIdentifier = 'Iron Bundle';
+	}
+	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'hands') {
+			pokemonIdentifier = 'Iron Hands';
+		}
+	}
+	else if (pokemonIdentifier === 'Ironhands') {
+		pokemonIdentifier = 'Iron Hands';
+	}
+	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'jugulis') {
+			pokemonIdentifier = 'Iron Jugulis';
+		}
+	}
+	else if (pokemonIdentifier === 'Ironjugulis') {
+		pokemonIdentifier = 'Iron Jugulis';
+	}
+	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'moth') {
+			pokemonIdentifier = 'Iron Moth';
+		}
+	}
+	else if (pokemonIdentifier === 'Ironmoth') {
+		pokemonIdentifier = 'Iron Moth';
+	}
+	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'thorns') {
+			pokemonIdentifier = 'Iron Thorns';
+		}
+	}
+	else if (pokemonIdentifier === 'Ironthorns') {
+		pokemonIdentifier = 'Iron Thorns';
+	}
+	else if (pokemonIdentifier === 'Wo' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'chien') {
+			pokemonIdentifier = 'Wo-Chien';
+		}
+	}
+	else if (pokemonIdentifier === 'Wochien') {
+		pokemonIdentifier = 'Wo-Chien';
+	}
+	else if (pokemonIdentifier === 'Chien' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'pao') {
+			pokemonIdentifier = 'Chien-Pao';
+		}
+	}
+	else if (pokemonIdentifier === 'Chienpao') {
+		pokemonIdentifier = 'Chien-Pao';
+	}
+	else if (pokemonIdentifier === 'Ting' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'lu') {
+			pokemonIdentifier = 'Ting-Lu';
+		}
+	}
+	else if (pokemonIdentifier === 'Tinglu') {
+		pokemonIdentifier = 'Ting-Lu';
+	}
+	else if (pokemonIdentifier === 'Chi' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'yu') {
+			pokemonIdentifier = 'Chi-Yu';
+		}
+	}
+	else if (pokemonIdentifier === 'Chiyu') {
+		pokemonIdentifier = 'Chi-Yu';
+	}
+	else if (pokemonIdentifier === 'Roaring' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'moon') {
+			pokemonIdentifier = 'Roaring Moon';
+		}
+	}
+	else if (pokemonIdentifier === 'Roaringmoon') {
+		pokemonIdentifier = 'Roaring Moon';
+	}
+	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'valiant') {
+			pokemonIdentifier = 'Iron Valiant';
+		}
+	}
+	else if (pokemonIdentifier === 'Ironvaliant') {
+		pokemonIdentifier = 'Iron Valiant';
+	}
+	else if (pokemonIdentifier === 'Walking' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'wake') {
+			pokemonIdentifier = 'Walking Wake';
+		}
+	}
+	else if (pokemonIdentifier === 'Walkingwake') {
+		pokemonIdentifier = 'Walking Wake';
+	}
+	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'leaves') {
+			pokemonIdentifier = 'Iron Leaves';
+		}
+	}
+	else if (pokemonIdentifier === 'Ironleaves') {
+		pokemonIdentifier = 'Iron Leaves';
+	}
+	else if (pokemonIdentifier === 'Gouging' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'fire') {
+			pokemonIdentifier = 'Gouging Fire';
+		}
+	}
+	else if (pokemonIdentifier === 'Gougingfire') {
+		pokemonIdentifier = 'Gouging Fire';
+	}
+	else if (pokemonIdentifier === 'Raging' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'bolt') {
+			pokemonIdentifier = 'Raging Bolt';
+		}
+	}
+	else if (pokemonIdentifier === 'Ragingbolt') {
+		pokemonIdentifier = 'Raging Bolt';
+	}
+	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'boulder') {
+			pokemonIdentifier = 'Iron Boulder';
+		}
+	}
+	else if (pokemonIdentifier === 'Ironboulder') {
+		pokemonIdentifier = 'Iron Boulder';
+	}
+	else if (pokemonIdentifier === 'Iron' && args.length > 2) { //length > 2
+		if (args[2].toLowerCase() === 'crown') {
+			pokemonIdentifier = 'Iron Crown';
+		}
+	}
+	else if (pokemonIdentifier === 'Ironcrown') {
+		pokemonIdentifier = 'Iron Crown';
+	}
 	
 	return pokemonIdentifier;
 }
@@ -574,7 +766,7 @@ const useCommandRegex = /^\.(use)\b/;
 const compareCommandRegex = /^\.(compare)\b/;
 const teamCommandRegex = /^\.(team)\b/;
 
-const maxDexNum = 905; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
+const maxDexNum = 1025; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}`);
@@ -1117,13 +1309,6 @@ client.on('messageCreate', (message) => {
 									break;
 								}
 							}
-							
-							if (pokemonIdentifier === '384') {
-								selectForm = {
-									name: 'Top 3 2024',
-									percentage: 0
-								}
-							}
 
 							if (selectGender.name === 'Female' && selectForm.name.includes('(M)')) {
 								selectGender = {
@@ -1213,7 +1398,35 @@ client.on('messageCreate', (message) => {
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'sirfetch\'d' && message.content.toLowerCase() === 'sirfetch‘d')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mr. rime' && message.content.toLowerCase() === 'mr rime')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mr. rime' && message.content.toLowerCase() === 'mr.rime')
-				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mr. rime' && message.content.toLowerCase() === 'mrrime'))) { //edge case
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mr. rime' && message.content.toLowerCase() === 'mrrime')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'great tusk' && message.content.toLowerCase() === 'greattusk')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'scream tail' && message.content.toLowerCase() === 'screamtail')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'brute bonnet' && message.content.toLowerCase() === 'brutebonnet')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'flutter mane' && message.content.toLowerCase() === 'fluttermane')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'slither wing' && message.content.toLowerCase() === 'slitherwing')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'sandy shocks' && message.content.toLowerCase() === 'sandyshocks')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'iron treads' && message.content.toLowerCase() === 'irontreads')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'iron bundle' && message.content.toLowerCase() === 'ironbundle')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'iron hands' && message.content.toLowerCase() === 'ironhands')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'iron jugulis' && message.content.toLowerCase() === 'ironjugulis')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'iron moth' && message.content.toLowerCase() === 'ironmoth')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'iron thorns' && message.content.toLowerCase() === 'ironthorns')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'wo-chien' && message.content.toLowerCase() === 'wochien')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'wo-chien' && message.content.toLowerCase() === 'wo chien')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'chien-pao' && message.content.toLowerCase() === 'chienpao')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'chien-pao' && message.content.toLowerCase() === 'chien pao')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'ting-lu' && message.content.toLowerCase() === 'tinglu')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'ting-lu' && message.content.toLowerCase() === 'ting lu')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'chi-yu' && message.content.toLowerCase() === 'chiyu')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'chi-yu' && message.content.toLowerCase() === 'chi yu')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'roaring moon' && message.content.toLowerCase() === 'roaringmoon')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'iron valiant' && message.content.toLowerCase() === 'ironvaliant')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'walking wake' && message.content.toLowerCase() === 'walkingwake')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'iron leaves' && message.content.toLowerCase() === 'ironleaves')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'gouging fire' && message.content.toLowerCase() === 'gougingfire')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'raging bolt' && message.content.toLowerCase() === 'ragingbolt')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'iron boulder' && message.content.toLowerCase() === 'ironboulder')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'iron crown' && message.content.toLowerCase() === 'ironcrown'))) { //edge case
 				
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
@@ -1940,7 +2153,10 @@ client.on('messageCreate', (message) => {
 							'Uxie', 'Mesprit', 'Azelf', 'Dialga', 'Palkia', 'Heatran', 'Regigigas', 'Giratina', 'Cresselia',
 							'Cobalion', 'Terrakion', 'Virizion', 'Tornadus', 'Thundurus', 'Reshiram', 'Zekrom', 'Landorus', 'Kyurem',
 							'Xerneas', 'Yveltal', 'Zygarde',
-							'Type: Null', 'Silvally', 'Tapu Koko', 'Tapu Lele', 'Tapu Bulu', 'Tapu Fini', 'Cosmog', 'Cosmoem', 'Solgaleo', 'Lunala', 'Necrozma'
+							'Type: Null', 'Silvally', 'Tapu Koko', 'Tapu Lele', 'Tapu Bulu', 'Tapu Fini', 'Cosmog', 'Cosmoem', 'Solgaleo', 'Lunala', 'Necrozma',
+							'Zacian', 'Zamazenta', 'Eternatus', 'Kubfu', 'Urshifu', 'Regieleki', 'Regidrago', 'Glastrier', 'Spectrier', 'Calyrex', 'Enamorus',
+							'Wo-Chien', 'Chien-Pao', 'Ting-Lu', 'Chi-Yu', 'Koraidon', 'Miraidon', 'Walking Wake', 'Iron Leaves', 'Okidogi', 'Munkidori', 'Fezandipiti', 'Ogerpon', 'Gouging Fire',
+							'Raging Bolt', 'Iron Boulder', 'Iron Crown', 'Terapagos'
 						];
 						dbUser.all("SELECT user_id, caught_pokemon, servers FROM user", [], async (err, rows) => {
 							if (err) {
@@ -2006,7 +2222,8 @@ client.on('messageCreate', (message) => {
 							'Phione', 'Manaphy', 'Darkrai', 'Shaymin', 'Arceus',
 							'Victini', 'Keldeo', 'Meloetta', 'Genesect',
 							'Diancie', 'Hoopa', 'Volcanion',
-							'Magearna', 'Marshadow', 'Zeraora', 'Meltan', 'Melmetal'
+							'Magearna', 'Marshadow', 'Zeraora', 'Meltan', 'Melmetal',
+							'Zarude', 'Pecharunt'
 						];
 						dbUser.all("SELECT user_id, caught_pokemon, servers FROM user", [], async (err, rows) => {
 							if (err) {
@@ -2409,7 +2626,7 @@ client.on('messageCreate', (message) => {
 													selectedForm = forms[0].name;
 												}
 												else {
-													selectedForm = '';
+													selectedForm = 'Default';
 												}
 											}
 											genders = JSON.parse(curMon.gender);
@@ -2453,7 +2670,7 @@ client.on('messageCreate', (message) => {
 													selectedForm = forms[0].name;
 												}
 												else {
-													selectedForm = '';
+													selectedForm = 'Default';
 												}
 											}
 											genders = JSON.parse(curMon.gender);
@@ -3326,7 +3543,10 @@ client.on('messageCreate', (message) => {
 								'Uxie', 'Mesprit', 'Azelf', 'Dialga', 'Palkia', 'Heatran', 'Regigigas', 'Giratina', 'Cresselia',
 								'Cobalion', 'Terrakion', 'Virizion', 'Tornadus', 'Thundurus', 'Reshiram', 'Zekrom', 'Landorus', 'Kyurem',
 								'Xerneas', 'Yveltal', 'Zygarde',
-								'Type: Null', 'Silvally', 'Tapu Koko', 'Tapu Lele', 'Tapu Bulu', 'Tapu Fini', 'Cosmog', 'Cosmoem', 'Solgaleo', 'Lunala', 'Necrozma'
+								'Type: Null', 'Silvally', 'Tapu Koko', 'Tapu Lele', 'Tapu Bulu', 'Tapu Fini', 'Cosmog', 'Cosmoem', 'Solgaleo', 'Lunala', 'Necrozma',
+								'Zacian', 'Zamazenta', 'Eternatus', 'Kubfu', 'Urshifu', 'Regieleki', 'Regidrago', 'Glastrier', 'Spectrier', 'Calyrex', 'Enamorus',
+								'Wo-Chien', 'Chien-Pao', 'Ting-Lu', 'Chi-Yu', 'Koraidon', 'Miraidon', 'Walking Wake', 'Iron Leaves', 'Okidogi', 'Munkidori', 'Fezandipiti', 'Ogerpon', 'Gouging Fire',
+								'Raging Bolt', 'Iron Boulder', 'Iron Crown', 'Terapagos'
 							];
 
 							const legendaryCaught = caughtPokemon
@@ -3426,7 +3646,8 @@ client.on('messageCreate', (message) => {
 								'Phione', 'Manaphy', 'Darkrai', 'Shaymin', 'Arceus',
 								'Victini', 'Keldeo', 'Meloetta', 'Genesect',
 								'Diancie', 'Hoopa', 'Volcanion',
-								'Magearna', 'Marshadow', 'Zeraora', 'Meltan', 'Melmetal'
+								'Magearna', 'Marshadow', 'Zeraora', 'Meltan', 'Melmetal',
+								'Zarude', 'Pecharunt'
 							];
 
 							const mythicalCaught = caughtPokemon
@@ -4869,7 +5090,8 @@ client.on('messageCreate', (message) => {
 						'Kyurem',
 						'Furfrou', 'Hoopa',
 						'Silvally', 'Necrozma',
-						'Enamorus', 'Alcremie', 'Zacian', 'Zamazenta'
+						'Enamorus', 'Alcremie', 'Zacian', 'Zamazenta',
+						'Ogerpon'
 					];
 					const geniesList = [
 						'Tornadus', 'Thundurus', 'Landorus', 'Enamorus'
@@ -4923,7 +5145,7 @@ client.on('messageCreate', (message) => {
 								return;
 							}
 							if (itemNum < 1 || itemNum > inventoryArr.length) {
-								message.channel.send('Improper command usage: You have no pokemon in that party slot!`');
+								message.channel.send('Improper command usage: You have no pokemon in that party slot!');
 								return;
 							}
 
@@ -5000,7 +5222,7 @@ client.on('messageCreate', (message) => {
 									return;
 								}
 								if (partyNum < 1 || partyNum > pokemonArr.length) {
-									message.channel.send('Improper command usage: You have no pokemon in that party slot!`');
+									message.channel.send('Improper command usage: You have no pokemon in that party slot!');
 									return;
 								}
 								const selectedMon = pokemonArr[partyNum - 1];
@@ -5097,6 +5319,9 @@ client.on('messageCreate', (message) => {
 												message.channel.send('Could not use selected item on selected pokemon.');
 												return;
 											}
+										}
+										else if (selectedMon.name === 'Ogerpon') {
+											pokemonArr[partyNum - 1].form = 'Teal';
 										}
 
 										else {
@@ -5378,6 +5603,18 @@ client.on('messageCreate', (message) => {
 						}
 						else if (curMon.toLowerCase() === 'mr. rime') {
 							curMonHint = curMonHint.replaceAt(2, '.');
+						}
+						else if (curMon.toLowerCase() === 'wo-chien') {
+							curMonHint = curMonHint.replaceAt(2, '-');
+						}
+						else if (curMon.toLowerCase() === 'chien-pao') {
+							curMonHint = curMonHint.replaceAt(5, '-');
+						}
+						else if (curMon.toLowerCase() === 'ting-lu') {
+							curMonHint = curMonHint.replaceAt(4, '-');
+						}
+						else if (curMon.toLowerCase() === 'chi-yu') {
+							curMonHint = curMonHint.replaceAt(3, '-');
 						}
 
 						const regex = new RegExp("_", 'g');
