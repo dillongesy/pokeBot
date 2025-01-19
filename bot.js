@@ -789,24 +789,6 @@ client.on('messageCreate', (message) => {
 			else if (serverId === '945102690113953802' && message.content.includes('<:Hehe:1327059514771509329>')) {
 				message.channel.send('<:Hmm:1325888545906233446>');
 			}
-
-			if (message.content.includes('.addcolumn')) {
-				dbUser.run("ALTER TABLE user ADD COLUMN cdString TEXT DEFAULT ''", function(err) {
-					if (err) {
-						console.error("Error adding cdString column:", err.message);
-					} else {
-						console.log("cdString column added successfully.");
-					}
-				});
-
-				dbUser.run("ALTER TABLE user ADD COLUMN acNum INTEGER DEFAULT 0", function(err) {
-					if (err) {
-						console.error("Error adding acNum column:", err.message);
-					} else {
-						console.log("acNuml column added successfully.");
-					}
-				});
-			}
 			
 			//drop
 			if (dropCommandRegex.test(message.content.toLowerCase())) {
