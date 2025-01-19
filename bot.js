@@ -752,8 +752,17 @@ const maxDexNum = 1025; //number x is max pokedex entry - EDIT WHEN ADDING MORE 
 
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}`);
-	dbUser.run("CREATE TABLE IF NOT EXISTS user (user_id TEXT PRIMARY KEY, caught_pokemon TEXT, currency INTEGER DEFAULT 0, inventory TEXT DEFAULT '[]', servers TEXT DEFAULT '[]')");
-	dbServer.run("CREATE TABLE IF NOT EXISTS server (server_id TEXT PRIMARY KEY, allowed_channels_id TEXT)")});
+	dbUser.run("CREATE TABLE IF NOT EXISTS user" +
+		" (user_id TEXT PRIMARY KEY," + 
+		" caught_pokemon TEXT," +
+		" currency INTEGER DEFAULT 0," +
+		" inventory TEXT DEFAULT '[]'," +
+		" servers TEXT DEFAULT '[]'," +
+		" cdNum INTEGER DEFAULT 0," +
+		" acNum INTEGER DEFAULT 0)");
+	dbServer.run("CREATE TABLE IF NOT EXISTS server" +
+		" (server_id TEXT PRIMARY KEY," +
+		" allowed_channels_id TEXT)")});
 
 client.on('messageCreate', (message) => {
 	if (!message.author.bot) {
@@ -780,6 +789,24 @@ client.on('messageCreate', (message) => {
 			else if (serverId === '945102690113953802' && message.content.includes('<:Hehe:1327059514771509329>')) {
 				message.channel.send('<:Hmm:1325888545906233446>');
 			}
+
+			if (message.content.includes('.addcolumn')) {
+				dbUser.run("ALTER TABLE user ADD COLUMN cdString TEXT DEFAULT ''", function(err) {
+					if (err) {
+						console.error("Error adding cdString column:", err.message);
+					} else {
+						console.log("cdString column added successfully.");
+					}
+				});
+
+				dbUser.run("ALTER TABLE user ADD COLUMN acNum INTEGER DEFAULT 0", function(err) {
+					if (err) {
+						console.error("Error adding acNum column:", err.message);
+					} else {
+						console.log("acNuml column added successfully.");
+					}
+				});
+			}
 			
 			//drop
 			if (dropCommandRegex.test(message.content.toLowerCase())) {
@@ -787,27 +814,31 @@ client.on('messageCreate', (message) => {
 					if (!allowed) {
 						return;
 					}
-					if (cooldowns.has(userId)) {
-						const cooldownEnd = Math.floor(cooldowns.get(userId) / 1000);
-						message.channel.send(`You can drop again <t:${cooldownEnd}:R>.`);
-						return;
-					}
 					
-					const cooldownEnd = now + 300000;
-					cooldowns.set(userId, cooldownEnd);
-					setTimeout(() => {
-						cooldowns.delete(userId)
-						if (cooldownAlerts.has(userId) && cooldownAlerts.get(userId)) {
-							message.channel.send(`<@!${userId}>, your drop is off cooldown!`);
-						}
-					}, 300000);
 					
-					dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, caughtPokemonList) => {
+					dbUser.get("SELECT caught_pokemon, cdString FROM user WHERE user_id = ?", [userId], (err, caughtPokemonList) => {
 						if (err) {
 							console.error(err.message);
 							message.channel.send('An error occurred while fetching your caught Pokémon.');
 							return;
 						}
+
+						if (cooldowns.has(userId)) {
+							const cooldownEnd = Math.floor(cooldowns.get(userId) / 1000);
+							message.channel.send(`You can drop again <t:${cooldownEnd}:R>.`);
+							return;
+						}
+						
+						let cooldownDiff = caughtPokemonList.cdString;
+						cooldownDiff = cooldownDiff.length;
+						const cooldownEnd = now + 300000 - (30000 * cooldownDiff);
+						cooldowns.set(userId, cooldownEnd);
+						setTimeout(() => {
+							cooldowns.delete(userId)
+							if (cooldownAlerts.has(userId) && cooldownAlerts.get(userId)) {
+								message.channel.send(`<@!${userId}>, your drop is off cooldown!`);
+							}
+						}, 300000  - (30000 * cooldownDiff));
 
 						const caughtPokemon = caughtPokemonList && caughtPokemonList.caught_pokemon ? JSON.parse(caughtPokemonList.caught_pokemon).flat().map(p => ({ 
 							name: p.name.startsWith('✨') ? p.name.slice(1) : p.name,
@@ -1245,11 +1276,11 @@ client.on('messageCreate', (message) => {
 					}
 					
 					let pokemonIdentifier = args[1];
-					let isNumber = !isNaN(pokemonIdentifier);
-					if (!isNumber) {
-						message.channel.send('Please specify a valid pokedex number. Usage: `.forceSpawn <PokedexNum>`');
-					}
-					else {
+					// let isNumber = !isNaN(pokemonIdentifier);
+					// if (!isNumber) {
+					// 	message.channel.send('Please specify a valid pokedex number. Usage: `.forceSpawn <PokedexNum>`');
+					// }
+					// else {
 						db.get("SELECT * FROM pokemon WHERE dexNum = ?", [pokemonIdentifier], (err, pokemon) => {
 							if (err) {
 								console.error(err.message);
@@ -1340,7 +1371,7 @@ client.on('messageCreate', (message) => {
 								
 							message.channel.send({ embeds: [embed] });
 						});
-					}
+					// }
 				});
 			}
 			
@@ -1429,7 +1460,7 @@ client.on('messageCreate', (message) => {
 							message.channel.send('Pokémon not found in the database.');
 							return;
 						}
-						const coinsToAdd = getRandomInt(21) + 5;
+						let coinsToAdd = getRandomInt(21) + 5;
 						let shinyMon;
 						if (isShinyVar) {
 							shinyMon = [{
@@ -1466,12 +1497,12 @@ client.on('messageCreate', (message) => {
 						else {
 							userDisplayName = message.guild.members.cache.get(userId).displayName;
 						}
+
+						// const messageText = isShinyVar
+						// 	? `Added ✨${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
+						// 	: `Added ${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
 						
-						const messageText = isShinyVar
-							? `Added ✨${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
-							: `Added ${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
-						
-						message.channel.send(messageText);
+						// message.channel.send(messageText);
 						
 						dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
 							if (err) {
@@ -1480,6 +1511,12 @@ client.on('messageCreate', (message) => {
 							}
 							if (!row) {
 								// User isn't in the database, add them
+								const messageText = isShinyVar
+									? `Added ✨${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
+									: `Added ${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
+							
+								message.channel.send(messageText);
+
 								dbUser.run("INSERT INTO user (user_id, caught_pokemon, currency, servers) VALUES (?, ?, ?, ?)", [userId, JSON.stringify(shinyMon), coinsToAdd, JSON.stringify([serverId])], (err) => {
 									if (err) {
 										console.error(err.message);
@@ -1489,6 +1526,16 @@ client.on('messageCreate', (message) => {
 							} 
 							else {
 								// User is in the database, update their caught Pokémon & currency
+								let acNum = row.acNum;
+								acNum = acNum === 0 ? 1 : 2;
+								coinsToAdd = coinsToAdd * acNum;
+
+								const messageText = isShinyVar
+								? `Added ✨${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
+								: `Added ${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
+						
+								message.channel.send(messageText);
+
 								const caughtPokemon = JSON.parse(row.caught_pokemon);
 								let newList = caughtPokemon.concat(shinyMon);
 								const newCurrency = row.currency + coinsToAdd;
@@ -4658,7 +4705,7 @@ client.on('messageCreate', (message) => {
 						let shopDescription;
 
 						if (!args || args.length < 1 || args[0] === ' ') {
-							const generalItemsMaxNum = 20;
+							const generalItemsMaxNum = 25;
 							const generalItemsMinNum = 1;
 
 							filteredItems = shopItems.filter(item => item.itemNum <= generalItemsMaxNum && item.itemNum >= generalItemsMinNum);
@@ -4900,16 +4947,85 @@ client.on('messageCreate', (message) => {
 									collector.on('collect', async i => {
 										try {
 											if (i.customId === 'buy_yes') {
-												const userInventory = JSON.parse(row.inventory);
-												for (let i = 0; i < quantityNum; i++) {
-													userInventory.push(boughtItem);
-												}
-												dbUser.run("UPDATE user SET inventory = ?, currency = ? WHERE user_id = ?", [JSON.stringify(userInventory), userCurrency, userId], (err) => {
-													if (err) {
-														console.error(err.message);
+												if (selectedItem.item_class === 2) {
+													//check quantity, should be 1
+													//user cannot buy same item twice
+													let acNum = row.acNum;
+													let cdString = row.cdString;
+													if (quantityNum > 1) {
+														i.update({ content: 'Purchase cancelled.', embeds: [], components: [] });
+														message.channel.send("Cannot buy more than one at the same time!");
+														return;
 													}
-													i.update({ content: `Successfully purchased ${quantityNum} ${boughtItem}(s) for ${quantityNum * amount}. You have ${userCurrency} leftover.`, embeds: [], components: [] });
-												});
+													if (selectedItem.itemNum === 8) {
+														if (acNum !== 1) {
+															acNum = 1;
+														}
+														else {
+															i.update({ content: 'Purchase cancelled.', embeds: [], components: [] });
+															message.channel.send("Cannot buy this item more than once!");
+															return;
+														}
+													}
+													else if (selectedItem.itemNum === 12) {
+														if (cdString.includes('A')) {
+															i.update({ content: 'Purchase cancelled.', embeds: [], components: [] });
+															message.channel.send("Cannot buy this item more than once!");
+															return;
+														}
+														else {
+															cdString += 'A';
+														}
+													}
+													else if (selectedItem.itemNum === 13) {
+														if (cdString.includes('B')) {
+															i.update({ content: 'Purchase cancelled.', embeds: [], components: [] });
+															message.channel.send("Cannot buy this item more than once!");
+															return;
+														}
+														else {
+															cdString += 'B';
+														}
+													}
+													else if (selectedItem.itemNum === 14) {
+														if (cdString.includes('C')) {
+															i.update({ content: 'Purchase cancelled.', embeds: [], components: [] });
+															message.channel.send("Cannot buy this item more than once!");
+															return;
+														}
+														else {
+															cdString += 'C';
+														}
+													}
+													else if (selectedItem.itemNum === 15) {
+														if (cdString.includes('D')) {
+															i.update({ content: 'Purchase cancelled.', embeds: [], components: [] });
+															message.channel.send("Cannot buy this item more than once!");
+															return;
+														}
+														else {
+															cdString += 'D';
+														}
+													}
+													dbUser.run("UPDATE user SET currency = ?, cdString = ?, acNum = ? WHERE user_id = ?", [userCurrency, cdString, acNum, userId], (err) => {
+														if (err) {
+															console.error(err.message);
+														}
+														i.update({ content: `Successfully purchased ${quantityNum} ${boughtItem}(s) for ${quantityNum * amount}. You have ${userCurrency} leftover.`, embeds: [], components: [] });
+													});
+												}
+												else {
+													const userInventory = JSON.parse(row.inventory);
+													for (let i = 0; i < quantityNum; i++) {
+														userInventory.push(boughtItem);
+													}
+													dbUser.run("UPDATE user SET inventory = ?, currency = ? WHERE user_id = ?", [JSON.stringify(userInventory), userCurrency, userId], (err) => {
+														if (err) {
+															console.error(err.message);
+														}
+														i.update({ content: `Successfully purchased ${quantityNum} ${boughtItem}(s) for ${quantityNum * amount}. You have ${userCurrency} leftover.`, embeds: [], components: [] });
+													});
+												}
 											} 
 											else if (i.customId === 'buy_no') {
 												i.update({ content: 'Purchase cancelled.', embeds: [], components: [] });

@@ -8,6 +8,7 @@ db.serialize(() => {
 
 	//item_class: 0: items for general use
 	//item_class: 1: items for pokemon
+	//item_class: 2: instantly used items (amulet coin, cd reducers)
 	
 	//reusable: 0: no
 	//reusable: 1: yes
@@ -21,21 +22,30 @@ db.serialize(() => {
 		{ itemNum: 6, item_name: 'Mythical Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 15000, explanation: 'Makes your next pokemon drop a mythical pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
 		{ itemNum: 7, item_name: 'Shiny Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 20000, explanation: 'Makes your next pokemon drop a shiny pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
 		
-		//TODO: Stone/evolution implementation
-		{ itemNum: 8, item_name: 'Fire Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Fire stone (coming soon)' },
-		{ itemNum: 9, item_name: 'Water Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Water evolution stone (coming soon)' },
-		{ itemNum: 10, item_name: 'Thunder Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Electric evolution Stone (coming soon)' },
-		{ itemNum: 11, item_name: 'Leaf Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Grass evolution Stone (coming soon)' },
-		{ itemNum: 12, item_name: 'Moon Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Moon evolution Stone (coming soon)' },
-		{ itemNum: 13, item_name: 'Sun Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Sun evolution Stone (coming soon)' },
-		{ itemNum: 14, item_name: 'Shiny Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Shiny evolution Stone (coming soon)' },
-		{ itemNum: 15, item_name: 'Dusk Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Dusk evolution Stone (coming soon)' },
-		{ itemNum: 16, item_name: 'Dawn Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Dawn evolution Stone (coming soon)' },
-		{ itemNum: 17, item_name: 'Ice Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Ice evolution Stone (coming soon)' },
+		{ itemNum: 8, item_name: 'Amulet Coin', item_class: 2, pokemon_usage: null, new_form: null, reusable: 0, price: 50000, explanation: 'Gives you double coin drops' },
+		{ itemNum: 9, item_name: 'Defaulter', item_class: 1, pokemon_usage: 'Form_All', new_form: 'Default', reusable: 1, price: 500, explanation: '**REUSABLE**: Resets the Pokemon\'s form to default' }, //Form_All
+		{ itemNum: 10, item_name: 'Rare Candy', item_class: 1, pokemon_usage: 'All', new_form: 'Default', reusable: 0, price: 500, explanation: '**REUSABLE**: Resets the Pokemon\'s form to default' }, //All
+		{ itemNum: 11, item_name: 'Dynamax Band', item_class: 1, pokemon_usage: 'Gigantamax', new_form: 'Gigantamax', reusable: 1, price: 5000, explanation: '**REUSABLE**: Evolves the Pokemon into their Gigantamax form' }, //Gigantamax
 		
-		{ itemNum: 18, item_name: 'Defaulter', item_class: 1, pokemon_usage: 'Form_All', new_form: 'Default', reusable: 1, price: 500, explanation: '**REUSABLE**: Resets the Pokemon\'s form to default' }, //Form_All
-		{ itemNum: 19, item_name: 'Rare Candy', item_class: 1, pokemon_usage: 'All', new_form: 'Default', reusable: 0, price: 500, explanation: '**REUSABLE**: Resets the Pokemon\'s form to default' }, //All
-		{ itemNum: 20, item_name: 'Dynamax Band', item_class: 1, pokemon_usage: 'Gigantamax', new_form: 'Gigantamax', reusable: 1, price: 5000, explanation: '**REUSABLE**: Evolves the Pokemon into their Gigantamax form' }, //Gigantamax
+		{ itemNum: 12, item_name: 'Cooldown Reducer 1', item_class: 2, pokemon_usage: null, new_form: null, reusable: 0, price: 25000, explanation: 'Reduces the dropping cooldown by 30 seconds \n__Can only be bought once!__' },
+		{ itemNum: 13, item_name: 'Cooldown Reducer 2', item_class: 2, pokemon_usage: null, new_form: null, reusable: 0, price: 50000, explanation: 'Reduces the dropping cooldown by 30 seconds \n__Can only be bought once!__' },
+		{ itemNum: 14, item_name: 'Cooldown Reducer 3', item_class: 2, pokemon_usage: null, new_form: null, reusable: 0, price: 75000, explanation: 'Reduces the dropping cooldown by 30 seconds \n__Can only be bought once!__' },
+		{ itemNum: 15, item_name: 'Cooldown Reducer 4', item_class: 2, pokemon_usage: null, new_form: null, reusable: 0, price: 100000, explanation: 'Reduces the dropping cooldown by 30 seconds \n__Can only be bought once!__' },
+
+		
+		//TODO: Stone/evolution implementation
+		{ itemNum: 16, item_name: 'Fire Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Fire stone (coming soon)' },
+		{ itemNum: 17, item_name: 'Water Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Water evolution stone (coming soon)' },
+		{ itemNum: 18, item_name: 'Thunder Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Electric evolution Stone (coming soon)' },
+		{ itemNum: 19, item_name: 'Leaf Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Grass evolution Stone (coming soon)' },
+		{ itemNum: 20, item_name: 'Moon Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Moon evolution Stone (coming soon)' },
+		{ itemNum: 21, item_name: 'Sun Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Sun evolution Stone (coming soon)' },
+		{ itemNum: 22, item_name: 'Shiny Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Shiny evolution Stone (coming soon)' },
+		{ itemNum: 23, item_name: 'Dusk Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Dusk evolution Stone (coming soon)' },
+		{ itemNum: 24, item_name: 'Dawn Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Dawn evolution Stone (coming soon)' },
+		{ itemNum: 25, item_name: 'Ice Stone', item_class: 1, pokemon_usage: null, new_form: null, reusable: 0, price: 1000, explanation: 'Ice evolution Stone (coming soon)' },
+		
+		
 		
 		//Mega Evolution Store
 		{ itemNum: 100, item_name: 'Venusaurite', item_class: 1, pokemon_usage: 'Venusaur', new_form: 'Mega', reusable: 2, price: 2500, explanation: '**CONSUMABLE**: Mega Stone for Venusaur transformation' },
