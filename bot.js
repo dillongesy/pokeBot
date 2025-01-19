@@ -811,8 +811,14 @@ client.on('messageCreate', (message) => {
 							return;
 						}
 						
-						let cooldownDiff = caughtPokemonList.cdString;
-						cooldownDiff = cooldownDiff.length;
+						let cooldownDiff;
+						try 
+						{
+							cooldownDiff = caughtPokemonList.cdString;
+							cooldownDiff = cooldownDiff.length;
+						} catch (error) {
+							cooldownDiff = 0;
+						}
 						const cooldownEnd = now + 300000 - (30000 * cooldownDiff);
 						cooldowns.set(userId, cooldownEnd);
 						setTimeout(() => {
