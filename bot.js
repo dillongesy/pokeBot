@@ -1362,7 +1362,53 @@ client.on('messageCreate', (message) => {
 					// }
 				});
 			}
-			
+
+			//temp - impdimp fix
+			else if ( message.content.startsWith(".fiximpdimp") && userId === '177580797165961216') {
+				dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
+					if (err) {
+						console.error(err.message);
+						message.channel.send('Error');
+						return;
+					}
+
+					for (const row of rows) {
+						try {
+							let nameList = JSON.parse(row.caught_pokemon);
+							let updated = false;
+							nameList.forEach(pokemon => {
+								if (pokemon.name === 'Impdimp') {
+									pokemon.name = 'Impidimp';
+									updated = true;
+								}
+							});
+
+							if (updated) {
+								const updatedPokemonList = JSON.stringify(nameList);
+								await new Promise((resolve, reject) => {
+									dbUser.run(
+										"UPDATE user SET caught_pokemon = ? WHERE user_id = ?",
+										[updatedPokemonList, row.user_id],
+										(updateErr) => {
+											if (updateErr) {
+												console.error(`Error updating user ${row.user_id}:`, updateErr.message);
+												reject(updateErr);
+											} else {
+												resolve();
+											}
+										}
+									);
+								});
+							}
+
+						} catch (parseErr) {
+							console.error(`Error parsing caught_pokemon for user ${row.user_id}:`, parseErr.message);
+						}
+					}
+					message.channel.send('Impidimp fix complete!');
+				});
+			}
+
 			//catch
 			else if ( activeDrops.has(`${serverId}_${message.channel.id}`) && (
 				   (message.content.toLowerCase() === activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase())
@@ -3870,7 +3916,7 @@ client.on('messageCreate', (message) => {
 
 								return new EmbedBuilder()
 									.setColor('#0099ff')
-									.setTitle(`${tagName}'s pokemon you don't own.`)
+									.setTitle(`${tagName}'s Pokemon You Don't Own`)
 									.setDescription(pageData.map((pokemon) => {
 										// Display gender for Nidoran only
 										if (pokemon.name === 'Nidoran' && pokemon.dexNum === '29') {
