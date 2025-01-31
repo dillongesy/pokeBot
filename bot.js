@@ -4893,6 +4893,9 @@ client.on('messageCreate', (message) => {
 					if (!allowed) {
 						return;
 					}
+					//REMOVE WHEN PRICES ARE UPDATED
+					message.channel.send('Prices are currently being worked on! Check back again at a later time.');
+					return;
 					const args = message.content.split(' ');
 					if (args.length < 2) {
 						message.channel.send('Please specify a valid shop number. Usage: `.buy <shopNum>`');
