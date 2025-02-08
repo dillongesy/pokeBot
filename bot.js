@@ -26,6 +26,30 @@ const requiredPermissions = new PermissionsBitField([
 	'UseExternalEmojis'
 ]);
 
+
+
+//ON CATCH
+
+
+/*
+key dexnum	: data quests associated to dexnum
+
+1 			: [1, 2, 3]
+2 			: []
+3 			: [1]
+4 			: [1, 2]
+
+drop pokemon 1
+remove quest [1, 2, 3] from pokemon 1
+check quest [1, 2, 3]
+
+if there is a [1, 2, 3] under any key
+	quest incomplete
+if there is no quest [1, 2, 3] under any key
+	quest complete, reward gold
+
+*/
+
 const Discord = require('discord.js');
 const client = new Client({
 	intents: [
@@ -758,8 +782,11 @@ client.on('ready', () => {
 		" currency INTEGER DEFAULT 0," +
 		" inventory TEXT DEFAULT '[]'," +
 		" servers TEXT DEFAULT '[]'," +
-		" cdNum INTEGER DEFAULT 0," +
-		" acNum INTEGER DEFAULT 0)");
+		" cdString INTEGER DEFAULT 0," +
+		" acNum INTEGER DEFAULT 0," +
+		" totalCaught INTEGER DEFAULT 0," +
+		" totalSpent INTEGER DEFAULT 0," +
+		" gold INTEGER DEFAULT 0)");
 	dbServer.run("CREATE TABLE IF NOT EXISTS server" +
 		" (server_id TEXT PRIMARY KEY," +
 		" allowed_channels_id TEXT)")});
@@ -788,6 +815,158 @@ client.on('messageCreate', (message) => {
 			}
 			else if (serverId === '945102690113953802' && message.content.includes('<:Hehe:1327059514771509329>')) {
 				message.channel.send('<:Hmm:1325888545906233446>');
+			}
+
+			if (message.content.toLowerCase() === '.addcolumns' && userId === '177580797165961216') {
+				//add columns totalCaught, totalSpent, and gold
+
+				const columnsToAdd = [
+					{ name: "totalCaught", type: "INTEGER DEFAULT 0" },
+					{ name: "totalSpent", type: "INTEGER DEFAULT 0" },
+					{ name: "gold", type: "INTEGER DEFAULT 0" }
+				];
+			
+				dbUser.all("PRAGMA table_info(user)", [], (err, rows) => {
+					if (err) {
+						console.error("Error fetching table info:", err.message);
+						message.channel.send("An error occurred while updating the database.");
+						return;
+					}
+			
+					// Extract existing column names
+					const existingColumns = rows.map(row => row.name);
+					
+					// Iterate over the columns to add and check if they exist
+					columnsToAdd.forEach(column => {
+						if (!existingColumns.includes(column.name)) {
+							dbUser.run(`ALTER TABLE user ADD COLUMN ${column.name} ${column.type}`, [], (alterErr) => {
+								if (alterErr) {
+									console.error(`Error adding column ${column.name}:`, alterErr.message);
+								} else {
+									console.log(`Column ${column.name} added successfully.`);
+								}
+							});
+						}
+					});
+			
+					message.channel.send("Database schema updated successfully!");
+				});
+					
+			}
+
+			if (message.content.toLowerCase() === '.updatedb' && userId === '177580797165961216') {
+				dbUser.all("SELECT user_id, caught_pokemon FROM user", [], (err, rows) => {
+					if (err) {
+						console.error(err.message);
+						message.channel.send('An error occurred while fetching user totalCaught.');
+						return;
+					}
+
+					if (!rows || rows.length === 0) {
+						message.channel.send('No user inventories found.');
+						return;
+					}
+
+					let usersProcessed = 0;
+			
+					rows.forEach(row => {
+						if (!row.caught_pokemon) return;
+			
+						try {
+							let userpokemon = JSON.parse(row.caught_pokemon); // Convert JSON string to array
+							const totalCaughtPokemon = userpokemon.length;
+			
+							// Update database
+							dbUser.run("UPDATE user SET totalCaught = ? WHERE user_id = ?", [totalCaughtPokemon, row.user_id], (updateErr) => {
+								if (updateErr) {
+									console.error(`Error updating totalCaught for user ${row.user_id}:`, updateErr.message);
+								} else {
+									usersProcessed++;
+								}
+			
+								// Send message only after all updates are completed
+								if (usersProcessed === rows.length) {
+									message.channel.send('All user totalCaught have been successfully updated!');
+								}
+							});
+			
+						} catch (parseErr) {
+							console.error(`Error parsing pokemon for user ${row.user_id}:`, parseErr.message);
+						}
+					});
+
+				});
+			}
+
+			if (message.content.toLowerCase() === '.fixitems' && userId === '177580797165961216') {
+				dbUser.all("SELECT user_id, inventory FROM user", [], (err, rows) => {
+					if (err) {
+						console.error(err.message);
+						message.channel.send('An error occurred while fetching user inventories.');
+						return;
+					}
+			
+					if (!rows || rows.length === 0) {
+						message.channel.send('No user inventories found.');
+						return;
+					}
+			
+					let usersProcessed = 0;
+			
+					rows.forEach(row => {
+						if (!row.inventory) return;
+			
+						try {
+							let userInventory = JSON.parse(row.inventory); // Convert JSON string to array
+							let itemCounts = {};
+			
+							// Count occurrences of each item
+							userInventory.forEach(item => {
+								itemCounts[item] = (itemCounts[item] || 0) + 1;
+							});
+			
+							// Convert to formatted array with counts
+							let fixedInventory = Object.entries(itemCounts).map(([item, count]) => {
+								return `${item} (x${count})`;
+							});
+			
+							// Update database
+							dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(fixedInventory), row.user_id], (updateErr) => {
+								if (updateErr) {
+									console.error(`Error updating inventory for user ${row.user_id}:`, updateErr.message);
+								} else {
+									usersProcessed++;
+								}
+			
+								// Send message only after all updates are completed
+								if (usersProcessed === rows.length) {
+									message.channel.send('All user inventories have been successfully fixed!');
+								}
+							});
+			
+						} catch (parseErr) {
+							console.error(`Error parsing inventory for user ${row.user_id}:`, parseErr.message);
+						}
+					});
+				});
+			}
+			
+			if (message.content.toLowerCase() === '.createbighash' && userId === '177580797165961216') {
+				const bigMap = new Map();
+				db.all("SELECT * FROM pokemon", [], (err, rows) => {
+					if (err) {
+						console.error("Error fetching table info:", err.message);
+						message.channel.send("An error occurred while updating the database.");
+						return;
+					}
+					rows.forEach(row => {
+						const forms = JSON.parse(row.forms);
+						for (let form of forms) {
+							bigMap.set({name: row.name, form: form.name}, [])
+						}
+					});
+
+				});
 			}
 			
 			//drop
@@ -1363,52 +1542,6 @@ client.on('messageCreate', (message) => {
 				});
 			}
 
-			//temp - impdimp fix
-			else if ( message.content.startsWith(".fiximpdimp") && userId === '177580797165961216') {
-				dbUser.all("SELECT user_id, caught_pokemon FROM user", [], async (err, rows) => {
-					if (err) {
-						console.error(err.message);
-						message.channel.send('Error');
-						return;
-					}
-
-					for (const row of rows) {
-						try {
-							let nameList = JSON.parse(row.caught_pokemon);
-							let updated = false;
-							nameList.forEach(pokemon => {
-								if (pokemon.name === 'Impdimp') {
-									pokemon.name = 'Impidimp';
-									updated = true;
-								}
-							});
-
-							if (updated) {
-								const updatedPokemonList = JSON.stringify(nameList);
-								await new Promise((resolve, reject) => {
-									dbUser.run(
-										"UPDATE user SET caught_pokemon = ? WHERE user_id = ?",
-										[updatedPokemonList, row.user_id],
-										(updateErr) => {
-											if (updateErr) {
-												console.error(`Error updating user ${row.user_id}:`, updateErr.message);
-												reject(updateErr);
-											} else {
-												resolve();
-											}
-										}
-									);
-								});
-							}
-
-						} catch (parseErr) {
-							console.error(`Error parsing caught_pokemon for user ${row.user_id}:`, parseErr.message);
-						}
-					}
-					message.channel.send('Impidimp fix complete!');
-				});
-			}
-
 			//catch
 			else if ( activeDrops.has(`${serverId}_${message.channel.id}`) && (
 				   (message.content.toLowerCase() === activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase())
@@ -1551,7 +1684,7 @@ client.on('messageCreate', (message) => {
 							
 								message.channel.send(messageText);
 
-								dbUser.run("INSERT INTO user (user_id, caught_pokemon, currency, servers) VALUES (?, ?, ?, ?)", [userId, JSON.stringify(shinyMon), coinsToAdd, JSON.stringify([serverId])], (err) => {
+								dbUser.run("INSERT INTO user (user_id, caught_pokemon, currency, servers, totalCaught) VALUES (?, ?, ?, ?, ?)", [userId, JSON.stringify(shinyMon), coinsToAdd, JSON.stringify([serverId]), 1], (err) => {
 									if (err) {
 										console.error(err.message);
 									}
@@ -1574,10 +1707,11 @@ client.on('messageCreate', (message) => {
 								let newList = caughtPokemon.concat(shinyMon);
 								const newCurrency = row.currency + coinsToAdd;
 								let serverList = JSON.parse(row.servers);
+								const totalCaughtPokemon = row.totalCaught + 1;
 								if (!serverList.includes(serverId)) {
 									serverList.push(serverId);
 								}
-								dbUser.run("UPDATE user SET caught_pokemon = ?, currency = ?, servers = ? WHERE user_id = ?", [JSON.stringify(newList), newCurrency, JSON.stringify(serverList), userId], (err) => {
+								dbUser.run("UPDATE user SET caught_pokemon = ?, currency = ?, servers = ?, totalCaught = ? WHERE user_id = ?", [JSON.stringify(newList), newCurrency, JSON.stringify(serverList), totalCaughtPokemon, userId], (err) => {
 									if (err) {
 										console.error(err.message);
 									}
@@ -4058,6 +4192,10 @@ client.on('messageCreate', (message) => {
 						}
 						const caughtPokemon = JSON.parse(row.caught_pokemon);
 						let pokemonToDisplay = caughtPokemon[args[2] - 1];
+						if (pokemonToDisplay == null) {
+							message.channel.send('User doesn\'t have a Pokemon in that slot!');
+							return;
+						}
 						let isShiny = pokemonToDisplay.name.startsWith('✨');
 						let pokemonName = isShiny ? pokemonToDisplay.name.slice(1) : pokemonToDisplay.name;
 						let formName = pokemonToDisplay.form;
@@ -4739,7 +4877,7 @@ client.on('messageCreate', (message) => {
 						let shopDescription;
 
 						if (!args || args.length < 1 || args[0] === ' ') {
-							const generalItemsMaxNum = 25;
+							const generalItemsMaxNum = 9;
 							const generalItemsMinNum = 1;
 
 							filteredItems = shopItems.filter(item => item.itemNum <= generalItemsMaxNum && item.itemNum >= generalItemsMinNum);
@@ -4894,8 +5032,8 @@ client.on('messageCreate', (message) => {
 						return;
 					}
 					//REMOVE WHEN PRICES ARE UPDATED
-					message.channel.send('Prices are currently being worked on! Check back again at a later time.');
-					return;
+					// message.channel.send('Prices are currently being worked on! Check back again at a later time.');
+					// return;
 					const args = message.content.split(' ');
 					if (args.length < 2) {
 						message.channel.send('Please specify a valid shop number. Usage: `.buy <shopNum>`');
@@ -4987,6 +5125,8 @@ client.on('messageCreate', (message) => {
 												if (selectedItem.item_class === 2) {
 													//check quantity, should be 1
 													//user cannot buy same item twice
+
+													/*
 													let acNum = row.acNum;
 													let cdString = row.cdString;
 													if (quantityNum > 1) {
@@ -5049,14 +5189,30 @@ client.on('messageCreate', (message) => {
 															console.error(err.message);
 														}
 														i.update({ content: `Successfully purchased ${quantityNum} ${boughtItem}(s) for ${quantityNum * amount}. You have ${userCurrency} leftover.`, embeds: [], components: [] });
-													});
+													});*/
 												}
 												else {
-													const userInventory = JSON.parse(row.inventory);
-													for (let i = 0; i < quantityNum; i++) {
-														userInventory.push(boughtItem);
+													let userInventory = JSON.parse(row.inventory);
+													let foundFlag = false;
+													for (let i = 0; i < userInventory.length; i++) {
+														if (userInventory[i].includes(boughtItem)) {
+															foundFlag = true;
+															
+															let parts = userInventory[i].split('(x');
+															let count = parseInt(parts[1]) || 0;
+
+															count += quantityNum;
+															userInventory[i] = `${boughtItem} (x${count})`;
+															break;
+														}
 													}
-													dbUser.run("UPDATE user SET inventory = ?, currency = ? WHERE user_id = ?", [JSON.stringify(userInventory), userCurrency, userId], (err) => {
+
+													if (!foundFlag) {
+														userInventory.push(`${boughtItem} (x${quantityNum})`);
+													}
+
+													const newTotalSpent = row.totalSpent + (quantityNum * amount);
+													dbUser.run("UPDATE user SET inventory = ?, currency = ?, totalSpent = ? WHERE user_id = ?", [JSON.stringify(userInventory), userCurrency, newTotalSpent, userId], (err) => {
 														if (err) {
 															console.error(err.message);
 														}
@@ -5284,7 +5440,11 @@ client.on('messageCreate', (message) => {
 								return;
 							}
 
-							const selectedItem = inventoryArr[itemNum - 1];
+							let selectedItem = inventoryArr[itemNum - 1];
+							let parts = selectedItem.split(' (x');
+							let itemCount = parseInt(parts[1]) || 0;
+							selectedItem = parts[0];
+
 							const itemRowArr = shopItems.filter(shopItem => shopItem.item_name === selectedItem).flat();
 							const itemRow = itemRowArr[0];
 							//CHECK
@@ -5315,7 +5475,12 @@ client.on('messageCreate', (message) => {
 											return;
 										}
 										activeUserRepels.set(userId, { standard: itemRow.item_name, rare: rareRepel });
-										inventoryArr.splice(itemNum - 1, 1);
+										if (itemCount === 1) {
+											inventoryArr.splice(itemNum - 1, 1);
+										}
+										else {
+											inventoryArr[itemNum - 1] = `${selectedItem} (x${itemCount - 1})`;
+										}
 									}
 									else if (itemRow.item_name.includes('Incense')) {
 										if (rareRepel) {
@@ -5323,7 +5488,12 @@ client.on('messageCreate', (message) => {
 											return;
 										}
 										activeUserRepels.set(userId, { standard: standardRepel, rare: itemRow.item_name });
-										inventoryArr.splice(itemNum - 1, 1);
+										if (itemCount === 1) {
+											inventoryArr.splice(itemNum - 1, 1);
+										}
+										else {
+											inventoryArr[itemNum - 1] = `${selectedItem} (x${itemCount - 1})`;
+										}
 									}
 									else {
 										message.channel.send('Could not use selected item, this might not be implemented yet!');
@@ -5336,7 +5506,6 @@ client.on('messageCreate', (message) => {
 										}
 										message.channel.send(`${selectedItem} Activated.`);
 									});
-
 								}
 								else if (itemRow.reusable === 1) {
 									//just use, do not delete the item
@@ -5386,10 +5555,33 @@ client.on('messageCreate', (message) => {
 									pokemonArr[partyNum - 1].form = itemRow.new_form;
 									
 									if (itemRow.reusable !== 1) {
-										inventoryArr.splice(itemNum - 1, 1);
+										//inventoryArr.splice(itemNum - 1, 1);
+										if (itemCount === 1) {
+											inventoryArr.splice(itemNum - 1, 1);
+										}
+										else {
+											inventoryArr[itemNum - 1] = `${selectedItem} (x${itemCount - 1})`;
+										}
 									}
 									if (oldItem) {
-										inventoryArr = inventoryArr.concat(oldItem);
+										//inventoryArr = inventoryArr.concat(oldItem);
+										let foundFlag = false;
+										for (let i = 0; i < inventoryArr.length; i++) {
+											if (inventoryArr[i].includes(oldItem)) {
+												foundFlag = true;
+												
+												let parts = inventoryArr[i].split(' (x');
+												let count = parseInt(parts[1]) || 0;
+
+												count += 1;
+												inventoryArr[i] = `${oldItem} (x${count})`;
+												break;
+											}
+										}
+
+										if (!foundFlag) {
+											inventoryArr.push(`${oldItem} (x1)`);
+										}
 									}
 									dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], (err) => {
 										if (err) {
@@ -5464,7 +5656,24 @@ client.on('messageCreate', (message) => {
 										}
 
 										if (oldItem) {
-											inventoryArr = inventoryArr.concat(oldItem);
+											//inventoryArr = inventoryArr.concat(oldItem);
+											let foundFlag = false;
+											for (let i = 0; i < inventoryArr.length; i++) {
+												if (inventoryArr[i].includes(oldItem)) {
+													foundFlag = true;
+													
+													let parts = inventoryArr[i].split(' (x');
+													let count = parseInt(parts[1]) || 0;
+
+													count += 1;
+													inventoryArr[i] = `${oldItem} (x${count})`;
+													break;
+												}
+											}
+
+											if (!foundFlag) {
+												inventoryArr.push(`${oldItem} (x1)`);
+											}
 										}
 										dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], (err) => {
 											if (err) {
@@ -5698,58 +5907,15 @@ client.on('messageCreate', (message) => {
 						monLength = curMon.length;
 						let numLetters = 0;
 						let curMonHint = activeDrops.get(`${serverId}_${message.channel.id}`).name;
+						//regex \.-: and ' '
 						while (numLetters / monLength < 0.5) {
 							const randomInt = getRandomInt(monLength);
-							if (!(curMonHint[randomInt] === '_')) {
-								curMonHint = curMonHint.replaceAt(randomInt, '_');
-								numLetters++;
+							let letter = curMonHint[randomInt];
+							if (!(letter === '_' || letter === '\'' || letter === '.'
+								|| letter === '-' || letter === ':' || letter === ' ')) {
+									curMonHint = curMonHint.replaceAt(randomInt, '_');
+									numLetters++;
 							}
-						}
-						//Edge cases handled in poor ways
-						if (curMon.toLowerCase() === 'farfetch\'d') {
-							curMonHint = curMonHint.replaceAt(8, '\'');
-						}
-						else if (curMon.toLowerCase() === 'mr. mime') {
-							curMonHint = curMonHint.replaceAt(2, '.');
-						}
-						else if (curMon.toLowerCase() === 'ho-oh') {
-							curMonHint = curMonHint.replaceAt(2, '-');
-						}
-						else if (curMon.toLowerCase() === 'mime jr.') {
-							curMonHint = curMonHint.replaceAt(7, '.');
-						}
-						else if (curMon.toLowerCase() === 'porygon-z') {
-							curMonHint = curMonHint.replaceAt(7, '-');
-						}
-						else if (curMon.toLowerCase() === 'type: null') {
-							curMonHint = curMonHint.replaceAt(4, ':');
-						}
-						else if (curMon.toLowerCase() === 'jangmo-o') {
-							curMonHint = curMonHint.replaceAt(6, '-');
-						}
-						else if (curMon.toLowerCase() === 'hakamo-o') {
-							curMonHint = curMonHint.replaceAt(6, '-');
-						}
-						else if (curMon.toLowerCase() === 'kommo-o') {
-							curMonHint = curMonHint.replaceAt(5, '-');
-						}
-						else if (curMon.toLowerCase() === 'sirfetch\'d') {
-							curMonHint = curMonHint.replaceAt(8, '\'');
-						}
-						else if (curMon.toLowerCase() === 'mr. rime') {
-							curMonHint = curMonHint.replaceAt(2, '.');
-						}
-						else if (curMon.toLowerCase() === 'wo-chien') {
-							curMonHint = curMonHint.replaceAt(2, '-');
-						}
-						else if (curMon.toLowerCase() === 'chien-pao') {
-							curMonHint = curMonHint.replaceAt(5, '-');
-						}
-						else if (curMon.toLowerCase() === 'ting-lu') {
-							curMonHint = curMonHint.replaceAt(4, '-');
-						}
-						else if (curMon.toLowerCase() === 'chi-yu') {
-							curMonHint = curMonHint.replaceAt(3, '-');
 						}
 
 						const regex = new RegExp("_", 'g');
