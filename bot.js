@@ -5,6 +5,8 @@ const db = new sqlite3.Database('./pokemon.db');
 const dbUser = new sqlite3.Database('./user.db');
 const dbServer = new sqlite3.Database('./server.db');
 const dbShop = new sqlite3.Database('./shop.db')
+const dbQuests = new sqlite3.Database('./quests.db')
+const dbUserQuests = new sqlite3.Database('./user_quests.db');
 
 const token = process.env.DISCORD_TOKEN;
 
@@ -723,6 +725,338 @@ function fixPokemonName(pokemonIdentifier, args) {
 	return pokemonIdentifier;
 }
 
+function showQuestCompletions(userId, message) {
+    let info = [];
+    dbUserQuests.all("SELECT * FROM user_quests WHERE user_id = ? AND completed = 1", [userId], (err, quests) => {
+        if (err) {
+            console.error(err);
+            message.channel.send("Could not find user's quests");
+            return;
+        }
+        if (quests.length === 0) {
+            message.channel.send("User has no completed quests!");
+            return;
+        }
+
+        dbQuests.all("SELECT * FROM quests", [], (err2, questInfo) => {
+            if (err2) {
+                message.channel.send("Could not find the quest given a quest id");
+                return;
+            }
+
+            quests.forEach(quest => {
+                let currentQuest = questInfo.find(t => t.quest_id === quest.quest_id);
+                if (currentQuest) {
+                    info.push({
+                        quest_header: currentQuest.collection_name,
+                        quest_description: currentQuest.description,
+                        quest_progress: `Date Completed: ${quest.completed_at}`
+                    });
+                }
+            });
+
+            let page = 0;
+            let totalPages = Math.ceil(info.length / 3);
+
+            const buttonRow = new ActionRowBuilder()
+                .addComponents(
+					new ButtonBuilder()
+						.setCustomId('rewind')
+						.setLabel('⏪')
+						.setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId('prevPage')
+                        .setLabel('◀')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId('nextPage')
+                        .setLabel('▶')
+                        .setStyle(ButtonStyle.Primary),
+					new ButtonBuilder()
+						.setCustomId('fforward')
+						.setLabel('⏩')
+						.setStyle(ButtonStyle.Primary)
+                );
+		
+
+            const generateQuestEmbed = (page) => {
+                const start = page * 3;
+                const end = start + 3;
+                const pageItems = info.slice(start, end);
+
+                const embed = new EmbedBuilder()
+                    .setColor('#0099ff')
+                    .setTitle(`Quest Completions (Page ${page + 1}/${totalPages})`)
+                    .setTimestamp();
+
+                pageItems.forEach((item, index) => {
+                    embed.addFields({
+                        name: `\`${start + index + 1}:\` **${item.quest_header}**`,
+                        value: `${item.quest_description}\n${item.quest_progress}`
+                    });
+                });
+
+                return embed;
+            };
+
+            const embed = generateQuestEmbed(page);
+            message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+                const filter = i => i.user.id === message.author.id;
+                const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+                collector.on('collect', async i => {
+                    try {
+                        if (i.customId === 'prevPage') {
+                            page = (page - 1 + totalPages) % totalPages;
+                        } else if (i.customId === 'nextPage') {
+                            page = (page + 1) % totalPages;
+                        } else if (i.customId === 'rewind') {
+							page = 0;
+						} else if (i.customId === 'fforward') {
+							page = totalPages - 1;
+						}
+                        const updatedEmbed = generateQuestEmbed(page);
+                        await i.update({ embeds: [updatedEmbed], components: [buttonRow] });
+                    } catch (error) {
+                        if (error.code === 10008) {
+                            console.log('The message was deleted before the interaction was handled.');
+                        } else {
+                            console.error('An unexpected error occurred:', error);
+                        }
+                    }
+                });
+
+                collector.on('end', async () => {
+                    try {
+                        const disabledRow = new ActionRowBuilder()
+                            .addComponents(
+								new ButtonBuilder()
+									.setCustomId('rewind')
+									.setLabel('⏪')
+									.setStyle(ButtonStyle.Primary)
+                                    .setDisabled(true),
+                                new ButtonBuilder()
+                                    .setCustomId('prevPage')
+                                    .setLabel('◀')
+                                    .setStyle(ButtonStyle.Primary)
+                                    .setDisabled(true),
+                                new ButtonBuilder()
+                                    .setCustomId('nextPage')
+                                    .setLabel('▶')
+                                    .setStyle(ButtonStyle.Primary)
+                                    .setDisabled(true),
+								new ButtonBuilder()
+									.setCustomId('fforward')
+									.setLabel('⏩')
+									.setStyle(ButtonStyle.Primary)
+                                    .setDisabled(true)
+                            );
+
+                        await sentMessage.edit({ components: [disabledRow] });
+                    } catch (error) {
+                        if (error.code === 10008) {
+                            console.log('The message was deleted before the interaction was handled.');
+                        } else {
+                            console.error('An unexpected error occurred:', error);
+                        }
+                    }
+                });
+            }).catch(err => {
+                console.error('Error sending the quest message:', err);
+            });
+        });
+    });
+}
+
+
+//Shows the quest progress for the user's quests
+function showQuestProgress(userId, message) {
+    let info = [];
+    dbUserQuests.all("SELECT * FROM user_quests WHERE user_id = ? AND completed = 0", [userId], (err, quests) => {
+        if (err) {
+            console.error(err);
+            message.channel.send("Could not find user's quests");
+            return;
+        }
+        if (quests.length === 0) {
+            message.channel.send("User has completed all quests!");
+            return;
+        }
+
+        dbQuests.all("SELECT * FROM quests", [], (err2, questInfo) => {
+            if (err2) {
+                message.channel.send("Could not find the quest given a quest id");
+                return;
+            }
+
+            quests.forEach(quest => {
+                let currentQuest = questInfo.find(t => t.quest_id === quest.quest_id);
+                if (currentQuest) {
+                    info.push({
+                        quest_header: currentQuest.collection_name,
+                        quest_description: currentQuest.description,
+                        quest_progress: `Progress: ${quest.progress}/${currentQuest.poke_count}`
+                    });
+                }
+            });
+
+            let page = 0;
+            let totalPages = Math.ceil(info.length / 3);
+
+            const buttonRow = new ActionRowBuilder()
+                .addComponents(
+					new ButtonBuilder()
+						.setCustomId('rewind')
+						.setLabel('⏪')
+						.setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId('prevPage')
+                        .setLabel('◀')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId('nextPage')
+                        .setLabel('▶')
+                        .setStyle(ButtonStyle.Primary),
+					new ButtonBuilder()
+						.setCustomId('fforward')
+						.setLabel('⏩')
+						.setStyle(ButtonStyle.Primary)
+                );
+		
+
+            const generateQuestEmbed = (page) => {
+                const start = page * 3;
+                const end = start + 3;
+                const pageItems = info.slice(start, end);
+
+                const embed = new EmbedBuilder()
+                    .setColor('#0099ff')
+                    .setTitle(`Quest Progress (Page ${page + 1}/${totalPages})`)
+                    .setTimestamp();
+
+                pageItems.forEach((item, index) => {
+                    embed.addFields({
+                        name: `\`${start + index + 1}:\` **${item.quest_header}**`,
+                        value: `${item.quest_description}\n${item.quest_progress}`
+                    });
+                });
+
+                return embed;
+            };
+
+            const embed = generateQuestEmbed(page);
+            message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+                const filter = i => i.user.id === message.author.id;
+                const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+                collector.on('collect', async i => {
+                    try {
+                        if (i.customId === 'prevPage') {
+                            page = (page - 1 + totalPages) % totalPages;
+                        } else if (i.customId === 'nextPage') {
+                            page = (page + 1) % totalPages;
+                        } else if (i.customId === 'rewind') {
+							page = 0;
+						} else if (i.customId === 'fforward') {
+							page = totalPages - 1;
+						}
+                        const updatedEmbed = generateQuestEmbed(page);
+                        await i.update({ embeds: [updatedEmbed], components: [buttonRow] });
+                    } catch (error) {
+                        if (error.code === 10008) {
+                            console.log('The message was deleted before the interaction was handled.');
+                        } else {
+                            console.error('An unexpected error occurred:', error);
+                        }
+                    }
+                });
+
+                collector.on('end', async () => {
+                    try {
+                        const disabledRow = new ActionRowBuilder()
+                            .addComponents(
+								new ButtonBuilder()
+									.setCustomId('rewind')
+									.setLabel('⏪')
+									.setStyle(ButtonStyle.Primary)
+                                    .setDisabled(true),
+                                new ButtonBuilder()
+                                    .setCustomId('prevPage')
+                                    .setLabel('◀')
+                                    .setStyle(ButtonStyle.Primary)
+                                    .setDisabled(true),
+                                new ButtonBuilder()
+                                    .setCustomId('nextPage')
+                                    .setLabel('▶')
+                                    .setStyle(ButtonStyle.Primary)
+                                    .setDisabled(true),
+								new ButtonBuilder()
+									.setCustomId('fforward')
+									.setLabel('⏩')
+									.setStyle(ButtonStyle.Primary)
+                                    .setDisabled(true)
+                            );
+
+                        await sentMessage.edit({ components: [disabledRow] });
+                    } catch (error) {
+                        if (error.code === 10008) {
+                            console.log('The message was deleted before the interaction was handled.');
+                        } else {
+                            console.error('An unexpected error occurred:', error);
+                        }
+                    }
+                });
+            }).catch(err => {
+                console.error('Error sending the quest message:', err);
+            });
+        });
+    });
+}
+
+//Parses quest-required pokemon
+function parseRequiredPokemon(requiredPokemonStr, requiredFormsStr, callback) {
+	let requiredPokemonList = [];
+	let dexNums = [];
+
+	// Parse required Pokemon, handling ranges (e.g., "133-136, 196, 197")
+	requiredPokemonStr.split(",").forEach(part => {
+		part = part.trim();
+		if (part.includes("-")) {
+			let [start, end] = part.split("-").map(Number);
+			for (let i = start; i <= end; i++) {
+				dexNums.push(i);
+			}
+		} else {
+			dexNums.push(Number(part));
+		}
+	});
+
+	let formMap = JSON.parse(requiredFormsStr || "{}");
+	let queriesRemaining = dexNums.length; // Track remaining async queries
+
+	dexNums.forEach(dexNum => {
+		db.get("SELECT name FROM pokemon WHERE dexNum = ?", [dexNum], (err, row) => {
+			if (!err && row) {
+				let name = row.name;
+				let forms = formMap[dexNum] || [null]; // Allow any form if not specified
+
+				forms.forEach(form => requiredPokemonList.push({ name, form }));
+			}
+
+			// Ensure all database queries finish before returning
+			queriesRemaining--;
+			if (queriesRemaining === 0) {
+				callback(requiredPokemonList);
+			}
+		});
+	});
+
+	// If there were no dexNums, return immediately
+	if (dexNums.length === 0) {
+		callback(requiredPokemonList);
+	}
+}
+
 //Helper function, checks if the bot should be posting in a configured channel
 function isChannelAllowed(serverId, channelId, callback) {
 	dbServer.get("SELECT allowed_channels_id FROM server WHERE server_id = ?", [serverId], (err, row) => {
@@ -790,6 +1124,15 @@ client.on('ready', () => {
 	dbServer.run("CREATE TABLE IF NOT EXISTS server" +
 		" (server_id TEXT PRIMARY KEY," +
 		" allowed_channels_id TEXT)")});
+	dbUserQuests.run(`CREATE TABLE IF NOT EXISTS user_quests (
+			user_id TEXT,
+			quest_id INTEGER,
+			progress INTEGER DEFAULT 0,
+			completed INTEGER DEFAULT 0,
+			completed_at TEXT DEFAULT NULL,
+			PRIMARY KEY (user_id, quest_id),
+			FOREIGN KEY (quest_id) REFERENCES quests(quest_id)
+		)`);
 
 client.on('messageCreate', (message) => {
 	if (!message.author.bot) {
@@ -817,156 +1160,560 @@ client.on('messageCreate', (message) => {
 				message.channel.send('<:Hmm:1325888545906233446>');
 			}
 
-			if (message.content.toLowerCase() === '.addcolumns' && userId === '177580797165961216') {
-				//add columns totalCaught, totalSpent, and gold
+			// if (message.content.toLowerCase() === '.addcolumns' && userId === '177580797165961216') {
+			// 	//add columns totalCaught, totalSpent, and gold
 
-				const columnsToAdd = [
-					{ name: "totalCaught", type: "INTEGER DEFAULT 0" },
-					{ name: "totalSpent", type: "INTEGER DEFAULT 0" },
-					{ name: "gold", type: "INTEGER DEFAULT 0" }
-				];
+			// 	const columnsToAdd = [
+			// 		{ name: "totalCaught", type: "INTEGER DEFAULT 0" },
+			// 		{ name: "totalSpent", type: "INTEGER DEFAULT 0" },
+			// 		{ name: "gold", type: "INTEGER DEFAULT 0" }
+			// 	];
 			
-				dbUser.all("PRAGMA table_info(user)", [], (err, rows) => {
-					if (err) {
-						console.error("Error fetching table info:", err.message);
-						message.channel.send("An error occurred while updating the database.");
-						return;
-					}
+			// 	dbUser.all("PRAGMA table_info(user)", [], (err, rows) => {
+			// 		if (err) {
+			// 			console.error("Error fetching table info:", err.message);
+			// 			message.channel.send("An error occurred while updating the database.");
+			// 			return;
+			// 		}
 			
-					// Extract existing column names
-					const existingColumns = rows.map(row => row.name);
+			// 		// Extract existing column names
+			// 		const existingColumns = rows.map(row => row.name);
 					
-					// Iterate over the columns to add and check if they exist
-					columnsToAdd.forEach(column => {
-						if (!existingColumns.includes(column.name)) {
-							dbUser.run(`ALTER TABLE user ADD COLUMN ${column.name} ${column.type}`, [], (alterErr) => {
-								if (alterErr) {
-									console.error(`Error adding column ${column.name}:`, alterErr.message);
-								} else {
-									console.log(`Column ${column.name} added successfully.`);
-								}
-							});
-						}
-					});
+			// 		// Iterate over the columns to add and check if they exist
+			// 		columnsToAdd.forEach(column => {
+			// 			if (!existingColumns.includes(column.name)) {
+			// 				dbUser.run(`ALTER TABLE user ADD COLUMN ${column.name} ${column.type}`, [], (alterErr) => {
+			// 					if (alterErr) {
+			// 						console.error(`Error adding column ${column.name}:`, alterErr.message);
+			// 					} else {
+			// 						console.log(`Column ${column.name} added successfully.`);
+			// 					}
+			// 				});
+			// 			}
+			// 		});
 			
-					message.channel.send("Database schema updated successfully!");
-				});
+			// 		message.channel.send("Database schema updated successfully!");
+			// 	});
 					
+			// }
+
+			// if (message.content.toLowerCase() === '.updatedb' && userId === '177580797165961216') {
+			// 	dbUser.all("SELECT user_id, caught_pokemon FROM user", [], (err, rows) => {
+			// 		if (err) {
+			// 			console.error(err.message);
+			// 			message.channel.send('An error occurred while fetching user totalCaught.');
+			// 			return;
+			// 		}
+
+			// 		if (!rows || rows.length === 0) {
+			// 			message.channel.send('No user inventories found.');
+			// 			return;
+			// 		}
+
+			// 		let usersProcessed = 0;
+			
+			// 		rows.forEach(row => {
+			// 			if (!row.caught_pokemon) return;
+			
+			// 			try {
+			// 				let userpokemon = JSON.parse(row.caught_pokemon); // Convert JSON string to array
+			// 				const totalCaughtPokemon = userpokemon.length;
+			
+			// 				// Update database
+			// 				dbUser.run("UPDATE user SET totalCaught = ? WHERE user_id = ?", [totalCaughtPokemon, row.user_id], (updateErr) => {
+			// 					if (updateErr) {
+			// 						console.error(`Error updating totalCaught for user ${row.user_id}:`, updateErr.message);
+			// 					} else {
+			// 						usersProcessed++;
+			// 					}
+			
+			// 					// Send message only after all updates are completed
+			// 					if (usersProcessed === rows.length) {
+			// 						message.channel.send('All user totalCaught have been successfully updated!');
+			// 					}
+			// 				});
+			
+			// 			} catch (parseErr) {
+			// 				console.error(`Error parsing pokemon for user ${row.user_id}:`, parseErr.message);
+			// 			}
+			// 		});
+
+			// 	});
+			// }
+
+			// if (message.content.toLowerCase() === '.fixitems' && userId === '177580797165961216') {
+			// 	dbUser.all("SELECT user_id, inventory FROM user", [], (err, rows) => {
+			// 		if (err) {
+			// 			console.error(err.message);
+			// 			message.channel.send('An error occurred while fetching user inventories.');
+			// 			return;
+			// 		}
+			
+			// 		if (!rows || rows.length === 0) {
+			// 			message.channel.send('No user inventories found.');
+			// 			return;
+			// 		}
+			
+			// 		let usersProcessed = 0;
+			
+			// 		rows.forEach(row => {
+			// 			if (!row.inventory) return;
+			
+			// 			try {
+			// 				let userInventory = JSON.parse(row.inventory); // Convert JSON string to array
+			// 				let itemCounts = {};
+			
+			// 				// Count occurrences of each item
+			// 				userInventory.forEach(item => {
+			// 					itemCounts[item] = (itemCounts[item] || 0) + 1;
+			// 				});
+			
+			// 				// Convert to formatted array with counts
+			// 				let fixedInventory = Object.entries(itemCounts).map(([item, count]) => {
+			// 					return `${item} (x${count})`;
+			// 				});
+			
+			// 				// Update database
+			// 				dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(fixedInventory), row.user_id], (updateErr) => {
+			// 					if (updateErr) {
+			// 						console.error(`Error updating inventory for user ${row.user_id}:`, updateErr.message);
+			// 					} else {
+			// 						usersProcessed++;
+			// 					}
+			
+			// 					// Send message only after all updates are completed
+			// 					if (usersProcessed === rows.length) {
+			// 						message.channel.send('All user inventories have been successfully fixed!');
+			// 					}
+			// 				});
+			
+			// 			} catch (parseErr) {
+			// 				console.error(`Error parsing inventory for user ${row.user_id}:`, parseErr.message);
+			// 			}
+			// 		});
+			// 	});
+			// }
+
+			//TODO: Move up
+			function createQuestsForUserAndUpdate(message, userId, newPokemonObj) {
+				dbQuests.all("SELECT * FROM quests", [], (err, quests) => {
+					if (err) {
+						console.error("Error fetching quests:", err.message);
+						message.channel.send("An error occurred while updating quests.");
+						return;
+					}
+
+					if (quests.length === 0) {
+						message.channel.send("Must run setupQuestsDB.js first!");
+						return;
+					}
+
+					quests.forEach(quest => {
+						dbUserQuests.run(`INSERT INTO user_quests (user_id, quest_id) VALUES (?, ?)`, [userId, quest.quest_id], (err) => {
+								if (err) {
+									console.error(`Error updating quest progress for ${user.user_id}, Quest ${quest.quest_id}:`, err.message);
+								}
+								updateQuestProgress(message, userId, newPokemonObj);
+							}
+						);
+					});
+				});
 			}
 
-			if (message.content.toLowerCase() === '.updatedb' && userId === '177580797165961216') {
-				dbUser.all("SELECT user_id, caught_pokemon FROM user", [], (err, rows) => {
-					if (err) {
-						console.error(err.message);
-						message.channel.send('An error occurred while fetching user totalCaught.');
-						return;
-					}
+			//TODO: Move up
+			async function rewardUserForCompleteQuest(message, userId, userInfo, questId, quests) {
+				let completedQuest = quests.filter(k => k.quest_id === questId)[0];
+				let reward = completedQuest.reward;
+				let userInventory = JSON.parse(userInfo.inventory) || [];
+				let currentUserGold = userInfo.gold;
 
-					if (!rows || rows.length === 0) {
-						message.channel.send('No user inventories found.');
-						return;
-					}
+				if (reward === 'Lootbox') {
+					let foundFlag = false;
+					for (let i = 0; i < userInventory.length; i++) {
+						if (userInventory[i].includes('Lootbox')) {
+							foundFlag = true;
+							
+							let parts = userInventory[i].split('(x');
+							let count = parseInt(parts[1]) || 0;
 
-					let usersProcessed = 0;
-			
-					rows.forEach(row => {
-						if (!row.caught_pokemon) return;
-			
-						try {
-							let userpokemon = JSON.parse(row.caught_pokemon); // Convert JSON string to array
-							const totalCaughtPokemon = userpokemon.length;
-			
-							// Update database
-							dbUser.run("UPDATE user SET totalCaught = ? WHERE user_id = ?", [totalCaughtPokemon, row.user_id], (updateErr) => {
-								if (updateErr) {
-									console.error(`Error updating totalCaught for user ${row.user_id}:`, updateErr.message);
-								} else {
-									usersProcessed++;
-								}
-			
-								// Send message only after all updates are completed
-								if (usersProcessed === rows.length) {
-									message.channel.send('All user totalCaught have been successfully updated!');
-								}
-							});
-			
-						} catch (parseErr) {
-							console.error(`Error parsing pokemon for user ${row.user_id}:`, parseErr.message);
+							count += 1;
+							userInventory[i] = `Lootbox (x${count})`;
+							break;
 						}
+					}
+
+					if (!foundFlag) {
+						userInventory.push(`Lootbox (x1)`);
+					}
+				} else {
+					currentUserGold += parseInt(reward);
+				}
+				let displayMessage = (reward === 'Lootbox') ? `You completed the ${completedQuest.collection_name} quest!\nYou have been awarded a ${reward}!` :
+					`You completed the ${completedQuest.collection_name} quest!\nYou have been awarded ${reward} gold!`;
+				message.channel.send(displayMessage);
+				dbUser.run("UPDATE user SET inventory = ?, gold = ? WHERE user_id = ?", [JSON.stringify(userInventory), currentUserGold, userId], (error) => {
+					if (error) {
+						console.log(`Couldn't update user's inventory`);
+						return;
+					}
+				});
+				return {
+					newGold: currentUserGold,
+					newInventory: userInventory
+				};
+			}
+
+			async function updateReleaseQuestProgress(message, userId, oldPokemonObj) {
+				dbQuests.all("SELECT * FROM quests", [], (err, quests) => {
+					if (err) {
+						console.error("Error fetching quests:", err.message);
+						message.channel.send("An error occurred while updating quests.");
+						return;
+					}
+
+					if (quests.length === 0) {
+						console.error("Quests DB is empty! Run setupQuestsDB.js.");
+						return;
+					}
+
+					dbUser.get("SELECT caught_pokemon, inventory, gold FROM user WHERE user_id = ?", [userId], (err, userInfo) => {
+						if (err) {
+							console.error("Error fetching user's pokemon:", err.message);
+							message.channel.send("An error occurred while updating quests.");
+							return;
+						}
+
+						const caughtUserPokemon = JSON.parse(userInfo.caught_pokemon);
+						if (caughtUserPokemon.length === 0 || caughtUserPokemon === null) {
+							console.error("Error fetching user's pokemon:", err.message);
+							message.channel.send("An error occurred while updating quests.");
+							return;
+						}
+
+
+						quests.forEach(quest => {
+							parseRequiredPokemon(quest.required_pokemon, quest.required_forms, (requiredPokemonList) => {
+								let caughtName = oldPokemonObj.name.replace("✨", "");
+								//speed up, filter
+									
+								let caughtFlag = false;
+								dbUserQuests.get("SELECT * FROM user_quests WHERE user_id = ? AND quest_id = ?", [userId, quest.quest_id], async (error, result) => {
+									if (error) {
+										console.log(error);
+										return;
+									}
+									if (!result) {
+										console.log('user is not in the database for some reason?');
+										return;
+									}
+									
+									//want to find: what pokemon the user just gave away in quests not yet completed
+									for (let i = 0; i < requiredPokemonList.length; i++) {
+										if (requiredPokemonList[i].name.toLowerCase() === caughtName.toLowerCase()) {
+											caughtFlag = true;
+										}
+									}
+
+									//if the user already has it OR the quest is already completed, ignore
+									let duplicateChecker = caughtUserPokemon.filter(pokemon => pokemon.name === oldPokemonObj.name && pokemon.form === oldPokemonObj.form);
+									if (duplicateChecker.length > 0 || result.completed === 1) {
+										caughtFlag = false;
+									}
+
+									if (caughtFlag) {
+										//traded away a pokemon that COUNTS towards a quest's progress
+										dbUserQuests.run("UPDATE user_quests SET progress = ? WHERE user_id = ? AND quest_id = ?", [result.progress - 1, userId, quest.quest_id]);
+									}
+								});
+							});
+						});
+
+
+
 					});
 
 				});
 			}
 
-			if (message.content.toLowerCase() === '.fixitems' && userId === '177580797165961216') {
-				dbUser.all("SELECT user_id, inventory FROM user", [], (err, rows) => {
+			//TODO: Move up
+			function updateQuestProgress(message, userId, newPokemonObj) {
+				//parseRequiredPokemon for each quest
+				dbQuests.all("SELECT * FROM quests", [], (err, quests) => {
 					if (err) {
-						console.error(err.message);
-						message.channel.send('An error occurred while fetching user inventories.');
+						console.error("Error fetching quests:", err.message);
+						message.channel.send("An error occurred while updating quests.");
 						return;
 					}
-			
-					if (!rows || rows.length === 0) {
-						message.channel.send('No user inventories found.');
+
+					if (quests.length === 0) {
+						console.error("Quests DB is empty! Run setupQuestsDB.js.");
 						return;
 					}
-			
-					let usersProcessed = 0;
-			
-					rows.forEach(row => {
-						if (!row.inventory) return;
-			
-						try {
-							let userInventory = JSON.parse(row.inventory); // Convert JSON string to array
-							let itemCounts = {};
-			
-							// Count occurrences of each item
-							userInventory.forEach(item => {
-								itemCounts[item] = (itemCounts[item] || 0) + 1;
-							});
-			
-							// Convert to formatted array with counts
-							let fixedInventory = Object.entries(itemCounts).map(([item, count]) => {
-								return `${item} (x${count})`;
-							});
-			
-							// Update database
-							dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(fixedInventory), row.user_id], (updateErr) => {
-								if (updateErr) {
-									console.error(`Error updating inventory for user ${row.user_id}:`, updateErr.message);
-								} else {
-									usersProcessed++;
-								}
-			
-								// Send message only after all updates are completed
-								if (usersProcessed === rows.length) {
-									message.channel.send('All user inventories have been successfully fixed!');
-								}
-							});
-			
-						} catch (parseErr) {
-							console.error(`Error parsing inventory for user ${row.user_id}:`, parseErr.message);
+
+					dbUser.get("SELECT caught_pokemon, inventory, gold FROM user WHERE user_id = ?", [userId], (err, userInfo) => {
+						if (err) {
+							console.error("Error fetching user's pokemon:", err.message);
+							message.channel.send("An error occurred while updating quests.");
+							return;
 						}
+
+						let caughtUserPokemon = JSON.parse(userInfo.caught_pokemon);
+						if (caughtUserPokemon.length === 0 || caughtUserPokemon === null) {
+							console.error("Error fetching user's pokemon:", err.message);
+							message.channel.send("An error occurred while updating quests.");
+							return;
+						}
+
+						quests.forEach(quest => {
+							parseRequiredPokemon(quest.required_pokemon, quest.required_forms, (requiredPokemonList) => {
+								let caughtName = newPokemonObj.name.replace("✨", "");
+								//speed up, filter
+								let caughtFlag = false;
+								dbUserQuests.get("SELECT completed FROM user_quests WHERE user_id = ? AND quest_id = ?", [userId, quest.quest_id], async (error, result) => {
+									if (error) {
+										console.log(error);
+										return;
+									}
+									if (!result) {
+										console.log('user is not in the database for some reason?');
+										return;
+									}
+									
+									for (let i = 0; i < requiredPokemonList.length; i++) {
+										if (requiredPokemonList[i].name.toLowerCase() === caughtName.toLowerCase()) {
+											caughtFlag = true;
+										}
+									}
+		
+									if (result.completed === 1) {
+										caughtFlag = false;
+									}
+
+									if (caughtFlag) {
+										
+
+										let pokeCount = quest.poke_count;
+										let progress = 0;
+				
+										requiredPokemonList.forEach(reqPokemon => {
+
+											for (let caught of caughtUserPokemon) {
+												let caughtName = caught.name.replace("✨", "");
+												let caughtForm = caught.form;
+		
+												if (reqPokemon.name === caughtName && (reqPokemon.form === null || reqPokemon.form === caughtForm)) {
+													progress++;
+													break;
+												}
+			
+												// Handle Nidoran gender-based naming
+												if (reqPokemon.name === "Nidoran" && caughtName.includes("Nidoran")) {
+													if (reqPokemon.form === newPokemonObj.gender) {
+														progress++;
+														break;
+													}
+												}
+											}
+										});
+		
+										let completed = progress >= pokeCount ? 1 : 0;
+										let dateString = null;
+										if (progress >= pokeCount) {
+											dateString = new Date().toLocaleString("en-US", { timeZone: "CST" });
+											let newUserInfo = await rewardUserForCompleteQuest(message, userId, userInfo, quest.quest_id, quests);
+											userInfo.gold = newUserInfo.newGold;
+											userInfo.inventory = JSON.stringify(newUserInfo.newInventory);
+										}
+		
+										dbUserQuests.run("UPDATE user_quests SET progress = ?, completed = ?, completed_at = ? WHERE user_id = ? AND quest_id = ?", [progress, completed, dateString, userId, quest.quest_id]);
+									}
+								});
+							});
+						});
+					});
+				});
+			}
+
+ 
+			if (message.content.toLowerCase() === '.updatequests' && userId === '177580797165961216') {
+				dbUser.all("SELECT user_id, caught_pokemon FROM user", [], (err, users) => {
+					if (err) {
+						console.error("Error fetching users:", err.message);
+						message.channel.send("An error occurred while updating quests.");
+						return;
+					}
+			
+					if (users.length === 0) {
+						message.channel.send("No users found.");
+						return;
+					}
+			
+					dbQuests.all("SELECT * FROM quests", [], (err, quests) => {
+						if (err) {
+							console.error("Error fetching quests:", err.message);
+							message.channel.send("An error occurred while updating quests.");
+							return;
+						}
+			
+						users.forEach(user => {
+							if (!user.caught_pokemon) return;
+							let caughtPokemon = JSON.parse(user.caught_pokemon || "[]");
+			
+							quests.forEach(quest => {
+								parseRequiredPokemon(quest.required_pokemon, quest.required_forms, (requiredPokemonList) => {
+									let pokeCount = quest.poke_count;
+									let progress = 0;
+			
+									requiredPokemonList.forEach(reqPokemon => {
+										for (let caught of caughtPokemon) {
+											let caughtName = caught.name.replace("✨", "");
+											let caughtForm = caught.form;
+			
+											if (reqPokemon.name === caughtName && (reqPokemon.form === null || reqPokemon.form === caughtForm)) {
+												progress++;
+												break;
+											}
+			
+											// Handle Nidoran gender-based naming
+											if (reqPokemon.name === "Nidoran" && caughtName.includes("Nidoran")) {
+												if (reqPokemon.form === caught.gender) {
+													progress++;
+													break;
+												}
+											}
+										}
+									});
+			
+									let completed = progress >= pokeCount ? 1 : 0;
+									let dateString = null;
+									if (progress >= pokeCount) {
+										dateString = new Date().toLocaleString("en-US", { timeZone: "CST" });
+									}
+			
+									dbUserQuests.run(`
+										INSERT INTO user_quests (user_id, quest_id, progress, completed, completed_at) 
+										VALUES (?, ?, ?, ?, ?)
+										ON CONFLICT(user_id, quest_id) 
+										DO UPDATE SET progress = ?, completed = ?, completed_at = ?`, 
+										[user.user_id, quest.quest_id, progress, completed, dateString, progress, completed, dateString], 
+										(err) => {
+											if (err) {
+												console.error(`Error updating quest progress for ${user.user_id}, Quest ${quest.quest_id}:`, err.message);
+											}
+										}
+									);
+								});
+							});
+						});
+			
+						message.channel.send("✅ Quests have been updated for all users!");
 					});
 				});
 			}
 			
-			if (message.content.toLowerCase() === '.createbighash' && userId === '177580797165961216') {
-				const bigMap = new Map();
-				db.all("SELECT * FROM pokemon", [], (err, rows) => {
+
+			if (message.content.toLowerCase() === '.forceclaim' && userId === '177580797165961216') {
+				dbUserQuests.all("SELECT user_id, quest_id FROM user_quests WHERE completed = 1", [], (err, completedQuests) => {
 					if (err) {
-						console.error("Error fetching table info:", err.message);
-						message.channel.send("An error occurred while updating the database.");
+						console.error("Error fetching completed quests:", err.message);
+						message.channel.send("An error occurred while processing force claims.");
 						return;
 					}
-					rows.forEach(row => {
-						const forms = JSON.parse(row.forms);
-						for (let form of forms) {
-							bigMap.set({name: row.name, form: form.name}, [])
-						}
+			
+					if (completedQuests.length === 0) {
+						message.channel.send("No completed quests to claim.");
+						return;
+					}
+			
+					let userMap = new Map(); // Stores total rewards per user
+			
+					let pendingQueries = completedQuests.length;
+			
+					completedQuests.forEach(({ user_id, quest_id }) => {
+						dbQuests.get("SELECT reward FROM quests WHERE quest_id = ?", [quest_id], (err, quest) => {
+							if (err || !quest) {
+								console.error(`Error fetching quest reward for quest ${quest_id}:`, err?.message || "Quest not found");
+								if (--pendingQueries === 0) updateUsers(userMap);
+								return;
+							}
+			
+							let reward = quest.reward.toLowerCase();
+			
+							if (!userMap.has(user_id)) {
+								userMap.set(user_id, { gold: 0, lootboxes: 0 });
+							}
+			
+							if (reward === 'lootbox') {
+								userMap.get(user_id).lootboxes += 1;
+							} else {
+								userMap.get(user_id).gold += parseInt(reward) || 0;
+							}
+			
+							if (--pendingQueries === 0) updateUsers(userMap);
+						});
 					});
-
+			
+					function updateUsers(userMap) {
+						userMap.forEach(({ gold, lootboxes }, user_id) => {
+							dbUser.get("SELECT inventory, gold FROM user WHERE user_id = ?", [user_id], (err, user) => {
+								if (err || !user) {
+									console.error(`Error fetching user data for ${user_id}:`, err?.message || "User not found");
+									return;
+								}
+			
+								let userInventory = JSON.parse(user.inventory || "[]");
+								let finalGoldAmount = user.gold + gold;
+			
+								if (lootboxes > 0) {
+									let lootboxIndex = userInventory.findIndex(item => item.includes("Lootbox"));
+									if (lootboxIndex !== -1) {
+										let parts = userInventory[lootboxIndex].split("(x");
+										let count = parseInt(parts[1]) || 0;
+										count += lootboxes;
+										userInventory[lootboxIndex] = `Lootbox (x${count})`;
+									} else {
+										userInventory.push(`Lootbox (x${lootboxes})`);
+									}
+								}
+			
+								dbUser.run("UPDATE user SET inventory = ?, gold = ? WHERE user_id = ?", 
+									[JSON.stringify(userInventory), finalGoldAmount, user_id]);
+							});
+						});
+			
+						message.channel.send("✅ All completed quests have been force-claimed!");
+					}
 				});
+			}
+			
+
+			if (message.content.toLowerCase() === '.checkgold') {
+				dbUser.get("SELECT gold FROM user WHERE user_id = ?", [userId], (err, user) => {
+					if (err || !user) {
+						console.log('Error, user isn\'t in the system!');
+						return;
+					}
+
+					message.channel.send(`You have ${user.gold} gold.`);
+				});
+			}
+
+			/*things to worry about
+				Implement gold store to spend gold
+				Create other quests db
+
+				Make numbers on showQuestProgress & showQuestCompletions reference quest_id instead of a random index
+				Add quest lookup command that displays an embed of all required pokemon, with pages of 10 pokemon/page
+			*/
+
+			//TODO: move down
+			if (message.content.toLowerCase() === '.checkquestprogress') {
+				showQuestProgress(userId, message);
+			}
+
+			//TODO: move down
+			if (message.content.toLowerCase() === '.checkcompletedquests') {
+				showQuestCompletions(userId, message);
 			}
 			
 			//drop
@@ -1664,12 +2411,6 @@ client.on('messageCreate', (message) => {
 						else {
 							userDisplayName = message.guild.members.cache.get(userId).displayName;
 						}
-
-						// const messageText = isShinyVar
-						// 	? `Added ✨${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`
-						// 	: `Added ${formName}${curMonName}${genderSymbol} to ${userDisplayName}'s party! You gained ${coinsToAdd} coins for your catch.`;
-						
-						// message.channel.send(messageText);
 						
 						dbUser.get("SELECT * FROM user WHERE user_id = ?", [userId], (err, row) => {
 							if (err) {
@@ -1688,8 +2429,10 @@ client.on('messageCreate', (message) => {
 									if (err) {
 										console.error(err.message);
 									}
+									createQuestsForUserAndUpdate(message, userId, shinyMon[0]);
 									activeDrops.delete(`${serverId}_${message.channel.id}`);
 								});
+
 							} 
 							else {
 								// User is in the database, update their caught Pokémon & currency
@@ -1715,6 +2458,7 @@ client.on('messageCreate', (message) => {
 									if (err) {
 										console.error(err.message);
 									}
+									updateQuestProgress(message, userId, shinyMon[0]);
 									activeDrops.delete(`${serverId}_${message.channel.id}`);
 								});
 							}
@@ -5552,7 +6296,17 @@ client.on('messageCreate', (message) => {
 										message.channel.send('This item requires Dusk Mane or Dawn Wings form to use!');
 										return;
 									}
+									let oldPokemon = {
+										name: pokemonArr[partyNum - 1].name,
+										form: pokemonArr[partyNum - 1].form,
+										gender: pokemonArr[partyNum - 1].gender
+									};
 									pokemonArr[partyNum - 1].form = itemRow.new_form;
+									let newPokemon = {
+										name: pokemonArr[partyNum - 1].name,
+										form: pokemonArr[partyNum - 1].form,
+										gender: pokemonArr[partyNum - 1].gender
+									};
 									
 									if (itemRow.reusable !== 1) {
 										//inventoryArr.splice(itemNum - 1, 1);
@@ -5583,11 +6337,14 @@ client.on('messageCreate', (message) => {
 											inventoryArr.push(`${oldItem} (x1)`);
 										}
 									}
-									dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], (err) => {
+									dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], async (err) => {
 										if (err) {
 											console.error('Error updating user inventory and caught pokemon:', err.message);
 											return;
 										}
+										await updateReleaseQuestProgress(message, userId, oldPokemon);
+
+										updateQuestProgress(message, userId, newPokemon);
 										message.channel.send('Transformation Successful.')
 									});
 								}
@@ -5611,6 +6368,12 @@ client.on('messageCreate', (message) => {
 											oldItem = oldItemRow[0].item_name;
 										}
 
+										let oldPokemon = {
+											name: pokemonArr[partyNum - 1].name,
+											form: pokemonArr[partyNum - 1].form,
+											gender: pokemonArr[partyNum - 1].gender
+										};
+										
 										if (selectedMon.name === 'Shaymin') {
 											pokemonArr[partyNum - 1].form = 'Land Forme';
 										}
@@ -5654,6 +6417,11 @@ client.on('messageCreate', (message) => {
 										else {
 											pokemonArr[partyNum - 1].form = itemRow.new_form;
 										}
+										let newPokemon = {
+											name: pokemonArr[partyNum - 1].name,
+											form: pokemonArr[partyNum - 1].form,
+											gender: pokemonArr[partyNum - 1].gender
+										};
 
 										if (oldItem) {
 											//inventoryArr = inventoryArr.concat(oldItem);
@@ -5675,23 +6443,39 @@ client.on('messageCreate', (message) => {
 												inventoryArr.push(`${oldItem} (x1)`);
 											}
 										}
-										dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], (err) => {
+										dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], async (err) => {
 											if (err) {
 												console.error('Error updating user inventory and caught pokemon:', err.message);
 												return;
 											}
+											await updateReleaseQuestProgress(message, userId, oldPokemon);
+
+											updateQuestProgress(message, userId, newPokemon);
 											message.channel.send('Transformation Successful.')
 										});
 									}
 								}
 								else if (itemRow.pokemon_usage === 'Genies') {
 									if (geniesList.includes(selectedMon.name)) {
+										let oldPokemon = {
+											name: pokemonArr[partyNum - 1].name,
+											form: pokemonArr[partyNum - 1].form,
+											gender: pokemonArr[partyNum - 1].gender
+										};
 										pokemonArr[partyNum - 1].form = itemRow.new_form;
-										dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], (err) => {
+										let newPokemon = {
+											name: pokemonArr[partyNum - 1].name,
+											form: pokemonArr[partyNum - 1].form,
+											gender: pokemonArr[partyNum - 1].gender
+										};
+										dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], async (err) => {
 											if (err) {
 												console.error('Error updating user inventory and caught pokemon:', err.message);
 												return;
 											}
+											await updateReleaseQuestProgress(message, userId, oldPokemon);
+
+											updateQuestProgress(message, userId, newPokemon);
 											message.channel.send('Transformation Successful.')
 										});
 									}
@@ -5702,6 +6486,11 @@ client.on('messageCreate', (message) => {
 								}
 								else if (itemRow.pokemon_usage === 'Gigantamax') {
 									if (gigantamaxList.includes(selectedMon.name)) {
+										let oldPokemon = {
+											name: pokemonArr[partyNum - 1].name,
+											form: pokemonArr[partyNum - 1].form,
+											gender: pokemonArr[partyNum - 1].gender
+										};
 										if (selectedMon.name === 'Toxtricity') {
 											if (selectedMon.form === 'Amped') {
 												pokemonArr[partyNum - 1].form = 'Amped Gigantamax';
@@ -5739,11 +6528,19 @@ client.on('messageCreate', (message) => {
 										else {
 											pokemonArr[partyNum - 1].form = 'Gigantamax';
 										}
-										dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], (err) => {
+										let newPokemon = {
+											name: pokemonArr[partyNum - 1].name,
+											form: pokemonArr[partyNum - 1].form,
+											gender: pokemonArr[partyNum - 1].gender
+										};
+										dbUser.run("UPDATE user SET caught_pokemon = ?, inventory = ? WHERE user_id = ?", [JSON.stringify(pokemonArr), JSON.stringify(inventoryArr), userId], async (err) => {
 											if (err) {
 												console.error('Error updating user inventory and caught pokemon:', err.message);
 												return;
 											}
+											await updateReleaseQuestProgress(message, userId, oldPokemon);
+
+											updateQuestProgress(message, userId, newPokemon);
 											message.channel.send('Transformation Successful.')
 										});
 									}
@@ -6053,11 +6850,13 @@ client.on('messageCreate', (message) => {
 							collector.on('collect', async i => {
 								try {
 									if (i.customId === 'release_yes') {
+										let oldPokemon = caughtPokemon[index];
 										caughtPokemon.splice(index, 1);
-										dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), userId], (err) => {
+										dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(caughtPokemon), userId], async (err) => {
 										if (err) {
 											console.error(err.message);
 										}
+										await updateReleaseQuestProgress(message, userId, oldPokemon);
 										i.update({ content: `Successfully released ${finalName}`, embeds: [], components: [] });
 										});
 									} 
@@ -6142,11 +6941,16 @@ client.on('messageCreate', (message) => {
 												console.error(err.message);
 												return;
 											}
-											dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(user2Pokemon), trade.user2], (err) => {
+											dbUser.run("UPDATE user SET caught_pokemon = ? WHERE user_id = ?", [JSON.stringify(user2Pokemon), trade.user2], async (err) => {
 												if (err) {
 													console.error(err.message);
 													return;
 												}
+												await updateReleaseQuestProgress(message, trade.user1, user1TradedPokemon);
+												await updateReleaseQuestProgress(message, trade.user2, user2TradedPokemon);
+
+												updateQuestProgress(message, trade.user1, user2TradedPokemon);
+												updateQuestProgress(message, trade.user2, user1TradedPokemon);
 
 												const u1TName = user1TradedPokemon.name;
 												let isShiny = false;
