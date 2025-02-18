@@ -6768,6 +6768,8 @@ client.on('messageCreate', (message) => {
 
 					const args = message.content.split(' ').slice(1);
 
+					
+
 					dbUser.get("SELECT caught_pokemon, inventory FROM user WHERE user_id = ?", [userId], (err, row) => {
 						if (err) {
 							console.error(err.message);
@@ -6813,6 +6815,12 @@ client.on('messageCreate', (message) => {
 							}
 
 							let selectedItem = inventoryArr[itemNum - 1];
+							//TODO: DO LOOTBOXES PROPERLY
+							if (selectedItem.toLowerCase().includes("lootbox")) {
+								message.channel.send("These will be implemented in a future update!");
+								return;
+							}
+
 							let parts = selectedItem.split(' (x');
 							let itemCount = parseInt(parts[1]) || 0;
 							selectedItem = parts[0];
