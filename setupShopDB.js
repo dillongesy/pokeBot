@@ -34,17 +34,18 @@ db.serialize(() => {
 		{ itemNum: 6, item_name: 'Mythical Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 7500, explanation: 'Makes your next pokemon drop a mythical pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
 		{ itemNum: 7, item_name: 'Shiny Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 20000, explanation: 'Makes your next pokemon drop a shiny pokemon' + '\n' + '__It is recommended to do this in a private place!__' },
 		
-		//
-		//{ itemNum: 8, item_name: 'Amulet Coin', item_class: 2, pokemon_usage: null, new_form: null, reusable: 0, price: 50000, explanation: 'Gives you double coin drops' },
 		{ itemNum: 8, item_name: 'Defaulter', item_class: 1, pokemon_usage: 'Form_All', new_form: 'Default', reusable: 1, price: 500, explanation: '**REUSABLE**: Resets the Pokemon\'s form to default' }, //Form_All
 		{ itemNum: 9, item_name: 'Dynamax Band', item_class: 1, pokemon_usage: 'Gigantamax', new_form: 'Gigantamax', reusable: 1, price: 1000, explanation: '**REUSABLE**: Evolves the Pokemon into their Gigantamax form' }, //Gigantamax
-		
-		//Critical drop
-		//{ itemNum: 12, item_name: 'Cooldown Reducer 1', item_class: 2, pokemon_usage: null, new_form: null, reusable: 0, price: 25000, explanation: 'Reduces the dropping cooldown by 30 seconds \n__Can only be bought once!__' },
-		//{ itemNum: 13, item_name: 'Cooldown Reducer 2', item_class: 2, pokemon_usage: null, new_form: null, reusable: 0, price: 50000, explanation: 'Reduces the dropping cooldown by 30 seconds \n__Can only be bought once!__' },
-		//{ itemNum: 14, item_name: 'Cooldown Reducer 3', item_class: 2, pokemon_usage: null, new_form: null, reusable: 0, price: 75000, explanation: 'Reduces the dropping cooldown by 30 seconds \n__Can only be bought once!__' },
-		//{ itemNum: 15, item_name: 'Cooldown Reducer 4', item_class: 2, pokemon_usage: null, new_form: null, reusable: 0, price: 100000, explanation: 'Reduces the dropping cooldown by 30 seconds \n__Can only be bought once!__' },
-		
+		{ itemNum: 10, item_name: 'Kanto Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 1250, explanation: 'Makes your next pokemon drop a Kanto pokemon' },
+		{ itemNum: 11, item_name: 'Johto Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 1250, explanation: 'Makes your next pokemon drop a Johto pokemon' },
+		{ itemNum: 12, item_name: 'Hoenn Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 1250, explanation: 'Makes your next pokemon drop a Hoenn pokemon' },
+		{ itemNum: 13, item_name: 'Sinnoh Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 1250, explanation: 'Makes your next pokemon drop a Sinnoh pokemon' },
+		{ itemNum: 14, item_name: 'Unova Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 1250, explanation: 'Makes your next pokemon drop a Unova pokemon' },
+		{ itemNum: 15, item_name: 'Kalos Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 1250, explanation: 'Makes your next pokemon drop a Kalos pokemon' },
+		{ itemNum: 16, item_name: 'Alola Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 1250, explanation: 'Makes your next pokemon drop an Alola pokemon' },
+		{ itemNum: 17, item_name: 'Galar & Hisui Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 1250, explanation: 'Makes your next pokemon drop a Kanto pokemon' },
+		{ itemNum: 18, item_name: 'Paldea Incense', item_class: 0, pokemon_usage: null, new_form: null, reusable: 0, price: 1250, explanation: 'Makes your next pokemon drop a Paldea pokemon' },
+
 		//Mega Evolution Store
 		{ itemNum: 100, item_name: 'Venusaurite', item_class: 1, pokemon_usage: 'Venusaur', new_form: 'Mega', reusable: 2, price: 500, explanation: '**CONSUMABLE**: Mega Stone for Venusaur transformation' },
 		{ itemNum: 101, item_name: 'Charizardite X', item_class: 1, pokemon_usage: 'Charizard', new_form: 'Mega X', reusable: 2, price: 500, explanation: '**CONSUMABLE**: Mega Stone for Charizard transformation' },
