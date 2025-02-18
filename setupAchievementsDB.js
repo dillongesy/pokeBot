@@ -19,7 +19,7 @@ db.serialize(() => {
 	0: Total Caught
 	1: Type Caught
 	2: Total Spent
-	3: Shiny Caught
+	3: Shiny Dropped
 	*/
 
 	const stmt = db.prepare("INSERT INTO achievements (ach_id, ach_name, ach_type, description, reward, requirement, poke_count, contributor, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -82,7 +82,7 @@ db.serialize(() => {
 		{ ach_id: 251, ach_name: 'Dragon Master', ach_type: 1, description: 'Catch 1000 Dragon Type Pokemon', reward: '3', requirement: 'Dragon', poke_count: 1000, contributor: 'Dillon', note: '' },
 		{ ach_id: 252, ach_name: 'Ghost Master', ach_type: 1, description: 'Catch 1000 Ghost Type Pokemon', reward: '3', requirement: 'Ghost', poke_count: 1000, contributor: 'Dillon', note: '' },
 		{ ach_id: 253, ach_name: 'Dark Master', ach_type: 1, description: 'Catch 1000 Dark Type Pokemon', reward: '3', requirement: 'Dark', poke_count: 1000, contributor: 'Dillon', note: '' },
-		{ ach_id: 254, ach_name: 'Steel Master', ach_type: 1, description: 'Catch 1000 Steel Type Pokemon', reward: '3' requirement: 'Steel', poke_count: 1000, contributor: 'Dillon', note: '' },
+		{ ach_id: 254, ach_name: 'Steel Master', ach_type: 1, description: 'Catch 1000 Steel Type Pokemon', reward: '3', requirement: 'Steel', poke_count: 1000, contributor: 'Dillon', note: '' },
 		{ ach_id: 255, ach_name: 'Fairy Master', ach_type: 1, description: 'Catch 1000 Fairy Type Pokemon', reward: '3', requirement: 'Fairy', poke_count: 1000, contributor: 'Dillon', note: '' },
 		
 		{ ach_id: 256, ach_name: 'PokeDropper Beginner', ach_type: 0, description: 'Catch 10 Pokemon', reward: 'Lootbox', requirement: '', poke_count: 10, contributor: 'Dillon', note: '' },
@@ -91,10 +91,10 @@ db.serialize(() => {
 		{ ach_id: 259, ach_name: 'PokeDropper Elite', ach_type: 0, description: 'Catch 5000 Pokemon', reward: '10', requirement: '', poke_count: 5000, contributor: 'Dillon', note: '' },
 		{ ach_id: 260, ach_name: 'PokeDropper Master', ach_type: 0, description: 'Catch 10000 Pokemon', reward: '20', requirement: '', poke_count: 10000, contributor: 'Dillon', note: '' },
 		
-		{ ach_id: 261, ach_name: 'Shopping Beginner', ach_type: 2, description: 'Spend 1000 Coins', reward: '1', requirement: '1000', poke_count: 0, contributor: 'Dillon', note: '' },
-		{ ach_id: 262, ach_name: 'Shopping Apprentice', ach_type: 2, description: 'Spend 10000 Coins', reward: '5', requirement: '10000', poke_count: 0, contributor: 'Dillon', note: '' },
-		{ ach_id: 263, ach_name: 'Shopping Apprentice', ach_type: 2, description: 'Spend 50000 Coins', reward: '10', requirement: '50000', poke_count: 0, contributor: 'Dillon', note: '' },		
-		{ ach_id: 264, ach_name: 'Shopping Elite', ach_type: 2, description: 'Spend 100000 Coins', reward: '20', requirement: '100000', poke_count: 0, contributor: 'Dillon', note: '' },
+		{ ach_id: 261, ach_name: 'Shopping Beginner', ach_type: 2, description: 'Spend 1000 Coins', reward: '1', requirement: '', poke_count: 1000, contributor: 'Dillon', note: '' },
+		{ ach_id: 262, ach_name: 'Shopping Apprentice', ach_type: 2, description: 'Spend 10000 Coins', reward: '5', requirement: '', poke_count: 10000, contributor: 'Dillon', note: '' },
+		{ ach_id: 263, ach_name: 'Shopping Apprentice', ach_type: 2, description: 'Spend 50000 Coins', reward: '10', requirement: '', poke_count: 50000, contributor: 'Dillon', note: '' },		
+		{ ach_id: 264, ach_name: 'Shopping Elite', ach_type: 2, description: 'Spend 100000 Coins', reward: '20', requirement: '', poke_count: 100000, contributor: 'Dillon', note: '' },
 
 		//{ ach_id: , ach_name: '', ach_type: 0, description: '', reward: '', requirement: '', poke_count: , contributor: '', note: '' },
 	];
