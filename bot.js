@@ -1279,7 +1279,7 @@ function updateQuestProgress(message, userId, newPokemonObj) {
 
 									// Handle Nidoran gender-based naming
 									if (reqPokemon.name === "Nidoran" && caughtName.includes("Nidoran")) {
-										if (reqPokemon.form === newPokemonObj.gender) {
+										if (reqPokemon.form === caught.gender) {
 											progress++;
 											break;
 										}
