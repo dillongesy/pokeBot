@@ -7001,10 +7001,22 @@ client.on('messageCreate', (message) => {
 									return;
 								}
 
-								randomNum = Math.floor(Math.random() * validItems.length);
-								let selectedRandItem = validItems[randomNum].item_name;
+								let totalWeight = validItems.reduce((sum, item) => sum + item.drop_rate, 0);
+								let rand = Math.random() * totalWeight;
 
-								
+								let cumulativeSum = 0;
+								let selectedRandItem = null;
+														
+								for (let item of validItems) {
+									cumulativeSum += item.drop_rate;
+									if (rand <= cumulativeSum) {
+										selectedRandItem = item.item_name;
+										break;
+									}
+								}
+
+								// randomNum = Math.floor(Math.random() * validItems.length);
+								// let selectedRandItem = validItems[randomNum].item_name;
 						
 								// Log or send the selected item
 								if (selectedRandItem) {
