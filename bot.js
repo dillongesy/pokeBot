@@ -732,6 +732,7 @@ function showQuestCompletions(userId, message) {
 					let currentQuest = questInfo.find(t => t.quest_id === quest.quest_id);
 					if (currentQuest) {
 						info.push({
+							quest_id: currentQuest.quest_id,
 							quest_header: currentQuest.collection_name,
 							quest_description: currentQuest.description,
 							quest_progress: `Date Completed: ${quest.completed_at}`
@@ -741,6 +742,7 @@ function showQuestCompletions(userId, message) {
 					let currentAchievement = achInfo.find(t => t.ach_id === quest.quest_id);
 					if (currentAchievement) {
 						info.push({
+							quest_id: currentAchievement.ach_id,
 							quest_header: currentAchievement.ach_name,
 							quest_description: currentAchievement.description,
 							quest_progress: `Date Completed: ${quest.completed_at}`
@@ -749,7 +751,7 @@ function showQuestCompletions(userId, message) {
 				});
 	
 				let page = 0;
-				let totalPages = Math.ceil(info.length / 3);
+				let totalPages = Math.ceil(info.length / 5);
 	
 				const buttonRow = new ActionRowBuilder()
 					.addComponents(
@@ -773,8 +775,8 @@ function showQuestCompletions(userId, message) {
 			
 	
 				const generateQuestEmbed = (page) => {
-					const start = page * 3;
-					const end = start + 3;
+					const start = page * 5;
+					const end = start + 5;
 					const pageItems = info.slice(start, end);
 	
 					const embed = new EmbedBuilder()
@@ -782,9 +784,9 @@ function showQuestCompletions(userId, message) {
 						.setTitle(`Quest Completions (Page ${page + 1}/${totalPages})`)
 						.setTimestamp();
 	
-					pageItems.forEach((item, index) => {
+					pageItems.forEach(item => {
 						embed.addFields({
-							name: `\`${start + index + 1}:\` **${item.quest_header}**`,
+							name: `\`${item.quest_id}:\` **${item.quest_header}**`,
 							value: `${item.quest_description}\n${item.quest_progress}`
 						});
 					});
@@ -891,25 +893,37 @@ function showQuestProgress(userId, message) {
 				quests.forEach(quest => {
 					let currentQuest = questInfo.find(t => t.quest_id === quest.quest_id);
 					if (currentQuest) {
+						let questReward = currentQuest.reward;
+						if (questReward !== 'Lootbox') {
+							questReward = questReward + ' gold';
+						}
 						info.push({
+							quest_id: currentQuest.quest_id,
 							quest_header: currentQuest.collection_name,
 							quest_description: currentQuest.description,
-							quest_progress: `Progress: ${quest.progress}/${currentQuest.poke_count}`
+							quest_progress: `Progress: ${quest.progress}/${currentQuest.poke_count}`,
+							quest_reward: `Reward: ${questReward}`
 						});
 					}
 
 					let currentAchievement = achInfo.find(t => t.ach_id === quest.quest_id);
 					if (currentAchievement) {
+						let questReward = currentAchievement.reward;
+						if (questReward !== 'Lootbox') {
+							questReward = questReward + ' gold';
+						}
 						info.push({
+							quest_id: currentAchievement.ach_id,
 							quest_header: currentAchievement.ach_name,
 							quest_description: currentAchievement.description,
-							quest_progress: `Progress: ${quest.progress}/${currentAchievement.poke_count}`
+							quest_progress: `Progress: ${quest.progress}/${currentAchievement.poke_count}`,
+							quest_reward: `Reward: ${questReward}`
 						});
 					}
 				});
 
 				let page = 0;
-				let totalPages = Math.ceil(info.length / 3);
+				let totalPages = Math.ceil(info.length / 5);
 
 				const buttonRow = new ActionRowBuilder()
 					.addComponents(
@@ -933,8 +947,8 @@ function showQuestProgress(userId, message) {
 			
 
 				const generateQuestEmbed = (page) => {
-					const start = page * 3;
-					const end = start + 3;
+					const start = page * 5;
+					const end = start + 5;
 					const pageItems = info.slice(start, end);
 
 					const embed = new EmbedBuilder()
@@ -942,10 +956,10 @@ function showQuestProgress(userId, message) {
 						.setTitle(`Quest Progress (Page ${page + 1}/${totalPages})`)
 						.setTimestamp();
 
-					pageItems.forEach((item, index) => {
+					pageItems.forEach(item => {
 						embed.addFields({
-							name: `\`${start + index + 1}:\` **${item.quest_header}**`,
-							value: `${item.quest_description}\n${item.quest_progress}`
+							name: `\`${item.quest_id}:\` **${item.quest_header}**`,
+							value: `${item.quest_description}\n${item.quest_progress}\n${item.quest_reward}`
 						});
 					});
 
@@ -1266,26 +1280,54 @@ function updateQuestProgress(message, userId, newPokemonObj) {
 							let pokeCount = quest.poke_count;
 							let progress = 0;
 	
-							requiredPokemonList.forEach(reqPokemon => {
+							// requiredPokemonList.forEach((reqPokemon, index) => {
 
+							// 	for (let caught of caughtUserPokemon) {
+							// 		let caughtName = caught.name.replace("✨", "");
+							// 		let caughtForm = caught.form;
+
+							// 		if (reqPokemon.name === caughtName && (reqPokemon.form === null || reqPokemon.form === caughtForm)) {
+							// 			progress++;
+							// 			requiredPokemonList.splice(index, 1);
+							// 			break;
+							// 		}
+
+							// 		// Handle Nidoran gender-based naming
+							// 		if (reqPokemon.name === "Nidoran" && caughtName.includes("Nidoran")) {
+							// 			if (reqPokemon.form === newPokemonObj.gender) {
+							// 				progress++;
+							// 				requiredPokemonList.splice(index, 1);
+							// 				break;
+							// 			}
+							// 		}
+							// 	}
+							// 	let k = 1;
+							// });
+
+							requiredPokemonList = requiredPokemonList.filter(reqPokemon => {
 								for (let caught of caughtUserPokemon) {
 									let caughtName = caught.name.replace("✨", "");
 									let caughtForm = caught.form;
-
+							
 									if (reqPokemon.name === caughtName && (reqPokemon.form === null || reqPokemon.form === caughtForm)) {
 										progress++;
-										break;
+										return false; // Remove this Pokémon from the list
 									}
-
+							
 									// Handle Nidoran gender-based naming
 									if (reqPokemon.name === "Nidoran" && caughtName.includes("Nidoran")) {
 										if (reqPokemon.form === caught.gender) {
 											progress++;
-											break;
+											return false; // Remove this Pokémon from the list
 										}
 									}
 								}
+								return true; // Keep the Pokémon if not matched
 							});
+							
+							// Log the final requiredPokemonList after processing
+							// console.log("Remaining requiredPokemonList:", requiredPokemonList);
+							
 
 							let completed = progress >= pokeCount ? 1 : 0;
 							let dateString = null;
@@ -2127,11 +2169,6 @@ client.on('messageCreate', (message) => {
 			
 
 			/*things to worry about
-				Implement other quests db
-					where to update:
-						on catch DONE
-						on drop DONE
-						on buy DONE
 				Implement lootboxes
 
 				Make numbers on showQuestProgress & showQuestCompletions reference quest_id instead of a random index
@@ -2173,6 +2210,24 @@ client.on('messageCreate', (message) => {
 				});
 				message.channel.send("Added critDropString and shinyCharm columns.");
 			}
+
+			if (message.content.toLowerCase() === '.getlbnum' && userId === '177580797165961216') {
+				dbShop.all("SELECT * FROM shop", [], (err, rows) => {
+					if (err) {
+						message.channel.send("ERROR! ERROR! YOU SUCK MASSIVE BALLS");
+						return;
+					}
+					if (rows) {
+						let currentNum = 0.0;
+						for (let i = 0; i < rows.length; i++) {
+							currentNum += rows[i].drop_rate;
+						}
+						let k = currentNum;
+						message.channel.send(`Final number: ${currentNum}`);
+						return;
+					}
+				});
+			}
 			
 			//drop
 			if (dropCommandRegex.test(message.content.toLowerCase())) {
@@ -2207,7 +2262,6 @@ client.on('messageCreate', (message) => {
 							let randVar = Math.random();
 							if (randVar < dropResetPercentage) {
 								resetDrop = true;
-								message.channel.send('Your drop has been instantly reset!');
 							}
 						} catch (error) {
 							cooldownDiff = 0;
@@ -2586,6 +2640,9 @@ client.on('messageCreate', (message) => {
 									.setTimestamp()
 	
 								message.channel.send({ embeds: [embed] });
+								if (resetDrop) {
+									message.channel.send('Your drop has been instantly reset!');
+								}
 								if (userId === '216789962459185152' && curMon.toLowerCase() === 'Koffing') {
 									message.channel.send('L000000L EVERYONE LOOK LOOK LOOK EVERYONE LOOK BRENDA DROPPED A KOFFING LMFAOOOOOOOOOOOOOOOO LOOK GUYS IT\'S HILARIOUS BETTER TYPE KOFFING BRENDAAAA YOU REALLLLLY NEED TO CLAIM IT MAKE SURE YOU GRAB IT FAST IT MIGHT GET STOLEN L000000L JK NICE KOFFING');
 								}
@@ -2725,6 +2782,14 @@ client.on('messageCreate', (message) => {
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mimejr')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'mime jr.' && message.content.toLowerCase() === 'mimejr.')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'spoink' && message.content.toLowerCase() === 'boingo')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'vaporeon' && message.content.toLowerCase() === 'soju')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'flareon' && message.content.toLowerCase() === 'kabocha')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'jolteon' && message.content.toLowerCase() === 'yuzu')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'espeon' && message.content.toLowerCase() === 'ume')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'umbreon' && message.content.toLowerCase() === 'yume')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'leafeon' && message.content.toLowerCase() === 'rukia')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'sylveon' && message.content.toLowerCase() === 'etude')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'glaceon' && message.content.toLowerCase() === 'suzume')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygon z')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygonz')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'flabébé' && message.content.toLowerCase() === 'flabebe')
@@ -6667,7 +6732,7 @@ client.on('messageCreate', (message) => {
 							return;
 						}
 						if (!row || row.inventory === '[]') {
-							message.channel.send('You have not purchased any items yet.');
+							message.channel.send('You have not acquired any items yet.');
 							return;
 						}
 						const userInventory = JSON.parse(row.inventory);
@@ -6737,13 +6802,18 @@ client.on('messageCreate', (message) => {
 			}
 
 			//trash, TODO!!!
-			else if (message.content.startsWith('.trash') && userId === '177580797165961216') {
+			else if (message.content.startsWith('.trash')) {
 				isChannelAllowed(serverId, message.channel.id, (allowed) => {
 					if (!allowed) {
 						return;
 					}
 
 					const args = message.content.split(' ').slice(1);
+					if (args.length < 1 || isNaN(args[0])) {
+						message.channel.send("Please specify a valid number. Usage: `.trash <itemNumber>");
+						return;
+					}
+
 					let itemNum = parseInt(args[0], 10);
 					dbUser.get("SELECT inventory FROM user WHERE user_id = ?", [userId], (err, row) => {
 						if (err) {
@@ -6754,14 +6824,73 @@ client.on('messageCreate', (message) => {
 							message.channel.send('User has not caught a pokemon yet.');
 							return;
 						}
+
 						let inventoryArr = JSON.parse(row.inventory).flat();
-						inventoryArr.splice(itemNum - 1, 1);
-						dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(inventoryArr), userId], (err) => {
-							if (err) {
-								console.error('Error updating user inventory and caught pokemon:', err.message);
-								return;
-							}
-							message.channel.send('Trashed that item.')
+						if (itemNum < 1 || itemNum > inventoryArr.length) {
+							message.channel.send('Invalid item number.');
+							return;
+						}
+
+						let itemToDelete = inventoryArr[itemNum - 1];
+
+						const embed = new EmbedBuilder()
+							.setColor('#ff0000')
+							.setTitle('Trash Item')
+							.setDescription(`Are you sure you want to trash **${itemToDelete}**?`)
+							.setTimestamp();
+
+						const buttonRow = new ActionRowBuilder()
+							.addComponents(
+								new ButtonBuilder()
+									.setCustomId('trash_yes')
+									.setLabel('Yes')
+									.setStyle(ButtonStyle.Success),
+								new ButtonBuilder()
+									.setCustomId('trash_no')
+									.setLabel('No')
+									.setStyle(ButtonStyle.Danger)
+							);
+
+						message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
+							const filter = i => i.user.id === message.author.id;
+							const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
+
+							collector.on('collect', async i => {
+								try {
+									if (i.customId === 'trash_yes') {
+										inventoryArr.splice(itemNum - 1, 1); // Remove item from array
+										dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(inventoryArr), userId], (err) => {
+											if (err) {
+												console.error('Error updating inventory:', err.message);
+												return;
+											}
+											i.update({ content: `Successfully trashed **${itemToDelete}**`, embeds: [], components: [] });
+										});
+									} else if (i.customId === 'trash_no') {
+										i.update({ content: 'Trash cancelled.', embeds: [], components: [] });
+									}
+								} catch (error) {
+									if (error.code === 10008) {
+										console.log('Failed Gracefully.');
+									} else {
+										console.error('An unexpected error occurred while editing:', error);
+									}
+								}
+							});
+
+							collector.on('end', async () => {
+								try {
+									await sentMessage.edit({ components: [] });
+								} catch (error) {
+									if (error.code === 10008) {
+										console.log('Failed Gracefully.');
+									} else {
+										console.error('An unexpected error occurred while editing:', error);
+									}
+								}
+							});
+						}).catch(err => {
+							console.error('Error sending the trash message:', err);
 						});
 					});
 				});
@@ -6820,7 +6949,7 @@ client.on('messageCreate', (message) => {
 								message.channel.send('An error occurred while fetching the shop.');
 								return;
 							}
-							if (!shopItems) {
+							if (!shopItems || shopItems.length === 0) {
 								message.channel.send('There are no items in the shop database.');
 								return;
 							}
@@ -6845,7 +6974,64 @@ client.on('messageCreate', (message) => {
 							let selectedItem = inventoryArr[itemNum - 1];
 							//TODO: DO LOOTBOXES PROPERLY
 							if (selectedItem.toLowerCase().includes("lootbox")) {
-								message.channel.send("These will be implemented in a future update!");
+								
+								let validItems = shopItems.filter(item => item.drop_rate > 0);
+
+								if (validItems.length === 0) {
+									message.channel.send('No valid items to drop');
+									return;
+								}
+
+								let totalWeight = validItems.reduce((sum, item) => sum + item.drop_rate, 0);
+								let randomNum = Math.random() * totalWeight;
+						
+								let cumulativeSum = 0;
+								let selectedItem = null;
+						
+								for (let item of validItems) {
+									cumulativeSum += item.drop_rate;
+									if (randomNum <= cumulativeSum) {
+										selectedItem = item.item_name;
+										break;
+									}
+								}
+						
+								// Log or send the selected item
+								if (selectedItem) {
+									message.channel.send(`You received: **${selectedItem}**!`);
+									let parts1 = inventoryArr[itemNum - 1].split(' (x');
+									let lootboxCount = parseInt(parts1[1]) || 1;
+									lootboxCount--;
+									if (lootboxCount < 1) {
+										inventoryArr.splice(itemNum - 1, 1);
+									}
+									else {
+										const finalLootboxCount = `Lootbox (x${lootboxCount})`;
+										inventoryArr[itemNum - 1] = finalLootboxCount;
+									}
+									
+									
+									let newItemAndCount = null;
+									for (let i = 0; i < inventoryArr; i++) {
+										if (inventoryArr[i].includes(selectedItem)) {
+											let parts = inventoryArr[i].split(' (x');
+											let itemCount = parseInt(parts[1]) || 0;
+											itemCount++;
+											newItemAndCount = `${parts[0]} (x${itemCount})`;
+											inventoryArr[i] = newItemAndCount;
+										}
+									}
+									if (newItemAndCount === null) {
+										newItemAndCount = `${selectedItem} (x1)`;
+										inventoryArr.push(newItemAndCount);
+									}
+									dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(inventoryArr), userId], (err) => {
+										if (err) {
+											message.channel.send("Error updating user's inventory");
+											return;
+										}
+									});
+								}
 								return;
 							}
 
@@ -7232,7 +7418,7 @@ client.on('messageCreate', (message) => {
 					const helpPages = [
 					 new EmbedBuilder()
 						.setColor('#0099ff')
-						.setTitle('Help (Page 1/4)')
+						.setTitle('Help (Page 1/6)')
 						.setDescription('List of available commands:')
 						.addFields(
 							{ name: '.drop (.d)', value: 'Drops a random Pokémon in the channel. Cooldown: 5 minutes.' },
@@ -7244,7 +7430,7 @@ client.on('messageCreate', (message) => {
 						.setTimestamp(),
 					new EmbedBuilder()
 						.setColor('#0099ff')
-						.setTitle('Help (Page 2/4)')
+						.setTitle('Help (Page 2/6)')
 						.setDescription('List of available commands:')
 						.addFields(
 							{ name: '.currency (.c)', value: 'Displays your current amount of coins.' },
@@ -7256,7 +7442,7 @@ client.on('messageCreate', (message) => {
 						.setTimestamp(),
 					new EmbedBuilder()
 						.setColor('#0099ff')
-						.setTitle('Help (Page 3/4)')
+						.setTitle('Help (Page 3/6)')
 						.setDescription('List of available commands:')
 						.addFields(
 							{ name: '.uncaught (.u)', value: 'Displays a list of your uncaught pokémon' },
@@ -7269,15 +7455,36 @@ client.on('messageCreate', (message) => {
 						.setTimestamp(),
 					new EmbedBuilder()
 						.setColor('#0099ff')
-						.setTitle('Help (Page 4/4)')
+						.setTitle('Help (Page 4/6)')
 						.setDescription('List of available commands:')
 						.addFields(
 							{ name: '.use <itemNum> <partyNum>', value: 'Uses an item. If a partyNum is supplied, uses the item on a Pokémon.' },
-							{ name: '.compare @<user>:', value: 'Posts a list of all the Pokémon you don\'t own that @<user> does.' },
+							{ name: '.compare @<user>', value: 'Posts a list of all the Pokémon you don\'t own that @<user> does.' },
 							{ name: '.team @<user> <view> <1-6>:', value: 'Posts the @<user>\'s first 6 Pokémon.' + '\n' +'If <view> and <1-6> is supplied, looks at that current Pokémon.' },
-							{ name: '.setChannel: #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channel>.' + '\n' + 'Example: .setChannel <text1> <text2>' },
-							{ name: '.resetChannels:', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
-							{ name: '.viewChannels:', value: '`ADMIN ONLY:` Posts a list of channels the server allows bot commands in' }
+							{ name: '.setChannel #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channel>.' + '\n' + 'Example: .setChannel <text1> <text2>' },
+							{ name: '.resetChannels', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
+							{ name: '.viewChannels', value: '`ADMIN ONLY:` Posts a list of channels the server allows bot commands in' }
+						)
+						.setTimestamp(),
+					new EmbedBuilder()
+						.setColor('#0099ff')
+						.setTitle('Help (Page 4/6)')
+						.setDescription('List of available commands:')
+						.addFields(
+							{ name: '.questprogress (.qp)', value: 'Shows your progress on uncompleted quests.' },
+							{ name: '.questscompleted (.qc)', value: 'Shows quests you\'ve completed.' },
+							{ name: '.gold (.g)', value: 'Shows your current gold.' },
+							{ name: '.goldshop (.gs)', value: 'Displays the gold shop.' },
+							{ name: '.goldbuy <shopNum> (.gbuy)', value: 'Buys an item from the gold store.' },
+							{ name: '.buffs', value: 'Displays your permanent bot buffs.' }
+						)
+						.setTimestamp(),
+					new EmbedBuilder()
+						.setColor('#0099ff')
+						.setTitle('Help (Page 4/6)')
+						.setDescription('List of available commands:')
+						.addFields(
+							{ name: '.trash <itemNum> <quantity>', value: 'Trashes an item in your inventory.' },
 						)
 						.setTimestamp()
 					]
@@ -7561,7 +7768,7 @@ client.on('messageCreate', (message) => {
 						return;
 					}
 					const args = message.content.split(' ');
-					if (args[1] === 'confirm') {
+					if (args[1] === 'confirm' || args[1] === 'accept') {
 						if (!activeTrades.has(serverId)) {
 							message.channel.send("No active trade to confirm.");
 							return;
