@@ -6975,30 +6975,40 @@ client.on('messageCreate', (message) => {
 							//TODO: DO LOOTBOXES PROPERLY
 							if (selectedItem.toLowerCase().includes("lootbox")) {
 								
-								let validItems = shopItems.filter(item => item.drop_rate > 0);
-
-								if (validItems.length === 0) {
-									message.channel.send('No valid items to drop');
+								let validItems = shopItems.filter(item => item.drop_class !== null);
+								if (validItems.length < 1) {
+									console.log("error dumbass");
+									return;
+								}
+								let randomNum = Math.random() * 100;
+								let dropClass = null;
+								if (randomNum < 70) { //common
+									//drop common item
+									dropClass = 'common';
+								}
+								else if (randomNum < 92) {
+									dropClass = 'rare';
+								}
+								else if (randomNum < 99) {
+									dropClass = 'epic';
+								}
+								else {
+									dropClass = 'ssr';
+								}
+								validItems = validItems.filter(item => item.drop_class === dropClass);
+								if (validItems.length < 1) {
+									console.log("error dumbass 2");
 									return;
 								}
 
-								let totalWeight = validItems.reduce((sum, item) => sum + item.drop_rate, 0);
-								let randomNum = Math.random() * totalWeight;
-						
-								let cumulativeSum = 0;
-								let selectedItem = null;
-						
-								for (let item of validItems) {
-									cumulativeSum += item.drop_rate;
-									if (randomNum <= cumulativeSum) {
-										selectedItem = item.item_name;
-										break;
-									}
-								}
+								randomNum = Math.floor(Math.random() * validItems.length);
+								let selectedRandItem = validItems[randomNum].item_name;
+
+								
 						
 								// Log or send the selected item
-								if (selectedItem) {
-									message.channel.send(`You received: **${selectedItem}**!`);
+								if (selectedRandItem) {
+									message.channel.send(`You received: **${selectedRandItem}**!`);
 									let parts1 = inventoryArr[itemNum - 1].split(' (x');
 									let lootboxCount = parseInt(parts1[1]) || 1;
 									lootboxCount--;
@@ -7013,7 +7023,7 @@ client.on('messageCreate', (message) => {
 									
 									let newItemAndCount = null;
 									for (let i = 0; i < inventoryArr.length; i++) {
-										if (inventoryArr[i].includes(selectedItem)) {
+										if (inventoryArr[i].includes(selectedRandItem)) {
 											let parts = inventoryArr[i].split(' (x');
 											let itemCount = parseInt(parts[1]) || 0;
 											itemCount++;
@@ -7023,7 +7033,7 @@ client.on('messageCreate', (message) => {
 									}
 
 									if (newItemAndCount === null) {
-										newItemAndCount = `${selectedItem} (x1)`;
+										newItemAndCount = `${selectedRandItem} (x1)`;
 										inventoryArr.push(newItemAndCount);
 									}
 									dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(inventoryArr), userId], (err) => {
