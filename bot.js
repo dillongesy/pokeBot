@@ -7012,7 +7012,7 @@ client.on('messageCreate', (message) => {
 									
 									
 									let newItemAndCount = null;
-									for (let i = 0; i < inventoryArr; i++) {
+									for (let i = 0; i < inventoryArr.length; i++) {
 										if (inventoryArr[i].includes(selectedItem)) {
 											let parts = inventoryArr[i].split(' (x');
 											let itemCount = parseInt(parts[1]) || 0;
@@ -7021,6 +7021,7 @@ client.on('messageCreate', (message) => {
 											inventoryArr[i] = newItemAndCount;
 										}
 									}
+
 									if (newItemAndCount === null) {
 										newItemAndCount = `${selectedItem} (x1)`;
 										inventoryArr.push(newItemAndCount);
