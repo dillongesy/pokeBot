@@ -104,12 +104,18 @@ function generatePartyEmbed(pokemonList, page, pageSize, title, isSLM) {
 	else if (isSLM === 4) { //ultra beast
 		color = '#CF9FFF';
 	}
+
+	//default to party command title
+	let footerText = 'Pokémon';
+	if (title === 'Your Inventory') {
+		footerText = 'items';
+	}
 	
 	const embed = new EmbedBuilder()
 		.setColor(color)
 		.setTitle(title)
 		.setDescription(formattedPokemonList || 'No Pokémon Found')
-		.setFooter({ text: `Showing ${start + 1}-${end > pokemonList.length ? pokemonList.length : end} of ${pokemonList.length} Pokémon` })
+		.setFooter({ text: `Showing ${start + 1}-${end > pokemonList.length ? pokemonList.length : end} of ${pokemonList.length} ${footerText}` })
 		.setTimestamp();
 		
 	return embed;
@@ -1697,6 +1703,31 @@ function getFilteredPokemon(kan, joh, hoe, sin, uno, kal, alo, galHis, pal, list
 	return list;
 }
 
+function sortInventoryAlphabetical(inventory) {
+	return inventory.sort((a, b) => a.localeCompare(b));
+}
+
+function sortInventoryShop(inventory, shopItems) {
+	const shopOrder = new Map(shopItems.map((item, index) => [item.item_name, index]));
+	return inventory.sort((a, b) => {
+		const nameA = a.replace(/\s*\(x\d+\)$/, ''); // Remove quantity
+		const nameB = b.replace(/\s*\(x\d+\)$/, '');
+
+		const orderA = shopOrder.has(nameA) ? shopOrder.get(nameA) : Infinity;
+		const orderB = shopOrder.has(nameB) ? shopOrder.get(nameB) : Infinity;
+
+		return orderA - orderB;
+	});
+}
+
+function sortInventoryQuantity(inventory) {
+	return inventory.sort((a, b) => {
+		const quantityA = parseInt(a.match(/\(x(\d+)\)/)?.[1] || 1, 10);
+		const quantityB = parseInt(b.match(/\(x(\d+)\)/)?.[1] || 1, 10);
+		return quantityB - quantityA; // Sort in descending order
+	});
+}
+
 //Helper function, checks if the bot should be posting in a configured channel
 function isChannelAllowed(serverId, channelId, callback) {
 	dbServer.get("SELECT allowed_channels_id FROM server WHERE server_id = ?", [serverId], (err, row) => {
@@ -1751,6 +1782,8 @@ const checkGoldCommandRegex = /^\.(gold|g)\b/;
 const buffsCommandRegex = /^\.(buffs)\b/;
 const questProgressCommandRegex = /^\.(questprogress|qp)\b/;
 const completedQuestsCommandRegex = /^\.(questscompleted|completedquests|qc|cq)\b/;
+const descriptionCommandRegex = /^\.(inventoryview|iv|examine)\b/;
+const inventorySortCommandRegex = /^\.(inventorysort|is|io|oi)\b/;
 
 const maxDexNum = 1025; //number x is max pokedex entry - EDIT WHEN ADDING MORE POKEMON
 
@@ -6318,7 +6351,7 @@ client.on('messageCreate', (message) => {
 							message.channel.send('An error occurred while fetching your inventory.');
 							return;
 						}
-						if (!row || row.inventory === '[]') {
+						if (!row || row.inventory === '[]' || row.inventory === null) {
 							message.channel.send('You have not acquired any items yet.');
 							return;
 						}
@@ -6512,8 +6545,6 @@ client.on('messageCreate', (message) => {
 
 					const args = message.content.split(' ').slice(1);
 
-					
-
 					dbUser.get("SELECT caught_pokemon, inventory FROM user WHERE user_id = ?", [userId], (err, row) => {
 						if (err) {
 							console.error(err.message);
@@ -6559,7 +6590,6 @@ client.on('messageCreate', (message) => {
 							}
 
 							let selectedItem = inventoryArr[itemNum - 1];
-							//TODO: TEST LOOTBOXES PROPERLY
 							if (selectedItem.toLowerCase().includes("lootbox")) {
 								
 								let validItems = shopItems.filter(item => item.drop_class !== null);
@@ -6601,9 +6631,6 @@ client.on('messageCreate', (message) => {
 										break;
 									}
 								}
-
-								// randomNum = Math.floor(Math.random() * validItems.length);
-								// let selectedRandItem = validItems[randomNum].item_name;
 						
 								// Log or send the selected item
 								if (selectedRandItem) {
@@ -7059,7 +7086,7 @@ client.on('messageCreate', (message) => {
 							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party.' + '\n' + 'Example: .release 1' },
 							{ name: '.trade @<user> (.t)', value: 'Initiates a trade with another user.' },
 							{ name: '.count', value: 'Displays the amount of each pokémon you\'ve caught.'},
-							{ name: '.leaderboard (.lb)', value: 'Display a leaderboard.' + '\n' + 'Usages: .lb currency *|* .lb shiny *|* .lb legendary *|* .lb mythical *|* .lb pokedex *|* .lb {pokémon}' },
+							{ name: '.leaderboard (.lb)', value: 'Display a leaderboard.' + '\n' + 'Usages: .lb currency **|** .lb shiny **|** .lb legendary **|** .lb mythical **|** .lb pokedex **|** .lb {pokémon}' },
 							{ name: '.remind', value: 'Reminds you when your drop is off cooldown.'},
 						)
 						.setTimestamp(),
@@ -7071,30 +7098,32 @@ client.on('messageCreate', (message) => {
 							{ name: '.use <itemNum> <partyNum>', value: 'Uses an item. If a partyNum is supplied, uses the item on a Pokémon.' },
 							{ name: '.compare @<user>', value: 'Posts a list of all the Pokémon you don\'t own that @<user> does.' },
 							{ name: '.team @<user> <view> <1-6>:', value: 'Posts the @<user>\'s first 6 Pokémon.' + '\n' +'If <view> and <1-6> is supplied, looks at that current Pokémon.' },
+							{ name: '.questprogress (.qp)', value: 'Shows your progress on uncompleted quests.' },
+							{ name: '.questscompleted (.qc)', value: 'Shows quests you\'ve completed.' },
+							{ name: '.gold (.g)', value: 'Shows your current gold.' }
+						)
+						.setTimestamp(),
+					new EmbedBuilder()
+						.setColor('#0099ff')
+						.setTitle('Help (Page 4/6)')
+						.setDescription('List of available commands:')
+						.addFields(
+							{ name: '.goldshop (.gs)', value: 'Displays the gold shop.' },
+							{ name: '.goldbuy <shopNum> (.gbuy)', value: 'Buys an item from the gold store.' },
+							{ name: '.buffs', value: 'Displays your permanent bot buffs.' },
+							{ name: '.trash <itemNum> <quantity>', value: 'Trashes an item in your inventory.' },
+							{ name: '.inventoryview <itemNum> (.iv)', value: 'Provides a description of an item in your inventory.' },
+							{ name: '.inventorysort <sortname> (.is)', value: 'Sorts your inventory by <sortname>.'  + '\n' + 'Usages: .is alphabetical **|** .is shop **|** .is quantity **|** .is swap <num1> <num2>' }
+						)
+						.setTimestamp(),
+					new EmbedBuilder()
+						.setColor('#0099ff')
+						.setTitle('Help (Page 4/6)')
+						.setDescription('List of available commands:')
+						.addFields(
 							{ name: '.setChannel #<channel>', value: '`ADMIN ONLY:` Directs the bot to only allow commands inside the #<channel>.' + '\n' + 'Example: .setChannel <text1> <text2>' },
 							{ name: '.resetChannels', value: '`ADMIN ONLY:` Resets the bot to default, can use commands in any channel' },
 							{ name: '.viewChannels', value: '`ADMIN ONLY:` Posts a list of channels the server allows bot commands in' }
-						)
-						.setTimestamp(),
-					new EmbedBuilder()
-						.setColor('#0099ff')
-						.setTitle('Help (Page 4/6)')
-						.setDescription('List of available commands:')
-						.addFields(
-							{ name: '.questprogress (.qp)', value: 'Shows your progress on uncompleted quests.' },
-							{ name: '.questscompleted (.qc)', value: 'Shows quests you\'ve completed.' },
-							{ name: '.gold (.g)', value: 'Shows your current gold.' },
-							{ name: '.goldshop (.gs)', value: 'Displays the gold shop.' },
-							{ name: '.goldbuy <shopNum> (.gbuy)', value: 'Buys an item from the gold store.' },
-							{ name: '.buffs', value: 'Displays your permanent bot buffs.' }
-						)
-						.setTimestamp(),
-					new EmbedBuilder()
-						.setColor('#0099ff')
-						.setTitle('Help (Page 4/6)')
-						.setDescription('List of available commands:')
-						.addFields(
-							{ name: '.trash <itemNum> <quantity>', value: 'Trashes an item in your inventory.' },
 						)
 						.setTimestamp()
 					]
@@ -7378,7 +7407,7 @@ client.on('messageCreate', (message) => {
 						return;
 					}
 					const args = message.content.split(' ');
-					if (args[1] === 'confirm' || args[1] === 'accept') {
+					if (args[1].toLowerCase() === 'confirm' || args[1].toLowerCase() === 'accept') {
 						if (!activeTrades.has(serverId)) {
 							message.channel.send("No active trade to confirm.");
 							return;
@@ -7502,7 +7531,7 @@ client.on('messageCreate', (message) => {
 							message.channel.send("Trade confirmed. Waiting for the other user to confirm.");
 						}
 					}
-					else if (args[1] === 'add') {
+					else if (args[1].toLowerCase() === 'add') {
 						if (!activeTrades.has(serverId)) {
 							message.channel.send("No active trade to add Pokémon.");
 							return;
@@ -7686,7 +7715,7 @@ client.on('messageCreate', (message) => {
 						});	
 					}
 					
-					else if (args[1] === 'cancel') {
+					else if (args[1].toLowerCase() === 'cancel') {
 						if (!activeTrades.has(serverId)) {
 							message.channel.send("No active trade to cancel.");
 							return;
@@ -7853,6 +7882,132 @@ client.on('messageCreate', (message) => {
 						return;
 					}
 					showQuestCompletions(userId, message);
+				});
+			}
+
+			//description
+			else if (descriptionCommandRegex.test(message.content.toLowerCase())) { //inventoryview | iv | examine
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+
+					dbUser.get("SELECT inventory FROM user WHERE user_id = ?", [userId], (err, userObj) => {
+						if (err || !userObj) {
+							message.channel.send("Error accessing user inventory");
+							return;
+						}
+
+						const args = message.content.split(' ');
+						if (args.length < 2 || isNaN(args[1])) {
+							message.channel.send('Please specify a valid number. Usage: `.inventoryview <itemNumber>`');
+							return;
+						}
+
+						let fullInventory = JSON.parse(userObj.inventory);
+
+						let inventoryNum = parseInt(args[1], 10) - 1;
+						if (inventoryNum >= fullInventory.length || inventoryNum < 0) {
+							message.channel.send('Please specify a valid inventory number.');
+							return;
+						}
+						let inventoryItemName = fullInventory[inventoryNum];
+						
+						dbShop.all("SELECT item_name, explanation FROM shop", [], (err2, shopListObj) => {
+							if (err2 || !shopListObj) {
+								message.channel.send("Error accessing shop data");
+								return;
+							}
+
+							let description = shopListObj.filter(item => inventoryItemName.includes(item.item_name));
+							if (description.length < 1) {
+								message.channel.send("Error, item not in shop!");
+								return;
+							}
+							description = description[0].explanation;
+							message.channel.send(`**${inventoryItemName}:** ${description}`);
+						});
+					});
+				});
+			}
+
+			//sort inventory
+			else if (inventorySortCommandRegex.test(message.content.toLowerCase())) { //inventorysort | is | io | oi
+				isChannelAllowed(serverId, message.channel.id, (allowed) => {
+					if (!allowed) {
+						return;
+					}
+					const args = message.content.split(' ');
+					//code here
+					dbUser.get("SELECT inventory FROM user WHERE user_id = ?", [userId], (err, userInfo) => {
+						if (err || !userInfo) {
+							message.channel.send("Error accessing user's information");
+							return;
+						}
+						let sortedInventory = null;
+						let userInventory = JSON.parse(userInfo.inventory);
+						if (args[1].toLowerCase() === 'alphabetical' || args[1].toLowerCase() === 'abc') {
+							sortedInventory = sortInventoryAlphabetical(userInventory);
+						}
+						else if (args[1].toLowerCase() === 'shop') {
+							dbShop.all("SELECT itemNum, item_name FROM shop", [], async (err2, shopItems) => {
+								if (err2 || !shopItems) {
+									message.channel.send("Error accessing shop information");
+									return;
+								}
+
+								sortedInventory = await sortInventoryShop(userInventory, shopItems);
+								dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(sortedInventory), userId], (error) => {
+									if (error) {
+										console.log(`Couldn't update user's inventory`);
+										return;
+									}
+									message.channel.send("Successfully ordered user's inventory");
+									return;
+								});
+							});
+							
+						}
+						else if (args[1].toLowerCase() === 'quantity') {
+							sortedInventory = sortInventoryQuantity(userInventory);
+						}
+						else if (args[1].toLowerCase() === 'swap' && args.length > 3) {
+							//number
+							if (isNaN(args[2]) || isNaN(args[3])) {
+								message.channel.send('Please use valid swap numbers. Usage: `.inventorysort swap <itemNumber> <itemNumber>`');
+								return;
+							}
+							const num1 = parseInt(args[2]) - 1;
+							const num2 = parseInt(args[3]) - 1;
+							if (num1 >= userInventory.length || num1 < 0 || num2 >= userInventory.length || num2 < 0) {
+								message.channel.send('Please use valid swap numbers. Usage: `.inventorysort swap <itemNumber> <itemNumber>`');
+								return;
+							}
+							if (num1 === num2) {
+								message.channel.send('Cannot swap an item with itself! Usage: `.inventorysort swap <itemNumber> <itemNumber>`');
+								return;
+							}
+							const item1 = userInventory[num1];
+							const item2 = userInventory[num2];
+							userInventory[num1] = item2;
+							userInventory[num2] = item1;
+							sortedInventory = userInventory;
+						}
+						else {
+							message.channel.send("Not a valid sort order! Valid usages: .inventorysort `alphabetical`, `shop`, and `quantity`");
+							return;
+						}
+
+						if (sortedInventory !== null) {
+							dbUser.run("UPDATE user SET inventory = ? WHERE user_id = ?", [JSON.stringify(sortedInventory), userId], (error) => {
+								if (error) {
+									console.log(`Couldn't update user's inventory`);
+									return;
+								}
+								message.channel.send("Successfully ordered user's inventory");
+							});
+						}
+					});
 				});
 			}
 			
