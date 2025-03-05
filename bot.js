@@ -4292,12 +4292,15 @@ client.on('messageCreate', (message) => {
 										else {
 											fullName = p.form !== 'Default' ? `${p.form} ${fullName}` : p.name;
 										}
+
+										const maleSymbol = '`♂`';
+										const femaleSymbol = '`♀`';
 										
 										if (p.gender === 'Male') {
-											fullName += ' ♂\u200B';
+											fullName += ` ${maleSymbol}`;
 										}
 										else if (p.gender === 'Female') {
-											fullName += ' ♀\u200B';
+											fullName += ` ${femaleSymbol}`;
 										}
 
 										return {
@@ -6761,14 +6764,15 @@ client.on('messageCreate', (message) => {
 									return;
 								}
 								const selectedMon = pokemonArr[partyNum - 1];
-								if (itemRow.pokemon_usage === selectedMon.name) {
+								const selectedMonName = selectedMon.name.replace("✨", "");
+								if (itemRow.pokemon_usage === selectedMonName) {
 									let oldItem = null;
 									if (itemRow.reusable === 2 && selectedMon.form !== 'Default') {
 										const oldItemRow = shopItems
 											.filter(shopItem => 
 												shopItem.new_form === selectedMon.form 
 												&& shopItem.reusable === 2
-												&& shopItem.pokemon_usage === selectedMon.name);
+												&& shopItem.pokemon_usage === selectedMonName);
 										//CHECK
 										//TODO: delete this check in the future, just a failsafe
 										if (oldItemRow.length > 1) {
@@ -6836,7 +6840,7 @@ client.on('messageCreate', (message) => {
 									});
 								}
 								else if (itemRow.pokemon_usage === 'Form_All') {
-									if (defaultList.includes(selectedMon.name) 
+									if (defaultList.includes(selectedMonName) 
 										|| selectedMon.form.startsWith('Mega')
 										|| selectedMon.form.includes('Gigantamax')) {
 										let oldItem = null;
@@ -6844,7 +6848,7 @@ client.on('messageCreate', (message) => {
 											.filter(shopItem => 
 												shopItem.new_form === selectedMon.form 
 												&& shopItem.reusable === 2 
-												&& shopItem.pokemon_usage === selectedMon.name);
+												&& shopItem.pokemon_usage === selectedMonName);
 										//CHECK
 										//TODO: delete this check in the future, just a failsafe
 										if (oldItemRow.length > 1) {
@@ -6861,19 +6865,19 @@ client.on('messageCreate', (message) => {
 											gender: pokemonArr[partyNum - 1].gender
 										};
 										
-										if (selectedMon.name === 'Shaymin') {
+										if (selectedMonName === 'Shaymin') {
 											pokemonArr[partyNum - 1].form = 'Land Forme';
 										}
-										else if (selectedMon.name === 'Tornadus' || selectedMon.name === 'Thundurus' || selectedMon.name === 'Landorus' || selectedMon.name === 'Enamorus') {
+										else if (selectedMonName === 'Tornadus' || selectedMonName === 'Thundurus' || selectedMonName === 'Landorus' || selectedMonName === 'Enamorus') {
 											pokemonArr[partyNum - 1].form = 'Incarnate';
 										}
-										else if (selectedMon.name === 'Hoopa') {
+										else if (selectedMonName === 'Hoopa') {
 											pokemonArr[partyNum - 1].form = 'Confined';
 										}
-										else if (selectedMon.name === 'Alcremie') {
+										else if (selectedMonName === 'Alcremie') {
 											pokemonArr[partyNum - 1].form = 'Strawberry Vanilla Cream';
 										}
-										else if (selectedMon.name === 'Toxtricity') {
+										else if (selectedMonName === 'Toxtricity') {
 											if (selectedMon.form === 'Amped Gigantamax') {
 												pokemonArr[partyNum - 1].form = 'Amped';
 											}
@@ -6885,7 +6889,7 @@ client.on('messageCreate', (message) => {
 												return;
 											}
 										}
-										else if (selectedMon.name === 'Urshifu') {
+										else if (selectedMonName === 'Urshifu') {
 											if (selectedMon.form === 'Single Strike Gigantamax') {
 												pokemonArr[partyNum - 1].form = 'Single Strike';
 											}
@@ -6897,7 +6901,7 @@ client.on('messageCreate', (message) => {
 												return;
 											}
 										}
-										else if (selectedMon.name === 'Ogerpon') {
+										else if (selectedMonName === 'Ogerpon') {
 											pokemonArr[partyNum - 1].form = 'Teal';
 										}
 
@@ -6943,7 +6947,7 @@ client.on('messageCreate', (message) => {
 									}
 								}
 								else if (itemRow.pokemon_usage === 'Genies') {
-									if (geniesList.includes(selectedMon.name)) {
+									if (geniesList.includes(selectedMonName)) {
 										let oldPokemon = {
 											name: pokemonArr[partyNum - 1].name,
 											form: pokemonArr[partyNum - 1].form,
@@ -6972,13 +6976,13 @@ client.on('messageCreate', (message) => {
 									}
 								}
 								else if (itemRow.pokemon_usage === 'Gigantamax') {
-									if (gigantamaxList.includes(selectedMon.name)) {
+									if (gigantamaxList.includes(selectedMonName)) {
 										let oldPokemon = {
 											name: pokemonArr[partyNum - 1].name,
 											form: pokemonArr[partyNum - 1].form,
 											gender: pokemonArr[partyNum - 1].gender
 										};
-										if (selectedMon.name === 'Toxtricity') {
+										if (selectedMonName === 'Toxtricity') {
 											if (selectedMon.form === 'Amped') {
 												pokemonArr[partyNum - 1].form = 'Amped Gigantamax';
 											}
@@ -6986,7 +6990,7 @@ client.on('messageCreate', (message) => {
 												pokemonArr[partyNum - 1].form = 'Low Key Gigantamax';
 											}
 										}
-										else if (selectedMon.name === 'Urshifu') {
+										else if (selectedMonName === 'Urshifu') {
 											if (selectedMon.form === 'Single Strike') {
 												pokemonArr[partyNum - 1].form = 'Single Strike Gigantamax';
 											}
@@ -6994,7 +6998,7 @@ client.on('messageCreate', (message) => {
 												pokemonArr[partyNum - 1].form = 'Rapid Strike Gigantamax';
 											}
 										}
-										else if (selectedMon.name === 'Meowth') {
+										else if (selectedMonName === 'Meowth') {
 											if (selectedMon.form === 'Default') {
 												pokemonArr[partyNum - 1].form = 'Gigantamax';
 											}
@@ -7003,7 +7007,7 @@ client.on('messageCreate', (message) => {
 												return;
 											}
 										}
-										else if (selectedMon.name === 'Slowbro') {
+										else if (selectedMonName === 'Slowbro') {
 											if (selectedMon.form === 'Default') {
 												pokemonArr[partyNum - 1].form = 'Mega';
 											}
@@ -7086,7 +7090,7 @@ client.on('messageCreate', (message) => {
 							{ name: '.release <partyNum> (.r)', value: 'Releases a Pokémon from your party.' + '\n' + 'Example: .release 1' },
 							{ name: '.trade @<user> (.t)', value: 'Initiates a trade with another user.' },
 							{ name: '.count', value: 'Displays the amount of each pokémon you\'ve caught.'},
-							{ name: '.leaderboard (.lb)', value: 'Display a leaderboard.' + '\n' + 'Usages: .lb currency **|** .lb shiny **|** .lb legendary **|** .lb mythical **|** .lb pokedex **|** .lb {pokémon}' },
+							{ name: '.leaderboard (.lb)', value: 'Display a leaderboard.' + '\n' + 'Usages: .lb currency *|* .lb shiny *|* .lb legendary *|* .lb mythical *|* .lb pokedex *|* .lb {pokémon}' },
 							{ name: '.remind', value: 'Reminds you when your drop is off cooldown.'},
 						)
 						.setTimestamp(),
@@ -7113,7 +7117,7 @@ client.on('messageCreate', (message) => {
 							{ name: '.buffs', value: 'Displays your permanent bot buffs.' },
 							{ name: '.trash <itemNum> <quantity>', value: 'Trashes an item in your inventory.' },
 							{ name: '.inventoryview <itemNum> (.iv)', value: 'Provides a description of an item in your inventory.' },
-							{ name: '.inventorysort <sortname> (.is)', value: 'Sorts your inventory by <sortname>.'  + '\n' + 'Usages: .is alphabetical **|** .is shop **|** .is quantity **|** .is swap <num1> <num2>' }
+							{ name: '.inventorysort <sortname> (.is)', value: 'Sorts your inventory by <sortname>.'  + '\n' + 'Usages: .is alphabetical *|* .is shop *|* .is quantity *|* .is swap <num1> <num2>' }
 						)
 						.setTimestamp(),
 					new EmbedBuilder()
