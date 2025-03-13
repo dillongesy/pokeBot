@@ -7946,6 +7946,7 @@ client.on('messageCreate', (message) => {
 					const args = message.content.split(' ');
 					if (args.length < 2) {
 						message.channel.send("'Improper command usage. Example: .inventorysort <order>");
+						return;
 					}
 					//code here
 					dbUser.get("SELECT inventory FROM user WHERE user_id = ?", [userId], (err, userInfo) => {
