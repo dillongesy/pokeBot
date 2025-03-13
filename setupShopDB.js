@@ -149,60 +149,60 @@ db.serialize(() => {
 		{ itemNum: 531, item_name: 'Dandy Trim', item_class: 1, pokemon_usage: 'Furfrou', new_form: 'Dandy Trim', reusable: 0, price: 250, drop_class: 'common', drop_rate: common / 9, explanation: '**CONSUMABLE**: Dandy trim for Furfrou transformation' },
 		{ itemNum: 532, item_name: 'La Reine Trim', item_class: 1, pokemon_usage: 'Furfrou', new_form: 'La Reine Trim', reusable: 0, price: 250, drop_class: 'common', drop_rate: common / 9, explanation: '**CONSUMABLE**: La Reine trim for Furfrou transformation' },
 		{ itemNum: 533, item_name: 'Kabuki Trim', item_class: 1, pokemon_usage: 'Furfrou', new_form: 'Kabuki Trim', reusable: 0, price: 250, drop_class: 'common', drop_rate: common / 9, explanation: '**CONSUMABLE**: Kabuki trim for Furfrou transformation' },
-		{ itemNum: 533, item_name: 'Pharaoh Trim', item_class: 1, pokemon_usage: 'Furfrou', new_form: 'Pharaoh Trim', reusable: 0, price: 250, drop_class: 'common', drop_rate: common / 9, explanation: '**CONSUMABLE**: Pharaoh trim for Furfrou transformation' },
+		{ itemNum: 534, item_name: 'Pharaoh Trim', item_class: 1, pokemon_usage: 'Furfrou', new_form: 'Pharaoh Trim', reusable: 0, price: 250, drop_class: 'common', drop_rate: common / 9, explanation: '**CONSUMABLE**: Pharaoh trim for Furfrou transformation' },
 		
 		//Hoopa Store
-		{ itemNum: 534, item_name: 'Prison Bottle', item_class: 1, pokemon_usage: 'Hoopa', new_form: 'Unbound', reusable: 1, price: 1000, explanation: '**REUSABLE**: Bottle for Hoopa Unbound transformation' },
+		{ itemNum: 535, item_name: 'Prison Bottle', item_class: 1, pokemon_usage: 'Hoopa', new_form: 'Unbound', reusable: 1, price: 1000, explanation: '**REUSABLE**: Bottle for Hoopa Unbound transformation' },
 		
 		//Oricorio Store
-		{ itemNum: 535, item_name: 'Red Nectar', item_class: 1, pokemon_usage: 'Oricorio', new_form: 'Baile Style', reusable: 0, price: 250, drop_class: 'common', drop_rate: common / 4, explanation: '**CONSUMABLE**: Red nectar for Oricorio transformation' },
-		{ itemNum: 536, item_name: 'Yellow Nectar', item_class: 1, pokemon_usage: 'Oricorio', new_form: 'Pom-Pom Style', reusable: 0, price: 250, drop_class: 'common', drop_rate: common / 4, explanation: '**CONSUMABLE**: Yellow nectar for Oricorio transformation' },
-		{ itemNum: 537, item_name: 'Pink Nectar', item_class: 1, pokemon_usage: 'Oricorio', new_form: 'Pa\'u Style', reusable: 0, price: 250, drop_class: 'common', drop_rate: common / 4, explanation: '**CONSUMABLE**: Pink nectar for Oricorio transformation' },
-		{ itemNum: 538, item_name: 'Purple Nectar', item_class: 1, pokemon_usage: 'Oricorio', new_form: 'Sensu Style', reusable: 0, price: 250, drop_class: 'common', drop_rate: common / 4, explanation: '**CONSUMABLE**: Purple nectar for Oricorio transformation' },
+		{ itemNum: 536, item_name: 'Red Nectar', item_class: 1, pokemon_usage: 'Oricorio', new_form: 'Baile Style', reusable: 0, price: 250, drop_class: 'common', drop_rate: common / 4, explanation: '**CONSUMABLE**: Red nectar for Oricorio transformation' },
+		{ itemNum: 537, item_name: 'Yellow Nectar', item_class: 1, pokemon_usage: 'Oricorio', new_form: 'Pom-Pom Style', reusable: 0, price: 250, drop_class: 'common', drop_rate: common / 4, explanation: '**CONSUMABLE**: Yellow nectar for Oricorio transformation' },
+		{ itemNum: 538, item_name: 'Pink Nectar', item_class: 1, pokemon_usage: 'Oricorio', new_form: 'Pa\'u Style', reusable: 0, price: 250, drop_class: 'common', drop_rate: common / 4, explanation: '**CONSUMABLE**: Pink nectar for Oricorio transformation' },
+		{ itemNum: 539, item_name: 'Purple Nectar', item_class: 1, pokemon_usage: 'Oricorio', new_form: 'Sensu Style', reusable: 0, price: 250, drop_class: 'common', drop_rate: common / 4, explanation: '**CONSUMABLE**: Purple nectar for Oricorio transformation' },
 		
 		//Silvally Store
-		{ itemNum: 539, item_name: 'Fighting Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Fighting', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Fighting memory for Silvally transformation' },
-		{ itemNum: 540, item_name: 'Flying Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Flying', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Flying memory for Silvally transformation' },
-		{ itemNum: 541, item_name: 'Poison Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Poison', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Poison memory for Silvally transformation' },
-		{ itemNum: 542, item_name: 'Ground Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Ground', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Ground memory for Silvally transformation' },
-		{ itemNum: 543, item_name: 'Rock Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Rock', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Rock memory for Silvally transformation' },
-		{ itemNum: 544, item_name: 'Bug Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Bug', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Bug memory for Silvally transformation' },
-		{ itemNum: 545, item_name: 'Ghost Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Ghost', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Ghost memory for Silvally transformation' },
-		{ itemNum: 546, item_name: 'Steel Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Steel', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Steel memory for Silvally transformation' },
-		{ itemNum: 547, item_name: 'Fire Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Fire', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Fire memory for Silvally transformation' },
-		{ itemNum: 548, item_name: 'Water Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Water', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Water memory for Silvally transformation' },
-		{ itemNum: 549, item_name: 'Grass Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Grass', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Grass memory for Silvally transformation' },
-		{ itemNum: 550, item_name: 'Electric Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Electric', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Electric memory for Silvally transformation' },
-		{ itemNum: 551, item_name: 'Psychic Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Psychic', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Psychic memory for Silvally transformation' },
-		{ itemNum: 552, item_name: 'Ice Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Ice', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Ice memory for Silvally transformation' },
-		{ itemNum: 553, item_name: 'Dragon Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Dragon', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Dragon memory for Silvally transformation' },
-		{ itemNum: 554, item_name: 'Dark Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Dark', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Dark memory for Silvally transformation' },
-		{ itemNum: 555, item_name: 'Fairy Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Fairy', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Fairy memory for Silvally transformation' },
+		{ itemNum: 540, item_name: 'Fighting Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Fighting', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Fighting memory for Silvally transformation' },
+		{ itemNum: 541, item_name: 'Flying Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Flying', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Flying memory for Silvally transformation' },
+		{ itemNum: 542, item_name: 'Poison Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Poison', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Poison memory for Silvally transformation' },
+		{ itemNum: 543, item_name: 'Ground Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Ground', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Ground memory for Silvally transformation' },
+		{ itemNum: 544, item_name: 'Rock Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Rock', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Rock memory for Silvally transformation' },
+		{ itemNum: 545, item_name: 'Bug Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Bug', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Bug memory for Silvally transformation' },
+		{ itemNum: 546, item_name: 'Ghost Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Ghost', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Ghost memory for Silvally transformation' },
+		{ itemNum: 547, item_name: 'Steel Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Steel', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Steel memory for Silvally transformation' },
+		{ itemNum: 548, item_name: 'Fire Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Fire', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Fire memory for Silvally transformation' },
+		{ itemNum: 549, item_name: 'Water Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Water', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Water memory for Silvally transformation' },
+		{ itemNum: 550, item_name: 'Grass Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Grass', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Grass memory for Silvally transformation' },
+		{ itemNum: 551, item_name: 'Electric Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Electric', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Electric memory for Silvally transformation' },
+		{ itemNum: 552, item_name: 'Psychic Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Psychic', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Psychic memory for Silvally transformation' },
+		{ itemNum: 553, item_name: 'Ice Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Ice', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Ice memory for Silvally transformation' },
+		{ itemNum: 554, item_name: 'Dragon Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Dragon', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Dragon memory for Silvally transformation' },
+		{ itemNum: 555, item_name: 'Dark Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Dark', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Dark memory for Silvally transformation' },
+		{ itemNum: 556, item_name: 'Fairy Memory', item_class: 1, pokemon_usage: 'Silvally', new_form: 'Type: Fairy', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 17, explanation: '**CONSUMABLE**: Fairy memory for Silvally transformation' },
 		
 		//Necrozma Store
-		{ itemNum: 556, item_name: 'N-Solarizer', item_class: 1, pokemon_usage: 'Necrozma', new_form: 'Dusk Mane', reusable: 1, price: 1000, drop_class: null, drop_rate: 0, explanation: '**REUSABLE**: N-Solarizer for Dusk Mane Necrozma transformation' },
-		{ itemNum: 557, item_name: 'N-Lunarizer', item_class: 1, pokemon_usage: 'Necrozma', new_form: 'Dawn Wings', reusable: 1, price: 1000, drop_class: null, drop_rate: 0, explanation: '**REUSABLE**: N-Lunarizer for Dawn Wings Necrozma transformation' },
-		{ itemNum: 558, item_name: 'Ultranecrozium Z', item_class: 1, pokemon_usage: 'Necrozma', new_form: 'Ultra', reusable: 0, price: 500, drop_class: 'common', drop_rate: common / 1, explanation: '**CONSUMABLE**: Ultranecrozium Z for Ultra Necrozma transformation \n __**REQUIRES** Dusk Mane or Dawn Wings Necrozma!!!__' },
+		{ itemNum: 557, item_name: 'N-Solarizer', item_class: 1, pokemon_usage: 'Necrozma', new_form: 'Dusk Mane', reusable: 1, price: 1000, drop_class: null, drop_rate: 0, explanation: '**REUSABLE**: N-Solarizer for Dusk Mane Necrozma transformation' },
+		{ itemNum: 558, item_name: 'N-Lunarizer', item_class: 1, pokemon_usage: 'Necrozma', new_form: 'Dawn Wings', reusable: 1, price: 1000, drop_class: null, drop_rate: 0, explanation: '**REUSABLE**: N-Lunarizer for Dawn Wings Necrozma transformation' },
+		{ itemNum: 559, item_name: 'Ultranecrozium Z', item_class: 1, pokemon_usage: 'Necrozma', new_form: 'Ultra', reusable: 0, price: 500, drop_class: 'common', drop_rate: common / 1, explanation: '**CONSUMABLE**: Ultranecrozium Z for Ultra Necrozma transformation \n __**REQUIRES** Dusk Mane or Dawn Wings Necrozma!!!__' },
 		
 		//Zacian Store
-		{ itemNum: 559, item_name: 'Rusted Sword', item_class: 1, pokemon_usage: 'Zacian', new_form: 'Crowned Sword', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 1, explanation: '**CONSUMABLE**: Rusted sword for Crowned Sword Zacian transformation' },
+		{ itemNum: 560, item_name: 'Rusted Sword', item_class: 1, pokemon_usage: 'Zacian', new_form: 'Crowned Sword', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 1, explanation: '**CONSUMABLE**: Rusted sword for Crowned Sword Zacian transformation' },
 		
 		//Zamazenta Store
-		{ itemNum: 560, item_name: 'Rusted Shield', item_class: 1, pokemon_usage: 'Zamazenta', new_form: 'Crowned Shield', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 1, explanation: '**CONSUMABLE**: Rusted sword for Crowned Shield Zamazenta transformation' },
+		{ itemNum: 561, item_name: 'Rusted Shield', item_class: 1, pokemon_usage: 'Zamazenta', new_form: 'Crowned Shield', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 1, explanation: '**CONSUMABLE**: Rusted sword for Crowned Shield Zamazenta transformation' },
 		
 		//Dialga
-		{ itemNum: 561, item_name: 'Adamant Crystal', item_class: 1, pokemon_usage: 'Dialga', new_form: 'Origin', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 1, explanation: '**CONSUMABLE**: Adamant Crystal for Origin Dialga transformation' },
+		{ itemNum: 562, item_name: 'Adamant Crystal', item_class: 1, pokemon_usage: 'Dialga', new_form: 'Origin', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 1, explanation: '**CONSUMABLE**: Adamant Crystal for Origin Dialga transformation' },
 		
 		//Palkia
-		{ itemNum: 562, item_name: 'Lustrous Globe', item_class: 1, pokemon_usage: 'Palkia', new_form: 'Origin', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 1, explanation: '**CONSUMABLE**: Lustrous Globe for Origin Palkia transformation' },
+		{ itemNum: 563, item_name: 'Lustrous Globe', item_class: 1, pokemon_usage: 'Palkia', new_form: 'Origin', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 1, explanation: '**CONSUMABLE**: Lustrous Globe for Origin Palkia transformation' },
 		
 		//Giratina
-		{ itemNum: 563, item_name: 'Griseous Core', item_class: 1, pokemon_usage: 'Giratina', new_form: 'Origin', reusable: 2, price: 500,drop_class: 'common', drop_rate: common / 1,  explanation: '**CONSUMABLE**: Griseous Core for Origin Giratina transformation' },
+		{ itemNum: 564, item_name: 'Griseous Core', item_class: 1, pokemon_usage: 'Giratina', new_form: 'Origin', reusable: 2, price: 500,drop_class: 'common', drop_rate: common / 1,  explanation: '**CONSUMABLE**: Griseous Core for Origin Giratina transformation' },
 		
 		//Ogerpon
-		{ itemNum: 564, item_name: 'Wellspring Mask', item_class: 1, pokemon_usage: 'Ogerpon', new_form: 'Wellspring', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 3, explanation: '**CONSUMABLE**: Wellspring Mask for Wellspring Ogerpon transformation' },
-		{ itemNum: 565, item_name: 'Hearthflame Mask', item_class: 1, pokemon_usage: 'Ogerpon', new_form: 'Hearthflame', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 3, explanation: '**CONSUMABLE**: Hearthflame Mask for Hearthflame Ogerpon transformation' },
-		{ itemNum: 566, item_name: 'Cornerstone Mask', item_class: 1, pokemon_usage: 'Ogerpon', new_form: 'Cornerstone', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 3, explanation: '**CONSUMABLE**: Cornerstone Mask for Cornerstone Ogerpon transformation' }
+		{ itemNum: 565, item_name: 'Wellspring Mask', item_class: 1, pokemon_usage: 'Ogerpon', new_form: 'Wellspring', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 3, explanation: '**CONSUMABLE**: Wellspring Mask for Wellspring Ogerpon transformation' },
+		{ itemNum: 566, item_name: 'Hearthflame Mask', item_class: 1, pokemon_usage: 'Ogerpon', new_form: 'Hearthflame', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 3, explanation: '**CONSUMABLE**: Hearthflame Mask for Hearthflame Ogerpon transformation' },
+		{ itemNum: 567, item_name: 'Cornerstone Mask', item_class: 1, pokemon_usage: 'Ogerpon', new_form: 'Cornerstone', reusable: 2, price: 500, drop_class: 'common', drop_rate: common / 3, explanation: '**CONSUMABLE**: Cornerstone Mask for Cornerstone Ogerpon transformation' }
 	]; 
 	//{ itemNum: , item_name: '', item_class: , pokemon_usage: null, new_form: null, reusable: , price: , explanation: '' },
 
