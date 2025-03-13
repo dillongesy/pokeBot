@@ -2263,7 +2263,7 @@ client.on('messageCreate', (message) => {
 								if (resetDrop) {
 									message.channel.send('Your drop has been instantly reset!');
 								}
-								if (userId === '216789962459185152' && curMon.toLowerCase() === 'Koffing') {
+								if (userId === '216789962459185152' && curMon.toLowerCase() === 'koffing') {
 									message.channel.send('L000000L EVERYONE LOOK LOOK LOOK EVERYONE LOOK BRENDA DROPPED A KOFFING LMFAOOOOOOOOOOOOOOOO LOOK GUYS IT\'S HILARIOUS BETTER TYPE KOFFING BRENDAAAA YOU REALLLLLY NEED TO CLAIM IT MAKE SURE YOU GRAB IT FAST IT MIGHT GET STOLEN L000000L JK NICE KOFFING');
 								}
 							}
@@ -2410,6 +2410,8 @@ client.on('messageCreate', (message) => {
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'leafeon' && message.content.toLowerCase() === 'rukia')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'sylveon' && message.content.toLowerCase() === 'etude')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'glaceon' && message.content.toLowerCase() === 'suzume')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'clodsire' && message.content.toLowerCase() === 'dooh')
+				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'ivysaur' && message.content.toLowerCase() === 'ivy')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygon z')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'porygon-z' && message.content.toLowerCase() === 'porygonz')
 				|| (activeDrops.get(`${serverId}_${message.channel.id}`).name.toLowerCase() === 'flabébé' && message.content.toLowerCase() === 'flabebe')
