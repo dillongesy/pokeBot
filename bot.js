@@ -4941,6 +4941,10 @@ client.on('messageCreate', (message) => {
 							if (dflag) {
 								titleEnder = ' (Duplicates)';
 							}
+							if (compareList.length < 1) {
+								message.channel.send("User has no Pokemon you don't!");
+								return;
+							}
 
 							const buttonRow = new ActionRowBuilder()
 								.addComponents(
