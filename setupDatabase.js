@@ -4118,7 +4118,7 @@ db.serialize(() => {
 				{name: 'Cornerstone', percentage: 0 }
 			]), 
 			imageLinks: JSON.stringify({ 
-				default: 'https://archives.bulbagarden.net/media/upload/c/c8/1017Ogerpon-Teal_Mask.png',
+				default: 'https://archives.bulbagarden.net/media/upload/a/a5/1017Ogerpon.png',
 				'Wellspring': 'https://archives.bulbagarden.net/media/upload/6/69/1017Ogerpon-Wellspring_Mask.png',
 				'Hearthflame': 'https://archives.bulbagarden.net/media/upload/9/97/1017Ogerpon-Hearthflame_Mask.png',
 				'Cornerstone': 'https://archives.bulbagarden.net/media/upload/4/4d/1017Ogerpon-Cornerstone_Mask.png'
