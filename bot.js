@@ -4804,129 +4804,150 @@ client.on('messageCreate', (message) => {
 
 			//compare
 			else if (compareCommandRegex.test(message.content.toLowerCase())) {
-				//syntax: .compare <userName>
 				const args = message.content.split(' ').slice(1);
 				const userRegex = /^<@\d+>|<@!\d+>$/;
 				if (!userRegex.test(args[0])) {
 					message.channel.send("You must @ a user to compare.");
 					return;
 				}
+				let dflag = false;
+				if (args.length > 1) {
+					if (args[1] === 'd' || args[1] === 'dupes' || args[1] === 'duplicates' || args[1] === 'm' || args[1] === 'multi' || args[1] === 'multiple') {
+						dflag = true;
+					}
+				}
 				let tag = args[0].substring(2, args[0].length - 1);
-				dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err, cmdUser) => {
+				//get dex info: name, dexNum, WHERE isLM != 3 (name: dexList)
+				db.all("SELECT name, dexNum, gender FROM pokemon WHERE isLM != 3", [], (err, dexList) => {
 					if (err) {
-						console.error(err);
+						console.error(err.message);
+						message.channel.send('An error occurred while fetching the Pokémon database.');
 						return;
 					}
-					if (!cmdUser) {
-						message.channel.send('Catch a pokemon to use this command.');
+					if (!dexList) {
+						console.message('No Pokemon in database.');
 						return;
 					}
-					const cmdUserCaughtPokemon = cmdUser && cmdUser.caught_pokemon ? JSON.parse(cmdUser.caught_pokemon).flat().map(p => ({
-						name: p.name.startsWith('✨') ? p.name.slice(1) : p.name,
-						gender: p.gender
-					})) : [];
 
-					dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [tag], (err2, tagUser) => {
+					dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [userId], (err2, cmdUserPkmn) => {
 						if (err2) {
-							console.error(err2);
+							console.error(err.message);
+							message.channel.send('An error occurred while fetching user\'s Pokémon.');
 							return;
 						}
-						if (!tagUser) {
-							message.channel.send('Target user has not caught any pokemon yet.');
+						if (!cmdUserPkmn) {
+							console.message('No Pokemon in database.');
+							message.channel.send('User has not caught any Pokémon yet!');
 							return;
 						}
-						const tagUserCaughtPokemon = tagUser && tagUser.caught_pokemon ? JSON.parse(tagUser.caught_pokemon).flat().map(p => ({
-							name: p.name.startsWith('✨') ? p.name.slice(1) : p.name,
-							gender: p.gender
-						})) : [];
+						cmdUserPkmn = JSON.parse(cmdUserPkmn.caught_pokemon);
 
-						db.all("SELECT name, dexNum, isLM, gender FROM pokemon WHERE isLM != 3", [], async (err, allPokemonList) => {
-							if (err) {
+						//get comparison's pokemon (cmpPkmn)
+						dbUser.get("SELECT caught_pokemon FROM user WHERE user_id = ?", [tag], (err3, cmpPkmn) => {
+							if (err3) {
 								console.error(err.message);
-								message.channel.send('An error occurred while fetching the Pokémon database.');
+								message.channel.send('An error occurred while fetching user\'s Pokémon.');
 								return;
 							}
-							if (!allPokemonList) {
-								console.message('No Pokémon in database.');
+							if (!cmpPkmn) {
+								console.message('No Pokemon in database.');
+								message.channel.send('User has not caught any Pokémon yet!');
 								return;
 							}
+							cmpPkmn = JSON.parse(cmpPkmn.caught_pokemon);
 
-							const hasCaughtPokemon = (pokemon) => {
-								if (pokemon.name === 'Nidoran') {
-									if (pokemon.dexNum === '29') {
-										return cmdUserCaughtPokemon.some(cp => cp.name === 'Nidoran' && cp.gender === 'Female');
-									} else if (pokemon.dexNum === '32') {
-										return cmdUserCaughtPokemon.some(cp => cp.name === 'Nidoran' && cp.gender === 'Male');
-									}
+							let cmdUserMap = new Map();
+							for (let i = 0; i < cmdUserPkmn.length; i++) {
+								let pokemonName = cmdUserPkmn[i].name.replace("✨", "");
+								if (pokemonName === 'Nidoran') {
+									pokemonName = pokemonName + cmdUserPkmn[i].gender;
 								}
-								return cmdUserCaughtPokemon.some(cp => cp.name === pokemon.name);
-							};
 
-							const hasCaughtPokemon2 = (pokemon) => {
-								if (pokemon.name === 'Nidoran') {
-									if (pokemon.dexNum === '29') {
-										return tagUserCaughtPokemon.some(cp => cp.name === 'Nidoran' && cp.gender === 'Female');
-									} else if (pokemon.dexNum === '32') {
-										return tagUserCaughtPokemon.some(cp => cp.name === 'Nidoran' && cp.gender === 'Male');
-									}
+								if (!cmdUserMap.has(pokemonName)) {
+									cmdUserMap.set(pokemonName, 1);
 								}
-								return tagUserCaughtPokemon.some(cp => cp.name === pokemon.name);
-							};
-
-							const uncaughtPokemon = allPokemonList.filter(pokemon => !hasCaughtPokemon(pokemon));
-
-							const caughtPokemon = allPokemonList.filter(pokemon => hasCaughtPokemon2(pokemon));
-
-							if (uncaughtPokemon.length === 0) {
-								message.channel.send('You have caught all available Pokémon!');
-                    			return;
+								else {
+									cmdUserMap.set(pokemonName, cmdUserMap.get(pokemonName) + 1);
+								}
 							}
 
-							const matchingPokemon = caughtPokemon.filter(caught =>
-								uncaughtPokemon.some(uncaught =>
-									uncaught.name === caught.name && uncaught.dexNum === caught.dexNum
-								)
-							);
+							let targetUserMap = new Map();
+							for (let i = 0; i < cmpPkmn.length; i++) {
+								let pokemonName = cmpPkmn[i].name.replace("✨", "");
+								if (pokemonName === 'Nidoran') {
+									pokemonName = pokemonName + cmpPkmn[i].gender;
+								}
 
-							if (matchingPokemon.length === 0) {
-								message.channel.send('The other user has no pokemon you don\'t own.');
-                    			return;
+								if (!targetUserMap.has(pokemonName)) {
+									targetUserMap.set(pokemonName, 1);
+								}
+								else {
+									targetUserMap.set(pokemonName, targetUserMap.get(pokemonName) + 1);
+								}
 							}
 
-							const pageSize = 20;
+							let compareList = [];
+							for (let i = 0; i < dexList.length; i++) {
+								if (dexList[i].name === 'Nidoran') {
+									if (dexList[i].dexNum === '29') {
+										cmdUserCount = cmdUserMap.get(dexList[i].name + 'Female') || 0;
+										targetUserCount = targetUserMap.get(dexList[i].name + 'Female') || 0;
+									}
+									else {
+										cmdUserCount = cmdUserMap.get(dexList[i].name + 'Male') || 0;
+										targetUserCount = targetUserMap.get(dexList[i].name + 'Male') || 0;
+									}
+								}
+								else {
+									cmdUserCount = cmdUserMap.get(dexList[i].name) || 0;
+									targetUserCount = targetUserMap.get(dexList[i].name) || 0;
+								}
+
+								if (dflag) {
+									if (targetUserCount > 1 && cmdUserCount < 1) {
+										if (dexList[i].name === 'Nidoran') {
+											if (dexList[i].dexNum === '29') {
+												compareList.push( {dexNum: dexList[i].dexNum, name: dexList[i].name + '`♀\u200B`'});
+											}
+											else {
+												compareList.push( {dexNum: dexList[i].dexNum, name: dexList[i].name + '`♂\u200B`'});
+											}
+										}
+										else {
+											compareList.push( {dexNum: dexList[i].dexNum, name: dexList[i].name});
+										}
+									}
+								}
+								else {
+									if (targetUserCount > 0 && cmdUserCount < 1) {
+										if (dexList[i].name === 'Nidoran') {
+											if (dexList[i].dexNum === '29') {
+												compareList.push( {dexNum: dexList[i].dexNum, name: dexList[i].name + '`♀\u200B`'});
+											}
+											else {
+												compareList.push( {dexNum: dexList[i].dexNum, name: dexList[i].name + '`♂\u200B`'});
+											}
+										}
+										else {
+											compareList.push( {dexNum: dexList[i].dexNum, name: dexList[i].name});
+										}
+									}
+								}
+							}
 							let page = 0;
+							let totalPages = Math.ceil(compareList.length / 20);
 
-							const generateUncaughtEmbed = async (compareList, page, pageSize) => {
-								const start = page * pageSize;
-								const end = start + pageSize;
-								const pageData = compareList.slice(start, end);
-
-								const tagName = await client.users.fetch(tag)
-									.then(user => user.username)
-									.catch(err => {
-										console.error('An error occurred while fetching the tagged person\'s username');
-										return 'User';
-									});
-
-								return new EmbedBuilder()
-									.setColor('#0099ff')
-									.setTitle(`${tagName}'s Pokemon You Don't Own`)
-									.setDescription(pageData.map((pokemon) => {
-										// Display gender for Nidoran only
-										if (pokemon.name === 'Nidoran' && pokemon.dexNum === '29') {
-											return `\`${pokemon.dexNum}\` ${pokemon.name} (♀)`;
-										}
-										if (pokemon.name === 'Nidoran' && pokemon.dexNum === '32') {
-											return `\`${pokemon.dexNum}\` ${pokemon.name} (♂)`;
-										}
-										return `\`${pokemon.dexNum}\` ${pokemon.name}`;
-									}).join('\n'))
-									.setFooter({ text: `Page ${page + 1} of ${Math.ceil(compareList.length / pageSize)}` })
-									.setTimestamp();
-							};
+							let titleEnder = '';
+							if (dflag) {
+								titleEnder = ' (Duplicates)';
+							}
 
 							const buttonRow = new ActionRowBuilder()
 								.addComponents(
+									new ButtonBuilder()
+										.setCustomId('rewind')
+										.setLabel('⏪')
+										.setStyle(ButtonStyle.Primary),
 									new ButtonBuilder()
 										.setCustomId('prevPage')
 										.setLabel('◀')
@@ -4934,36 +4955,53 @@ client.on('messageCreate', (message) => {
 									new ButtonBuilder()
 										.setCustomId('nextPage')
 										.setLabel('▶')
+										.setStyle(ButtonStyle.Primary),
+									new ButtonBuilder()
+										.setCustomId('fforward')
+										.setLabel('⏩')
 										.setStyle(ButtonStyle.Primary)
 								);
-							const embed = await generateUncaughtEmbed(matchingPokemon, page, pageSize);
+						
 
+							const generateCompareEmbed = (page) => {
+								const start = page * 20;
+								const end = start + 20;
+								const pageItems = compareList.slice(start, end);
+
+								const embed = new EmbedBuilder()
+									.setColor('#0099ff')
+									.setTitle(`User's Pokemon You Don't Own${titleEnder}`)
+									.setDescription(pageItems.map((pokemon) => {
+										return `\`${pokemon.dexNum}\` ${pokemon.name}`;
+									}).join('\n'))
+									.setFooter({ text: `Page ${page + 1} of ${totalPages}` })
+									.setTimestamp();
+
+								return embed;
+							};
+
+							const embed = generateCompareEmbed(page);
 							message.channel.send({ embeds: [embed], components: [buttonRow] }).then(sentMessage => {
-								const filter = i => i.user.id === userId;
+								const filter = i => i.user.id === message.author.id;
 								const collector = sentMessage.createMessageComponentCollector({ filter, time: 60000 });
 
 								collector.on('collect', async i => {
 									try {
 										if (i.customId === 'prevPage') {
-											page = page - 1;
-											if (page < 0) {
-												page = Math.ceil(matchingPokemon.length / pageSize) - 1;
-											}
+											page = (page - 1 + totalPages) % totalPages;
+										} else if (i.customId === 'nextPage') {
+											page = (page + 1) % totalPages;
+										} else if (i.customId === 'rewind') {
+											page = 0;
+										} else if (i.customId === 'fforward') {
+											page = totalPages - 1;
 										}
-										else if (i.customId === 'nextPage') {
-											page = page + 1;
-											if (page > Math.ceil(matchingPokemon.length / pageSize) - 1) {
-												page = 0;
-											}
-										}
-
-										const updatedEmbed = await generateUncaughtEmbed(matchingPokemon, page, pageSize);
-										await i.update({ embeds: [updatedEmbed] });
+										const updatedEmbed = generateCompareEmbed(page);
+										await i.update({ embeds: [updatedEmbed], components: [buttonRow] });
 									} catch (error) {
 										if (error.code === 10008) {
 											console.log('The message was deleted before the interaction was handled.');
-										}
-										else {
+										} else {
 											console.error('An unexpected error occurred:', error);
 										}
 									}
@@ -4974,6 +5012,11 @@ client.on('messageCreate', (message) => {
 										const disabledRow = new ActionRowBuilder()
 											.addComponents(
 												new ButtonBuilder()
+													.setCustomId('rewind')
+													.setLabel('⏪')
+													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true),
+												new ButtonBuilder()
 													.setCustomId('prevPage')
 													.setLabel('◀')
 													.setStyle(ButtonStyle.Primary)
@@ -4982,20 +5025,25 @@ client.on('messageCreate', (message) => {
 													.setCustomId('nextPage')
 													.setLabel('▶')
 													.setStyle(ButtonStyle.Primary)
+													.setDisabled(true),
+												new ButtonBuilder()
+													.setCustomId('fforward')
+													.setLabel('⏩')
+													.setStyle(ButtonStyle.Primary)
 													.setDisabled(true)
 											);
+
 										await sentMessage.edit({ components: [disabledRow] });
 									} catch (error) {
 										if (error.code === 10008) {
 											console.log('The message was deleted before the interaction was handled.');
-										}
-										else {
+										} else {
 											console.error('An unexpected error occurred:', error);
 										}
 									}
 								});
 							}).catch(err => {
-								console.error('Error sending the uncaught Pokémon list:', err);
+								console.error('Error sending the quest message:', err);
 							});
 						});
 					});
@@ -7944,10 +7992,6 @@ client.on('messageCreate', (message) => {
 						return;
 					}
 					const args = message.content.split(' ');
-					if (args.length < 2) {
-						message.channel.send("'Improper command usage. Example: .inventorysort <order>");
-						return;
-					}
 					//code here
 					dbUser.get("SELECT inventory FROM user WHERE user_id = ?", [userId], (err, userInfo) => {
 						if (err || !userInfo) {
