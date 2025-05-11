@@ -332,7 +332,7 @@ db.serialize(() => {
 		},
 		{ name: 'Arcanine', dexNum: '59', type1: 'Fire', type2: null, region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 75 }, { name: 'Female', percentage: 25 } ]), 
 			forms: JSON.stringify([ 
-				{name: 'Default', percentage: 100 },
+				{name: 'Default', percentage: 90 },
 				{name: 'Hisuian', percentage: 10 }
 			]), 
 			imageLinks: JSON.stringify({ 
