@@ -164,15 +164,21 @@ db.serialize(() => {
 		{ name: 'Raichu', dexNum: '26', type1: 'Electic', type2: null, region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Default', percentage: 90 },
-				{name: 'Alolan', percentage: 10 }
+				{name: 'Alolan', percentage: 10 },
+				{name: 'Mega X', percentage: 0 },
+				{name: 'Mega Y', percentage: 0 }
 			]), 
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/b/b0/0026Raichu.png',
-				'Alolan': 'https://archives.bulbagarden.net/media/upload/6/65/0026Raichu-Alola.png'
+				'Alolan': 'https://archives.bulbagarden.net/media/upload/6/65/0026Raichu-Alola.png',
+				'Mega X': 'https://archives.bulbagarden.net/media/upload/9/9f/0026Raichu-Mega_X.png',
+				'Mega Y': 'https://archives.bulbagarden.net/media/upload/6/65/0026Raichu-Mega_Y.png'
 			}), 
 			shinyImageLinks: JSON.stringify({ 
 				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddhybo3-76d94e1a-dfa7-49b9-ab29-4f2568a56a36.png',
-				'Alolan': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddo0yiu-07833b83-7f4b-443f-a2e6-d68a90d54b86.png'
+				'Alolan': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddo0yiu-07833b83-7f4b-443f-a2e6-d68a90d54b86.png',
+				'Mega X': 'https://i.ibb.co/JFWV2HWb/026-Raichu-X.png',
+				'Mega Y': 'https://i.ibb.co/277fWkKP/026-Raichu-Y.png'
 			}) 
 		},
 		{ name: 'Sandshrew', dexNum: '27', type1: 'Ground', type2: null, region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
@@ -210,7 +216,20 @@ db.serialize(() => {
 		{ name: 'Nidorino', dexNum: '33', type1: 'Poison', type2: null, region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/1/1e/0033Nidorino.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddhycc2-b42f3d44-69a5-4ea5-848a-639856cf236c.png/v1/fit/w_825,h_825/_033_nidorino_by_tonofdirt726_ddhycc2-414w-2x.png' }) },
 		{ name: 'Nidoking', dexNum: '34', type1: 'Poison', type2: 'Ground', region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/2/21/0034Nidoking.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddhycf3-30f735eb-2494-4964-857e-8e52e62fac14.png/v1/fill/w_853,h_853/_034_nidoking_by_tonofdirt726_ddhycf3-fullview.png' }) },
 		{ name: 'Clefairy', dexNum: '35', type1: 'Fairy', type2: null, region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 25 }, { name: 'Female', percentage: 75 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/b/b7/0035Clefairy.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddi3gg4-bf16a5e2-4ca5-42b4-ab71-8476f135ccbf.png/v1/fit/w_748,h_748/_035_clefairy_by_tonofdirt726_ddi3gg4-375w-2x.png' }) },
-		{ name: 'Clefable', dexNum: '36', type1: 'Fairy', type2: null, region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 25 }, { name: 'Female', percentage: 75 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/a/a4/0036Clefable.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddi3gob-4e1cf209-9982-46fa-805a-564d6fa5fbfd.png/v1/fill/w_833,h_833/_036_clefable_by_tonofdirt726_ddi3gob-fullview.png' }) },
+		{ name: 'Clefable', dexNum: '36', type1: 'Fairy', type2: null, region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 25 }, { name: 'Female', percentage: 75 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/a/a4/0036Clefable.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/5/5a/0036Clefable-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddi3gob-4e1cf209-9982-46fa-805a-564d6fa5fbfd.png/v1/fill/w_833,h_833/_036_clefable_by_tonofdirt726_ddi3gob-fullview.png',
+				'Mega': 'https://i.ibb.co/Jj3XpPkb/036-Clefable.png'
+			}) 
+		},
 		{ name: 'Vulpix', dexNum: '37', type1: 'Fire', type2: null, region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 25 }, { name: 'Female', percentage: 75 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Default', percentage: 90 },
@@ -381,7 +400,20 @@ db.serialize(() => {
 		},
 		{ name: 'Bellsprout', dexNum: '69', type1: 'Grass', type2: 'Poison', region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/6/66/0069Bellsprout.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddi8rnq-bbfedd47-418c-457e-895b-211b2978ce0b.png/v1/fit/w_828,h_828/_069_bellsprout_by_tonofdirt726_ddi8rnq-414w-2x.png' }) },
 		{ name: 'Weepinbell', dexNum: '70', type1: 'Grass', type2: 'Poison', region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/c/c1/0070Weepinbell.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddi8rqv-c8e2ee44-dce0-4c9c-8d24-74d27036954c.png/v1/fit/w_814,h_814/_070_weepinbell_by_tonofdirt726_ddi8rqv-414w-2x.png' }) },
-		{ name: 'Victreebel', dexNum: '71', type1: 'Grass', type2: 'Poison', region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/e/e9/0071Victreebel.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddi8rsy-dc1e594a-7036-4b2b-b58b-d0021ee09fb4.png/v1/fit/w_822,h_822/_071_victreebel_by_tonofdirt726_ddi8rsy-414w-2x.png' }) },
+		{ name: 'Victreebel', dexNum: '71', type1: 'Grass', type2: 'Poison', region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/e/e9/0071Victreebel.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/0/06/0071Victreebel-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddi8rsy-dc1e594a-7036-4b2b-b58b-d0021ee09fb4.png/v1/fit/w_822,h_822/_071_victreebel_by_tonofdirt726_ddi8rsy-414w-2x.png',
+				'Mega': 'https://i.ibb.co/svykKqpT/071-Victreebel.png'
+			}) 
+		},
 		{ name: 'Tentacool', dexNum: '72', type1: 'Water', type2: 'Poison', region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/6/6e/0072Tentacool.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddi8rvk-1565674a-0e3d-4f89-bf6f-b4537bc1b1e3.png/v1/fill/w_833,h_833/_072_tentacool_by_tonofdirt726_ddi8rvk-fullview.png' }) },
 		{ name: 'Tentacruel', dexNum: '73', type1: 'Water', type2: 'Poison', region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/c/cb/0073Tentacruel.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddi8ryw-fa4faef4-971d-419b-bcfd-bfc173a91d46.png/v1/fill/w_862,h_862/_073_tentacruel_by_tonofdirt726_ddi8ryw-fullview.png' }) },
 		{ name: 'Geodude', dexNum: '74', type1: 'Rock', type2: 'Ground', region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
@@ -671,7 +703,20 @@ db.serialize(() => {
 		{ name: 'Goldeen', dexNum: '118', type1: 'Water', type2: null, region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/b/b6/0118Goldeen.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddiaqbl-745ab972-eeca-4776-a727-2fed3133ab26.png/v1/fill/w_830,h_830/_118_goldeen_by_tonofdirt726_ddiaqbl-fullview.png' }) },
 		{ name: 'Seaking', dexNum: '119', type1: 'Water', type2: null, region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/7/76/0119Seaking.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddiaqf8-8ebc4a31-3143-4876-a911-893244b5a9ab.png/v1/fill/w_851,h_851/_119_seaking_by_tonofdirt726_ddiaqf8-fullview.png' }) },
 		{ name: 'Staryu', dexNum: '120', type1: 'Water', type2: null, region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/3/38/0120Staryu.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddiaqic-3e8a74cd-1d85-4278-ac6b-6447aea3eac0.png/v1/fit/w_816,h_816/_120_staryu_by_tonofdirt726_ddiaqic-414w-2x.png' }) },
-		{ name: 'Starmie', dexNum: '121', type1: 'Water', type2: 'Psychic', region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/a/aa/0121Starmie.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddiaqmz-a973f32b-7ee5-458f-9a38-f26b0f168776.png/v1/fit/w_808,h_808/_121_starmie_by_tonofdirt726_ddiaqmz-414w-2x.png' }) },
+		{ name: 'Starmie', dexNum: '121', type1: 'Water', type2: 'Psychic', region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/a/aa/0121Starmie.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/2/2c/0121Starmie-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddiaqmz-a973f32b-7ee5-458f-9a38-f26b0f168776.png/v1/fit/w_808,h_808/_121_starmie_by_tonofdirt726_ddiaqmz-414w-2x.png',
+				'Mega': 'https://i.ibb.co/vCn4YSvx/121-Starmie.png'
+			}) 
+		},
 		{ name: 'Mr. Mime', dexNum: '122', type1: 'Psychic', type2: 'Fairy', region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Default', percentage: 90 },
@@ -848,7 +893,20 @@ db.serialize(() => {
 		},
 		{ name: 'Dratini', dexNum: '147', type1: 'Dragon', type2: null, region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/a/ae/0147Dratini.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddiauso-27fb92d1-aa16-4800-9e6c-a525bb4d59ac.png/v1/fit/w_812,h_812/_147_dratini_by_tonofdirt726_ddiauso-414w-2x.png' }) },
 		{ name: 'Dragonair', dexNum: '148', type1: 'Dragon', type2: null, region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/0/0d/0148Dragonair.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddiauv6-ae8c2955-bbc7-446a-a7df-e23af5885949.png/v1/fill/w_846,h_846/_148_dragonair_by_tonofdirt726_ddiauv6-fullview.png' }) },
-		{ name: 'Dragonite', dexNum: '149', type1: 'Dragon', type2: 'Flying', region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/1/1c/0149Dragonite.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddiauyf-01140931-89d8-4589-86b0-43ebc3760ca6.png/v1/fill/w_884,h_884/_149_dragonite_by_tonofdirt726_ddiauyf-fullview.png' }) },
+		{ name: 'Dragonite', dexNum: '149', type1: 'Dragon', type2: 'Flying', region: 'Kanto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/1/1c/0149Dragonite.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/3/3e/0149Dragonite-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddiauyf-01140931-89d8-4589-86b0-43ebc3760ca6.png/v1/fill/w_884,h_884/_149_dragonite_by_tonofdirt726_ddiauyf-fullview.png',
+				'Mega': 'https://i.ibb.co/vCVQmrtf/149-Dragonite.png'
+			}) 
+		},
 		{ name: 'Mewtwo', dexNum: '150', type1: 'Psychic', type2: null, region: 'Kanto', isLM: 1, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Default', percentage: 100 },
@@ -870,7 +928,20 @@ db.serialize(() => {
 		
 		{ name: 'Chikorita', dexNum: '152', type1: 'Grass', type2: null, region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/b/bc/0152Chikorita.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddif6m4-c31ad92e-c298-4b78-8777-c3dd4c432f89.png/v1/fit/w_828,h_828/_152_chikorita_by_tonofdirt726_ddif6m4-414w-2x.png' }) },
 		{ name: 'Bayleef', dexNum: '153', type1: 'Grass', type2: null, region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/85/0153Bayleef.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddif6r8-9aef4bbe-ac19-4aa8-8152-d0bbf4a962b2.png/v1/fit/w_828,h_828/_153_bayleef_by_tonofdirt726_ddif6r8-414w-2x.png' }) },
-		{ name: 'Meganium', dexNum: '154', type1: 'Grass', type2: null, region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/8b/0154Meganium.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddif6ue-793cd10b-03db-451a-8dea-cbfea5ffee45.png/v1/fit/w_828,h_828/_154_meganium_by_tonofdirt726_ddif6ue-414w-2x.png' }) },
+		{ name: 'Meganium', dexNum: '154', type1: 'Grass', type2: null, region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/8/8b/0154Meganium.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/e/e1/0154Meganium-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddif6ue-793cd10b-03db-451a-8dea-cbfea5ffee45.png/v1/fit/w_828,h_828/_154_meganium_by_tonofdirt726_ddif6ue-414w-2x.png',
+				'Mega': 'https://i.ibb.co/TMRfVPCs/154-Meganium.png'
+			}) 
+		},
 		{ name: 'Cyndaquil', dexNum: '155', type1: 'Fire', type2: null, region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/9/97/0155Cyndaquil.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddif6xa-cdbe8232-789e-4e67-b7f9-5a4402178410.png/v1/fit/w_828,h_828/_155_cyndaquil_by_tonofdirt726_ddif6xa-414w-2x.png' }) },
 		{ name: 'Quilava', dexNum: '156', type1: 'Fire', type2: null, region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/3/3f/0156Quilava.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddif70s-00b202a0-bd18-48a8-b76d-1a34832d3c68.png/v1/fit/w_828,h_828/_156_quilava_by_tonofdirt726_ddif70s-414w-2x.png' }) },
 		{ name: 'Typhlosion', dexNum: '157', type1: 'Fire', type2: null, region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), 
@@ -889,7 +960,20 @@ db.serialize(() => {
 		},
 		{ name: 'Totodile', dexNum: '158', type1: 'Water', type2: null, region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/f/f7/0158Totodile.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddif76o-94df0e22-253d-4e5f-8a9c-2c2c79c77425.png/v1/fit/w_828,h_828/_158_totodile_by_tonofdirt726_ddif76o-414w-2x.png' }) },
 		{ name: 'Croconaw', dexNum: '159', type1: 'Water', type2: null, region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/0/03/0159Croconaw.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddif79c-d05e7e57-cfd6-46de-b90d-ab2c577a8057.png/v1/fit/w_828,h_828/_159_croconaw_by_tonofdirt726_ddif79c-414w-2x.png' }) },
-		{ name: 'Feraligatr', dexNum: '160', type1: 'Water', type2: null, region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/2/29/0160Feraligatr.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddif7bl-52e49b1f-c68d-4651-bcb6-a94409498c64.png/v1/fit/w_828,h_828/_160_feraligatr_by_tonofdirt726_ddif7bl-414w-2x.png' }) },
+		{ name: 'Feraligatr', dexNum: '160', type1: 'Water', type2: null, region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/2/29/0160Feraligatr.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/4/42/0160Feraligatr-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddif7bl-52e49b1f-c68d-4651-bcb6-a94409498c64.png/v1/fit/w_828,h_828/_160_feraligatr_by_tonofdirt726_ddif7bl-414w-2x.png',
+				'Mega': 'https://i.ibb.co/spvwGdCr/160-Feraligatr.png'
+			}) 
+		},
 		{ name: 'Sentret', dexNum: '161', type1: 'Normal', type2: null, region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/3/34/0161Sentret.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddiik3o-a3a88923-d9a5-4e77-b189-95ac3d062e27.png/v1/fit/w_828,h_828/_161_sentret_by_tonofdirt726_ddiik3o-414w-2x.png' }) },
 		{ name: 'Furret', dexNum: '162', type1: 'Normal', type2: null, region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/a/a8/0162Furret.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddiik66-cf796738-d76f-46a6-8fbd-634a369d92e7.png/v1/fit/w_828,h_828/_162_furret_by_tonofdirt726_ddiik66-414w-2x.png' }) },
 		{ name: 'Hoothoot', dexNum: '163', type1: 'Normal', type2: 'Flying', region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/3/38/0163Hoothoot.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddiikce-c43e9d2d-224c-444d-9415-a46c8bc1f17e.png/v1/fit/w_823,h_823/_163_hoothoot_by_tonofdirt726_ddiikce-414w-2x.png' }) },
@@ -1164,7 +1248,20 @@ db.serialize(() => {
 		{ name: 'Octillery', dexNum: '224', type1: 'Water', type2: null, region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/e/e4/0224Octillery.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddivlo7-9fba2150-3076-4bca-83e6-92c60c9044c9.png/v1/fit/w_828,h_828/_224_octillery_by_tonofdirt726_ddivlo7-414w-2x.png' }) },
 		{ name: 'Delibird', dexNum: '225', type1: 'Ice', type2: 'Flying', region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/b/bc/0225Delibird.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddivlse-010f36aa-1ad8-45dc-8da8-6fcc315c7513.png/v1/fit/w_828,h_828/_225_delibird_by_tonofdirt726_ddivlse-414w-2x.png' }) },
 		{ name: 'Mantine', dexNum: '226', type1: 'Water', type2: 'Flying', region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/4/49/0226Mantine.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddivlwn-15375964-80e9-4a7d-8583-7c5bd9b728d7.png/v1/fit/w_828,h_828/_226_mantine_by_tonofdirt726_ddivlwn-414w-2x.png' }) },
-		{ name: 'Skarmory', dexNum: '227', type1: 'Steel', type2: 'Flying', region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/a/a9/0227Skarmory.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddivlzz-50c524fb-39fe-4969-b6a3-93525d961ef9.png/v1/fit/w_828,h_828/_227_skarmory_by_tonofdirt726_ddivlzz-414w-2x.png' }) },
+		{ name: 'Skarmory', dexNum: '227', type1: 'Steel', type2: 'Flying', region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/a/a9/0227Skarmory.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/4/4e/0227Skarmory-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddivlzz-50c524fb-39fe-4969-b6a3-93525d961ef9.png/v1/fit/w_828,h_828/_227_skarmory_by_tonofdirt726_ddivlzz-414w-2x.png',
+				'Mega': 'https://i.ibb.co/BHVNBZh4/227-Skarmory.png'
+			}) 
+		},
 		{ name: 'Houndour', dexNum: '228', type1: 'Dark', type2: 'Fire', region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/f/f8/0228Houndour.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddivm2m-ebef8631-d120-4c19-a313-8407084a0759.png/v1/fill/w_859,h_859/_228_houndour_by_tonofdirt726_ddivm2m-fullview.png' }) },
 		{ name: 'Houndoom', dexNum: '229', type1: 'Dark', type2: 'Fire', region: 'Johto', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
 			forms: JSON.stringify([ 
@@ -1536,19 +1633,35 @@ db.serialize(() => {
 		{ name: 'Duskull', dexNum: '355', type1: 'Ghost', type2: null, region: 'Hoenn', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/f/f6/0355Duskull.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjool9-80d69c6b-420b-4b50-a31e-35f42843f876.png/v1/fit/w_782,h_782/_355_duskull_by_tonofdirt726_ddjool9-414w-2x.png' }) },
 		{ name: 'Dusclops', dexNum: '356', type1: 'Ghost', type2: null, region: 'Hoenn', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/0/0e/0356Dusclops.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjooos-e0c9a7d1-da0b-4177-9079-099045e656d9.png/v1/fill/w_840,h_840/_356_dusclops_by_tonofdirt726_ddjooos-fullview.png' }) },
 		{ name: 'Tropius', dexNum: '357', type1: 'Grass', type2: 'Flying', region: 'Hoenn', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/3/3c/0357Tropius.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjoosc-52054cc7-f0c3-4502-9cbf-c5da2b9080db.png/v1/fill/w_837,h_837/_357_tropius_by_tonofdirt726_ddjoosc-fullview.png' }) },
-		{ name: 'Chimecho', dexNum: '358', type1: 'Psychic', type2: null, region: 'Hoenn', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/5/55/0358Chimecho.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjop2h-b6be5fc5-154c-4e8f-98f5-e8622fe9110e.png' }) },
+		{ name: 'Chimecho', dexNum: '358', type1: 'Psychic', type2: null, region: 'Hoenn', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 } 
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/5/55/0358Chimecho.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/b/b6/0358Chimecho-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjop2h-b6be5fc5-154c-4e8f-98f5-e8622fe9110e.png',
+				'Mega': 'https://i.ibb.co/60Xs8cLz/358-Chimecho.png'
+			}) 
+		},
 		{ name: 'Absol', dexNum: '359', type1: 'Dark', type2: null, region: 'Hoenn', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Default', percentage: 100 },
-				{name: 'Mega', percentage: 0}
+				{name: 'Mega', percentage: 0 },
+				{name: 'Mega Z', percentage: 0 }
 			]), 
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/9/9b/0359Absol.png',
-				'Mega': 'https://archives.bulbagarden.net/media/upload/d/d7/0359Absol-Mega.png'
+				'Mega': 'https://archives.bulbagarden.net/media/upload/d/d7/0359Absol-Mega.png',
+				'Mega Z': 'https://archives.bulbagarden.net/media/upload/e/e1/0359Absol-Mega_Z.png'
 			}), 
 			shinyImageLinks: JSON.stringify({ 
 				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjop63-82170b84-199e-40b1-b9be-97f7c815afef.png/v1/fit/w_828,h_828/_359_absol_by_tonofdirt726_ddjop63-414w-2x.png',
-				'Mega': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddnyf3t-f7f28602-41f8-4940-a056-e4e333106dca.png'
+				'Mega': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddnyf3t-f7f28602-41f8-4940-a056-e4e333106dca.png',
+				'Mega Z': 'https://i.ibb.co/vxw0NFBT/359-Absol-Z.png'
 			}) 
 		},
 		{ name: 'Wynaut', dexNum: '360', type1: 'Psychic', type2: null, region: 'Hoenn', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/b/be/0360Wynaut.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjopau-98ee368d-8a61-4f00-98ac-cf4f9fb51035.png/v1/fit/w_828,h_828/_360_wynaut_by_tonofdirt726_ddjopau-414w-2x.png' }) },
@@ -1717,7 +1830,20 @@ db.serialize(() => {
 		{ name: 'Empoleon', dexNum: '395', type1: 'Water', type2: 'Steel', region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/7/7f/0395Empoleon.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjr7z4-8f345688-07fd-40b6-b323-00f8ec7a391b.png/v1/fit/w_828,h_828/_395_empoleon_by_tonofdirt726_ddjr7z4-414w-2x.png' }) },
 		{ name: 'Starly', dexNum: '396', type1: 'Normal', type2: 'Flying', region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/9/9b/0396Starly.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjufl1-fc42c4cd-4a0e-4230-bcb3-1fb774debedd.png/v1/fit/w_828,h_828/_396_starly_by_tonofdirt726_ddjufl1-414w-2x.png' }) },
 		{ name: 'Staravia', dexNum: '397', type1: 'Normal', type2: 'Flying', region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/87/0397Staravia.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjufuj-fd0ee224-8986-457a-aa1d-1f7d818289ad.png/v1/fit/w_822,h_822/_397_staravia_by_tonofdirt726_ddjufuj-414w-2x.png' }) },
-		{ name: 'Staraptor', dexNum: '398', type1: 'Normal', type2: 'Flying', region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/3/3c/0398Staraptor.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjufw8-97bb3861-d196-4482-a137-1e02fadbb2b3.png/v1/fit/w_823,h_823/_398_staraptor_by_tonofdirt726_ddjufw8-414w-2x.png' }) },
+		{ name: 'Staraptor', dexNum: '398', type1: 'Normal', type2: 'Flying', region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/3/3c/0398Staraptor.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/4/44/0398Staraptor-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjufw8-97bb3861-d196-4482-a137-1e02fadbb2b3.png/v1/fit/w_823,h_823/_398_staraptor_by_tonofdirt726_ddjufw8-414w-2x.png',
+				'Mega': 'https://i.ibb.co/60VN9F6p/398-Staraptor.png' 
+			}) 
+		},
 		{ name: 'Bidoof', dexNum: '399', type1: 'Normal', type2: null, region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/7/70/0399Bidoof.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjufxz-a194ff0a-8f44-4c26-a085-409fc321b475.png/v1/fit/w_828,h_828/_399_bidoof_by_tonofdirt726_ddjufxz-414w-2x.png' }) },
 		{ name: 'Bibarel', dexNum: '400', type1: 'Normal', type2: 'Water', region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/d/dc/0400Bibarel.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjufz8-122a9b52-f941-4cd5-8af0-9382576c5fb2.png/v1/fit/w_828,h_828/_400_bibarel_by_tonofdirt726_ddjufz8-414w-2x.png' }) },
 		{ name: 'Kricketot', dexNum: '401', type1: 'Bug', type2: null, region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/7/72/0401Kricketot.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddjug1m-03627fe0-7ad5-4391-bd4f-f09c0ff3dd16.png/v1/fit/w_828,h_828/_401_kricketot_by_tonofdirt726_ddjug1m-414w-2x.png' }) },
@@ -1851,15 +1977,18 @@ db.serialize(() => {
 		{ name: 'Garchomp', dexNum: '445', type1: 'Dragon', type2: 'Ground', region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Default', percentage: 100 },
-				{name: 'Mega', percentage: 0}
+				{name: 'Mega', percentage: 0 },
+				{name: 'Mega Z', percentage: 0 }
 			]), 
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/a/a8/0445Garchomp.png',
-				'Mega': 'https://archives.bulbagarden.net/media/upload/6/66/0445Garchomp-Mega.png'
+				'Mega': 'https://archives.bulbagarden.net/media/upload/6/66/0445Garchomp-Mega.png',
+				'Mega Z': 'https://archives.bulbagarden.net/media/upload/7/75/0445Garchomp-Mega_Z.png'
 			}), 
 			shinyImageLinks: JSON.stringify({ 
 				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7j8z-0c2d560c-ce43-4afb-b165-297a1d419c2a.png/v1/fit/w_828,h_828/_445_garchomp_by_tonofdirt726_ddk7j8z-414w-2x.png',
-				'Mega': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddnyg9q-64f173f0-c7cb-434e-8c5c-7b547790f11f.png'
+				'Mega': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddnyg9q-64f173f0-c7cb-434e-8c5c-7b547790f11f.png',
+				'Mega Z': 'https://i.ibb.co/DfrYBTt0/445-Garchomp-Z.png'
 			}) 
 		},
 		{ name: 'Munchlax', dexNum: '446', type1: 'Normal', type2: null, region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/5/57/0446Munchlax.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7jg9-2e29f892-93d8-460d-8abe-91cfd4c472dd.png/v1/fit/w_828,h_828/_446_munchlax_by_tonofdirt726_ddk7jg9-414w-2x.png' }) },
@@ -1867,15 +1996,18 @@ db.serialize(() => {
 		{ name: 'Lucario', dexNum: '448', type1: 'Fighting', type2: 'Steel', region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Default', percentage: 100 },
-				{name: 'Mega', percentage: 0}
+				{name: 'Mega', percentage: 0 },
+				{name: 'Mega Z', percentage: 0 }
 			]), 
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/4/42/0448Lucario.png',
-				'Mega': 'https://archives.bulbagarden.net/media/upload/c/cb/0448Lucario-Mega.png'
+				'Mega': 'https://archives.bulbagarden.net/media/upload/c/cb/0448Lucario-Mega.png',
+				'Mega Z': 'https://archives.bulbagarden.net/media/upload/5/56/0448Lucario-Mega_Z.png'
 			}), 
 			shinyImageLinks: JSON.stringify({ 
 				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7krh-e18e60c7-e4e2-4344-a69f-19030c6a3e69.png/v1/fit/w_828,h_828/_448_lucario_by_tonofdirt726_ddk7krh-414w-2x.png',
-				'Mega': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddnygch-3f476427-9618-498e-9fab-6d07d2973c33.png'
+				'Mega': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddnygch-3f476427-9618-498e-9fab-6d07d2973c33.png',
+				'Mega Z': 'https://i.ibb.co/KHGc0mT/448-Lucario-Z.png'
 			}) 
 		},
 		{ name: 'Hippopotas', dexNum: '449', type1: 'Ground', type2: null, region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/d/d3/0449Hippopotas.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7kvt-e924948d-44f7-4049-980b-b60192fddb84.png/v1/fit/w_767,h_767/_449_hippopotas_by_tonofdirt726_ddk7kvt-414w-2x.png' }) },
@@ -1933,7 +2065,20 @@ db.serialize(() => {
 		},
 		{ name: 'Probopass', dexNum: '476', type1: 'Rock', type2: 'Steel', region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/a/ae/0476Probopass.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7n6q-a2d01f4f-4193-41be-9f54-14499057d1df.png/v1/fit/w_820,h_802/_476_probopass_by_tonofdirt726_ddk7n6q-414w-2x.png' }) },
 		{ name: 'Dusknoir', dexNum: '477', type1: 'Ghost', type2: null, region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/4/4c/0477Dusknoir.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7n91-1c7b300c-b09c-4e84-8d83-c3077e8e4795.png/v1/fit/w_825,h_825/_477_dusknoir_by_tonofdirt726_ddk7n91-414w-2x.png' }) },
-		{ name: 'Froslass', dexNum: '478', type1: 'Ice', type2: 'Ghost', region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Female', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/5/59/0478Froslass.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7nbl-2c1c964c-687f-45d3-95d4-9e4ec74c5e30.png/v1/fit/w_828,h_828/_478_froslass_by_tonofdirt726_ddk7nbl-414w-2x.png' }) },
+		{ name: 'Froslass', dexNum: '478', type1: 'Ice', type2: 'Ghost', region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Female', percentage: 100 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/5/59/0478Froslass.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/6/65/0478Froslass-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7nbl-2c1c964c-687f-45d3-95d4-9e4ec74c5e30.png/v1/fit/w_828,h_828/_478_froslass_by_tonofdirt726_ddk7nbl-414w-2x.png',
+				'Mega': 'https://i.ibb.co/TD4HfCb2/478-Froslass.png'
+			}) 
+		},
 		{ name: 'Rotom', dexNum: '479', type1: 'Electric', type2: 'Ghost', region: 'Sinnoh', isLM: 0, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
 			forms: JSON.stringify([ {name: 'Default', percentage: 100 }, 
 				{name: 'Heat', percentage: 0 },
@@ -1988,7 +2133,20 @@ db.serialize(() => {
 				'Origin': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/df09t4s-b374acea-6d09-4cca-bf59-8d18d4eed0e2.png/v1/fit/w_768,h_745/_484_palkia__origin__by_tonofdirt726_df09t4s-414w-2x.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9NzQ1IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZjA5dDRzLWIzNzRhY2VhLTZkMDktNGNjYS1iZjU5LThkMThkNGVlZDBlMi5wbmciLCJ3aWR0aCI6Ijw9NzY4In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.gPF7nxEbLxpcXlqvD8kSTNAEOQaOdmVyxdOFHM0x9UI'
 			}) 
 		},
-		{ name: 'Heatran', dexNum: '485', type1: 'Fire', type2: 'Steel', region: 'Sinnoh', isLM: 1, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/6/60/0485Heatran.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7o88-2a1687a8-0a27-4c3d-a2b8-d7f5b129b169.png/v1/fit/w_828,h_828/_485_heatran_by_tonofdirt726_ddk7o88-414w-2x.png' }) },
+		{ name: 'Heatran', dexNum: '485', type1: 'Fire', type2: 'Steel', region: 'Sinnoh', isLM: 1, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/6/60/0485Heatran.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/c/c7/0485Heatran-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7o88-2a1687a8-0a27-4c3d-a2b8-d7f5b129b169.png/v1/fit/w_828,h_828/_485_heatran_by_tonofdirt726_ddk7o88-414w-2x.png',
+				'Mega': 'https://i.ibb.co/j9whY40c/485-Heatran.png'
+			}) 
+		},
 		{ name: 'Regigigas', dexNum: '486', type1: 'Normal', type2: null, region: 'Sinnoh', isLM: 1, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/e/e3/0486Regigigas.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7oal-03731f4c-d317-4f1f-b902-904945706a11.png/v1/fit/w_828,h_828/_486_regigigas_by_tonofdirt726_ddk7oal-414w-2x.png' }) },
 		{ name: 'Giratina', dexNum: '487', type1: 'Ghost', type2: 'Dragon', region: 'Sinnoh', isLM: 1, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
 			forms: JSON.stringify([ 
@@ -2007,7 +2165,20 @@ db.serialize(() => {
 		{ name: 'Cresselia', dexNum: '488', type1: 'Psychic', type2: null, region: 'Sinnoh', isLM: 1, gender: JSON.stringify([ { name: 'Female', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/9/97/0488Cresselia.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7ohg-b56c6993-d094-4ed7-8431-8bd6cf9528a2.png/v1/fit/w_828,h_828/_488_cresselia_by_tonofdirt726_ddk7ohg-414w-2x.png' }) },
 		{ name: 'Phione', dexNum: '489', type1: 'Water', type2: null, region: 'Sinnoh', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/e/eb/0489Phione.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7ojb-199a94b6-c5f1-4070-8d57-79a55f1a8dfc.png/v1/fit/w_828,h_828/_489_phione_by_tonofdirt726_ddk7ojb-414w-2x.png' }) },
 		{ name: 'Manaphy', dexNum: '490', type1: 'Water', type2: null, region: 'Sinnoh', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/0/08/0490Manaphy.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7ol6-ae94aaae-765e-423e-96b7-217817bf30e3.png/v1/fit/w_828,h_828/_490_manaphy_by_tonofdirt726_ddk7ol6-414w-2x.png' }) },
-		{ name: 'Darkrai', dexNum: '491', type1: 'Dark', type2: null, region: 'Sinnoh', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/88/0491Darkrai.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7onm-63968a48-3d21-4451-9b13-0350579b815f.png/v1/fit/w_828,h_828/_491_darkrai_by_tonofdirt726_ddk7onm-414w-2x.png' }) },
+		{ name: 'Darkrai', dexNum: '491', type1: 'Dark', type2: null, region: 'Sinnoh', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/8/88/0491Darkrai.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/9/96/0491Darkrai-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddk7onm-63968a48-3d21-4451-9b13-0350579b815f.png/v1/fit/w_828,h_828/_491_darkrai_by_tonofdirt726_ddk7onm-414w-2x.png',
+				'Mega': 'https://i.ibb.co/xtwghRGq/491-Darkrai.png'
+			}) 
+		},
 		{ name: 'Shaymin', dexNum: '492', type1: 'Grass', type2: null, region: 'Sinnoh', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Land Forme', percentage: 100 }, 
@@ -2091,7 +2262,20 @@ db.serialize(() => {
 		{ name: 'Serperior', dexNum: '497', type1: 'Grass', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/a/a7/0497Serperior.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkbifk-1908cad7-fcab-4775-aaad-c6dfea7f0c19.png' }) },
 		{ name: 'Tepig', dexNum: '498', type1: 'Fire', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/1/18/0498Tepig.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkbihd-2fd875fe-7d76-4b94-955f-94c51c6d9426.png' }) },
 		{ name: 'Pignite', dexNum: '499', type1: 'Fire', type2: 'Fighting', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/1/10/0499Pignite.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkbijw-2c846b83-0ba6-4df0-a28f-2539f56cdbb1.png' }) },
-		{ name: 'Emboar', dexNum: '500', type1: 'Fire', type2: 'Fighting', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/5/52/0500Emboar.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkbilb-b1ba64a0-8132-49d6-ac8f-4e243f4f87f3.png/v1/fit/w_827,h_827/_500_emboar_by_tonofdirt726_ddkbilb-414w-2x.png' }) },
+		{ name: 'Emboar', dexNum: '500', type1: 'Fire', type2: 'Fighting', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/5/52/0500Emboar.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/c/c0/0500Emboar-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkbilb-b1ba64a0-8132-49d6-ac8f-4e243f4f87f3.png/v1/fit/w_827,h_827/_500_emboar_by_tonofdirt726_ddkbilb-414w-2x.png',
+				'Mega': 'https://i.ibb.co/dsFJpdjb/500-Emboar.png'
+			}) 
+		},
 		{ name: 'Oshawott', dexNum: '501', type1: 'Water', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/9/90/0501Oshawott.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkbipd-708f0a25-9784-4909-b47c-fa12aa41fc02.png' }) },
 		{ name: 'Dewott', dexNum: '502', type1: 'Water', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/2/2c/0502Dewott.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkbis0-9cc67335-6544-48f8-bb89-5c6c5c394ff0.png' }) },
 		{ name: 'Samurott', dexNum: '503', type1: 'Water', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), 
@@ -2147,7 +2331,20 @@ db.serialize(() => {
 		{ name: 'Woobat', dexNum: '527', type1: 'Psychic', type2: 'Flying', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/d/d9/0527Woobat.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkefnv-96a58631-0bc5-4161-a9d1-1b00289bd3b9.png' }) },
 		{ name: 'Swoobat', dexNum: '528', type1: 'Psychic', type2: 'Flying', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/a/ad/0528Swoobat.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkefyr-1300c765-5aa4-4433-b7b0-db8216e9b29e.png' }) },
 		{ name: 'Drilbur', dexNum: '529', type1: 'Ground', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/7/77/0529Drilbur.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkoyfb-ad443820-e067-4526-b777-9c70fcec47b4.png' }) },
-		{ name: 'Excadrill', dexNum: '530', type1: 'Ground', type2: 'Steel', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/e/e3/0530Excadrill.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkoyit-25938f9a-6905-48d7-966b-37d323808eb6.png' }) },
+		{ name: 'Excadrill', dexNum: '530', type1: 'Ground', type2: 'Steel', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/e/e3/0530Excadrill.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/d/d5/0530Excadrill-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkoyit-25938f9a-6905-48d7-966b-37d323808eb6.png',
+				'Mega': 'https://i.ibb.co/LzxMrbtD/530-Excadrill.png'
+			}) 
+		},
 		{ name: 'Audino', dexNum: '531', type1: 'Normal', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Default', percentage: 100 },
@@ -2175,7 +2372,20 @@ db.serialize(() => {
 		{ name: 'Leavanny', dexNum: '542', type1: 'Bug', type2: 'Grass', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/86/0542Leavanny.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkozbu-3470b736-ca8d-4ded-b68d-bd77e614af17.png' }) },
 		{ name: 'Venipede', dexNum: '543', type1: 'Bug', type2: 'Poison', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/9/97/0543Venipede.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkoze8-7a0efbdf-ee60-4f72-8eb2-d8884e364dcc.png' }) },
 		{ name: 'Whirlipede', dexNum: '544', type1: 'Bug', type2: 'Poison', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/0/0d/0544Whirlipede.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkozgy-0991a2a1-18f7-4aea-b41f-c5d335f2f1d8.png' }) },
-		{ name: 'Scolipede', dexNum: '545', type1: 'Bug', type2: 'Poison', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/b/b6/0545Scolipede.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkozja-1d3573d1-917b-42f1-bdf3-688153562406.png' }) },
+		{ name: 'Scolipede', dexNum: '545', type1: 'Bug', type2: 'Poison', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/b/b6/0545Scolipede.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/4/48/0545Scolipede-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkozja-1d3573d1-917b-42f1-bdf3-688153562406.png',
+				'Mega': 'https://i.ibb.co/nsw6rjMg/545-Scolipede.png'
+			}) 
+		},
 		{ name: 'Cottonee', dexNum: '546', type1: 'Grass', type2: 'Fairy', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/6/6c/0546Cottonee.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkozlu-8cf5e62c-fb61-4e9a-96ca-066eb32dc87b.png' }) },
 		{ name: 'Whimsicott', dexNum: '547', type1: 'Grass', type2: 'Fairy', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/2/2c/0547Whimsicott.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkoznu-655a936f-b227-40be-871e-c0535b7c4f59.png' }) },
 		{ name: 'Petilil', dexNum: '548', type1: 'Grass', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Female', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/2/2f/0548Petilil.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkozs8-d7ba63ea-e685-4f66-be0f-8eae98f3b41c.png' }) },
@@ -2251,7 +2461,20 @@ db.serialize(() => {
 		{ name: 'Dwebble', dexNum: '557', type1: 'Bug', type2: 'Rock', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/d/d9/0557Dwebble.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkp0bk-9cf79bd9-533c-45ee-a32a-a1454f4d6763.png' }) },
 		{ name: 'Crustle', dexNum: '558', type1: 'Bug', type2: 'Rock', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/a/a2/0558Crustle.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkp0nu-b00ec189-59a7-4e00-aac1-a5e447faf82a.png' }) },
 		{ name: 'Scraggy', dexNum: '559', type1: 'Dark', type2: 'Fighting', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/b/bd/0559Scraggy.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkp0sm-c60fdf59-a2e4-4874-9292-ce7c35a4a27f.png' }) },
-		{ name: 'Scrafty', dexNum: '560', type1: 'Dark', type2: 'Fighting', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/84/0560Scrafty.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkp0vm-230f66ab-978c-4e7d-a821-1c7b54b1a586.png' }) },
+		{ name: 'Scrafty', dexNum: '560', type1: 'Dark', type2: 'Fighting', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/8/84/0560Scrafty.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/2/22/0560Scrafty-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkp0vm-230f66ab-978c-4e7d-a821-1c7b54b1a586.png',
+				'Mega': 'https://i.ibb.co/TBwRGK9R/560-Scrafty.png' 
+			}) 
+		},
 		{ name: 'Sigilyph', dexNum: '561', type1: 'Psychic', type2: 'Flying', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/a/a5/0561Sigilyph.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddkp0xw-39c331fc-75ea-43d0-ba0b-cb01adb39701.png' }) },
 		{ name: 'Yamask', dexNum: '562', type1: 'Ghost', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
 			forms: JSON.stringify([ 
@@ -2410,12 +2633,38 @@ db.serialize(() => {
 		{ name: 'Klinklang', dexNum: '601', type1: 'Steel', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/1/1f/0601Klinklang.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4ish-bfad0314-d769-464a-809b-598a8883ad7d.png/v1/fill/w_868,h_868/_601_klinklang_by_tonofdirt726_ddl4ish-fullview.png' }) },
 		{ name: 'Tynamo', dexNum: '602', type1: 'Electric', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/8a/0602Tynamo.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4iv7-21acb034-38a0-45bf-895f-4702474aa791.png' }) },
 		{ name: 'Eelektrik', dexNum: '603', type1: 'Electric', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/9/94/0603Eelektrik.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4iy5-3efe594a-8541-445f-a0f4-4b22c4845b21.png' }) },
-		{ name: 'Eelektross', dexNum: '604', type1: 'Electric', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/1/1c/0604Eelektross.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4j06-cdb49082-c2ce-4e92-bf0a-839645b07573.png/v1/fill/w_832,h_832/_604_eelektross_by_tonofdirt726_ddl4j06-fullview.png' }) },
+		{ name: 'Eelektross', dexNum: '604', type1: 'Electric', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({
+				 default: 'https://archives.bulbagarden.net/media/upload/1/1c/0604Eelektross.png',
+				 'Mega': 'https://archives.bulbagarden.net/media/upload/6/61/0604Eelektross-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4j06-cdb49082-c2ce-4e92-bf0a-839645b07573.png/v1/fill/w_832,h_832/_604_eelektross_by_tonofdirt726_ddl4j06-fullview.png',
+				'Mega': 'https://i.ibb.co/y16xVs2/604-Eelektross.png'
+			}) 
+		},
 		{ name: 'Elgyem', dexNum: '605', type1: 'Psychic', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/7/77/0605Elgyem.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4j2i-bdd534fc-582f-4c60-83e9-9c3e41ecc373.png' }) },
 		{ name: 'Beheeyem', dexNum: '606', type1: 'Psychic', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/9/99/0606Beheeyem.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4j5c-69e1abe6-7ad1-4afe-8eb9-62aa24fa3f76.png/v1/fit/w_821,h_821/_606_beheeyem_by_tonofdirt726_ddl4j5c-414w-2x.png' }) },
 		{ name: 'Litwick', dexNum: '607', type1: 'Ghost', type2: 'Fire', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/c/cf/0607Litwick.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4j80-d9db863e-49c1-43cd-9ed0-56b862131258.png' }) },
 		{ name: 'Lampent', dexNum: '608', type1: 'Ghost', type2: 'Fire', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/c/c1/0608Lampent.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4jao-4d233599-9be0-4665-b38f-87755770fb5b.png' }) },
-		{ name: 'Chandelure', dexNum: '609', type1: 'Ghost', type2: 'Fire', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/9/97/0609Chandelure.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4jd3-289cc19c-3c02-46be-aec5-7b249a9e6f4d.png/v1/fit/w_797,h_797/_609_chandelure_by_tonofdirt726_ddl4jd3-414w-2x.png' }) },
+		{ name: 'Chandelure', dexNum: '609', type1: 'Ghost', type2: 'Fire', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/9/97/0609Chandelure.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/f/fd/0609Chandelure-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4jd3-289cc19c-3c02-46be-aec5-7b249a9e6f4d.png/v1/fit/w_797,h_797/_609_chandelure_by_tonofdirt726_ddl4jd3-414w-2x.png',
+				'Mega': 'https://i.ibb.co/Lh9Hxf6m/609-Chandelure.png'
+			}) 
+		},
 		{ name: 'Axew', dexNum: '610', type1: 'Dragon', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/0/00/0610Axew.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4jg2-767b667c-650a-409a-b00a-cf8dcf1f17d8.png' }) },
 		{ name: 'Fraxure', dexNum: '611', type1: 'Dragon', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/2/2c/0611Fraxure.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4jit-366eab93-0c9b-4184-9563-9a9c55727f09.png' }) },
 		{ name: 'Haxorus', dexNum: '612', type1: 'Dragon', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/b/bf/0612Haxorus.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4jkt-0cc5ffe0-f622-48d4-bb85-ef5f75cafec8.png' }) },
@@ -2442,7 +2691,20 @@ db.serialize(() => {
 		{ name: 'Mienshao', dexNum: '620', type1: 'Fighting', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/f/f1/0620Mienshao.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4k6j-cccbe716-6052-4796-90a2-0e0a7feea4bd.png/v1/fill/w_880,h_880/_620_mienshao_by_tonofdirt726_ddl4k6j-fullview.png' }) },
 		{ name: 'Druddigon', dexNum: '621', type1: 'Dragon', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/c/c5/0621Druddigon.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4k90-38255ef4-a249-4b83-83a8-55b61ab9971b.png' }) },
 		{ name: 'Golett', dexNum: '622', type1: 'Ground', type2: 'Ghost', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/e/e1/0622Golett.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4kc0-a16f94ad-ef02-4109-b6ac-611352b17951.png/v1/fit/w_789,h_789/_622_golett_by_tonofdirt726_ddl4kc0-414w-2x.png' }) },
-		{ name: 'Golurk', dexNum: '623', type1: 'Ground', type2: 'Ghost', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/d/de/0623Golurk.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4kfw-d9363fe1-6009-491e-ab3e-8360ed8f0fb9.png/v1/fit/w_801,h_801/_623_golurk_by_tonofdirt726_ddl4kfw-414w-2x.png' }) },
+		{ name: 'Golurk', dexNum: '623', type1: 'Ground', type2: 'Ghost', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/d/de/0623Golurk.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/8/87/0623Golurk-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4kfw-d9363fe1-6009-491e-ab3e-8360ed8f0fb9.png/v1/fit/w_801,h_801/_623_golurk_by_tonofdirt726_ddl4kfw-414w-2x.png',
+				'Mega': 'https://i.ibb.co/Kc1PVDnv/623-Golurk.png'
+			}) 
+		},
 		{ name: 'Pawniard', dexNum: '624', type1: 'Dark', type2: 'Steel', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/8c/0624Pawniard.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4kj7-e869a923-3691-4a7d-8e66-54de7e035796.png/v1/fill/w_852,h_852/_624_pawniard_by_tonofdirt726_ddl4kj7-fullview.png' }) },
 		{ name: 'Bisharp', dexNum: '625', type1: 'Dark', type2: 'Steel', region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/6/6b/0625Bisharp.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4klw-15ed98e5-f8db-4691-956d-155428e2d70f.png/v1/fill/w_884,h_884/_625_bisharp_by_tonofdirt726_ddl4klw-fullview.png' }) },
 		{ name: 'Bouffalant', dexNum: '626', type1: 'Normal', type2: null, region: 'Unova', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/e/ed/0626Bouffalant.png'}), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4knx-62b63123-1e11-4dc0-908f-c44a9ad296a7.png' }) },
@@ -2614,24 +2876,53 @@ db.serialize(() => {
 		
 		{ name: 'Chespin', dexNum: '650', type1: 'Grass', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/b/b0/0650Chespin.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4mwo-0a81fdf2-06e3-4f46-9be7-065f865c1dbc.png' }) },
 		{ name: 'Quilladin', dexNum: '651', type1: 'Grass', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/2/24/0651Quilladin.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4mz6-4e4eb0fa-7f2e-4c06-9c5d-60ecc9095203.png' }) },
-		{ name: 'Chesnaught', dexNum: '652', type1: 'Grass', type2: 'Fighting', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/d/db/0652Chesnaught.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4n1a-41b78ce9-c0ed-4bf2-a9fc-2345328b469e.png/v1/fill/w_857,h_857/_652_chesnaught_by_tonofdirt726_ddl4n1a-fullview.png' }) },
+		{ name: 'Chesnaught', dexNum: '652', type1: 'Grass', type2: 'Fighting', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/d/db/0652Chesnaught.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/d/d6/0652Chesnaught-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4n1a-41b78ce9-c0ed-4bf2-a9fc-2345328b469e.png/v1/fill/w_857,h_857/_652_chesnaught_by_tonofdirt726_ddl4n1a-fullview.png',
+				'Mega': 'https://i.ibb.co/tpmRxbQ0/652-Chesnaught.png'
+			}) 
+		},
 		{ name: 'Fennekin', dexNum: '653', type1: 'Fire', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/4/46/0653Fennekin.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4n6u-fbcabead-bc01-460c-8d75-f4099c3a1581.png' }) },
 		{ name: 'Braixen', dexNum: '654', type1: 'Fire', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/4/4b/0654Braixen.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4n8w-f70dc15d-a3d9-459f-af76-4ddefa30afe8.png' }) },
-		{ name: 'Delphox', dexNum: '655', type1: 'Fire', type2: 'Psychic', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/0/01/0655Delphox.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4nb0-cf22ed55-5a0b-48e5-8276-4c87d413b7ca.png/v1/fill/w_885,h_885/_655_delphox_by_tonofdirt726_ddl4nb0-fullview.png' }) },
+		{ name: 'Delphox', dexNum: '655', type1: 'Fire', type2: 'Psychic', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/0/01/0655Delphox.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/3/3a/0655Delphox-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4nb0-cf22ed55-5a0b-48e5-8276-4c87d413b7ca.png/v1/fill/w_885,h_885/_655_delphox_by_tonofdirt726_ddl4nb0-fullview.png',
+				'Mega': 'https://i.ibb.co/Y72PszxQ/655-Delphox.png'
+			}) 
+		},
 		{ name: 'Froakie', dexNum: '656', type1: 'Water', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/0/04/0656Froakie.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4nd5-5e105530-443b-486d-beba-40c3420521af.png' }) },
 		{ name: 'Frogadier', dexNum: '657', type1: 'Water', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/8e/0657Frogadier.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4nfg-990a80bd-e977-4889-ae2f-3e180052096e.png' }) },
 		{ name: 'Greninja', dexNum: '658', type1: 'Water', type2: 'Dark', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Default', percentage: 90 },
-				{name: 'Ash', percentage: 10 }
+				{name: 'Ash', percentage: 10 },
+				{name: 'Mega', percentage: 0 }
 			]), 
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/d/d9/0658Greninja.png',
-				'Ash': 'https://archives.bulbagarden.net/media/upload/7/72/0658Greninja-Ash.png'
+				'Ash': 'https://archives.bulbagarden.net/media/upload/7/72/0658Greninja-Ash.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/e/e9/0658Greninja-Mega.png'
 			}), 
 			shinyImageLinks: JSON.stringify({ 
 				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4nhw-66699f66-4f0a-4299-befe-3ad8cd1e6017.png',
-				'Ash': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4njg-2b4d3643-294e-41fc-ab20-bc29f957d407.png'
+				'Ash': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddl4njg-2b4d3643-294e-41fc-ab20-bc29f957d407.png',
+				'Mega': 'https://i.ibb.co/YFjtL6My/658-Greninja.png'
 			}) 
 		},
 		{ name: 'Bunnelby', dexNum: '659', type1: 'Normal', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/d/d0/0659Bunnelby.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlohme-33141c10-15b9-4d11-9fc8-13c17e069708.png' }) },
@@ -2713,15 +3004,18 @@ db.serialize(() => {
 		{ name: 'Pyroar', dexNum: '668', type1: 'Fire', type2: 'Normal', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 12.5 }, { name: 'Female', percentage: 87.5 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Male (M)', percentage: 87.5 }, 
-				{name: 'Female (F)', percentage: 12.5 } 
+				{name: 'Female (F)', percentage: 12.5 },
+				{name: 'Mega', percentage: 0 }
 			]), 
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/d/d1/0668Pyroar-Male.png',
-				'Female (F)': 'https://archives.bulbagarden.net/media/upload/0/0c/0668Pyroar-Female.png'
+				'Female (F)': 'https://archives.bulbagarden.net/media/upload/0/0c/0668Pyroar-Female.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/5/5d/0668Pyroar-Mega.png'
 			}), 
 			shinyImageLinks: JSON.stringify({ 
 				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/9883388b-e3a4-4a5a-8953-fc1919dce451/dh99auy-5893f0cb-1ff1-4470-a724-ac2a55b891b4.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcLzk4ODMzODhiLWUzYTQtNGE1YS04OTUzLWZjMTkxOWRjZTQ1MVwvZGg5OWF1eS01ODkzZjBjYi0xZmYxLTQ0NzAtYTcyNC1hYzJhNTViODkxYjQucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.3mBnmyQf8acQTBLZyQLDjEY9rnJgvDJqsKC48wMEITg',
-				'Female (F)': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/9883388b-e3a4-4a5a-8953-fc1919dce451/dh99ak4-e20907c7-e02a-45f0-9638-93282f1af53e.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcLzk4ODMzODhiLWUzYTQtNGE1YS04OTUzLWZjMTkxOWRjZTQ1MVwvZGg5OWFrNC1lMjA5MDdjNy1lMDJhLTQ1ZjAtOTYzOC05MzI4MmYxYWY1M2UucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.OVXr65U9PAIuMbddiVbRcWB5RJRoip4mkJ5bekdc1kQ'
+				'Female (F)': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/9883388b-e3a4-4a5a-8953-fc1919dce451/dh99ak4-e20907c7-e02a-45f0-9638-93282f1af53e.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcLzk4ODMzODhiLWUzYTQtNGE1YS04OTUzLWZjMTkxOWRjZTQ1MVwvZGg5OWFrNC1lMjA5MDdjNy1lMDJhLTQ1ZjAtOTYzOC05MzI4MmYxYWY1M2UucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.OVXr65U9PAIuMbddiVbRcWB5RJRoip4mkJ5bekdc1kQ',
+				'Mega': 'https://i.ibb.co/SwDqvLHn/668-Pyroar.png'
 			}) 
 		},
 		{ name: 'Flabébé', dexNum: '669', type1: 'Fairy', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Female', percentage: 100 } ]), 
@@ -2749,25 +3043,31 @@ db.serialize(() => {
 		},
 		{ name: 'Floette', dexNum: '670', type1: 'Fairy', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Female', percentage: 100 } ]), 
 			forms: JSON.stringify([
-				{name: 'Red', percentage: 20 }, 
-				{name: 'Blue', percentage: 20 }, 
-				{name: 'Yellow', percentage: 20 }, 
-				{name: 'White', percentage: 20 }, 
-				{name: 'Orange', percentage: 20 } 
+				{name: 'Red', percentage: 19.4 }, 
+				{name: 'Blue', percentage: 19.4 }, 
+				{name: 'Yellow', percentage: 19.4 }, 
+				{name: 'White', percentage: 19.4 }, 
+				{name: 'Orange', percentage: 19.4 },
+				{name: 'Eternal', percentage: 3 },
+				{name: 'Mega', percentage: 0 }
 			]), 
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/8/8f/0670Floette.png',
 				'Blue': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dekpf8f-53032b12-2f66-402d-92da-49091c52f68d.png/v1/fill/w_829,h_829/_670_floette__blue_flower__by_tonofdirt726_dekpf8f-fullview.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9ODI5IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZWtwZjhmLTUzMDMyYjEyLTJmNjYtNDAyZC05MmRhLTQ5MDkxYzUyZjY4ZC5wbmciLCJ3aWR0aCI6Ijw9ODI5In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.gSBx5f6A5DeOVtQ2E_Pz7WjBAnA5PeBFWW00v3WpIP8',
 				'Yellow': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dekpfby-4e66abdb-ced1-4216-9860-d1e067ae61c1.png/v1/fill/w_829,h_829/_670_floette__yellow_flower__by_tonofdirt726_dekpfby-fullview.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9ODI5IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZWtwZmJ5LTRlNjZhYmRiLWNlZDEtNDIxNi05ODYwLWQxZTA2N2FlNjFjMS5wbmciLCJ3aWR0aCI6Ijw9ODI5In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.0l1KxnIhScmycUTC9HPriP0DrHHhFPkL6S6q1s0G-Xo',
 				'White': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dekpfa8-52f470b7-6f3a-4018-aa83-5492b1828d89.png/v1/fill/w_829,h_829/_670_floette__white_flower__by_tonofdirt726_dekpfa8-fullview.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9ODI5IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZWtwZmE4LTUyZjQ3MGI3LTZmM2EtNDAxOC1hYTgzLTU0OTJiMTgyOGQ4OS5wbmciLCJ3aWR0aCI6Ijw9ODI5In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.Y7ctR_3Kibc-aMQDCHEyh6ruZ3P_FGa8EW8HpOs7UOg',
-				'Orange': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dekpfb7-c0888645-8ef3-4c6a-b1e0-ebcea396ca2f.png/v1/fill/w_829,h_829/_670_floette__orange_flower__by_tonofdirt726_dekpfb7-fullview.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9ODI5IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZWtwZmI3LWMwODg4NjQ1LThlZjMtNGM2YS1iMWUwLWViY2VhMzk2Y2EyZi5wbmciLCJ3aWR0aCI6Ijw9ODI5In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.DDbHVspd9UmZ6liXsPdMIskzqpfMdJgz5fXpvQYu7hQ'
+				'Orange': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dekpfb7-c0888645-8ef3-4c6a-b1e0-ebcea396ca2f.png/v1/fill/w_829,h_829/_670_floette__orange_flower__by_tonofdirt726_dekpfb7-fullview.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9ODI5IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZWtwZmI3LWMwODg4NjQ1LThlZjMtNGM2YS1iMWUwLWViY2VhMzk2Y2EyZi5wbmciLCJ3aWR0aCI6Ijw9ODI5In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.DDbHVspd9UmZ6liXsPdMIskzqpfMdJgz5fXpvQYu7hQ',
+				'Eternal': 'https://archives.bulbagarden.net/media/upload/a/a9/0670Floette-Eternal.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/3/36/0670Floette-Mega.png'
 			}), 
 			shinyImageLinks: JSON.stringify({ 
 				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddloikz-192f71e5-6793-4753-b4c3-468a8b7974b9.png/v1/fill/w_829,h_829/_670_floette_by_tonofdirt726_ddloikz-fullview.png',
 				'Blue': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dem12ya-19ef5c7e-e5a2-4b2f-b59b-91aa2da19d12.png/v1/fill/w_829,h_829/_670_floette__blue_flower__by_tonofdirt726_dem12ya-fullview.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9ODI5IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZW0xMnlhLTE5ZWY1YzdlLWU1YTItNGIyZi1iNTliLTkxYWEyZGExOWQxMi5wbmciLCJ3aWR0aCI6Ijw9ODI5In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.VS3NIZd6UHklA-41L5BIgbNqTdnYaNBf3QMtixkwt14',
 				'Yellow': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dem12fj-eb6b3ed4-d35d-4bd7-921b-517961ee4372.png/v1/fill/w_829,h_829/_670_floette__yellow_flower__by_tonofdirt726_dem12fj-fullview.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9ODI5IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZW0xMmZqLWViNmIzZWQ0LWQzNWQtNGJkNy05MjFiLTUxNzk2MWVlNDM3Mi5wbmciLCJ3aWR0aCI6Ijw9ODI5In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.znmCu70nj2pvrvXQIwfkSe6XQhnVNp_sSFy01W9w0r4',
 				'White': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dem12sw-d066d85c-ee32-44e7-beb0-ae1d10c69839.png/v1/fill/w_829,h_829/_670_floette__white_flower__by_tonofdirt726_dem12sw-fullview.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9ODI5IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZW0xMnN3LWQwNjZkODVjLWVlMzItNDRlNy1iZWIwLWFlMWQxMGM2OTgzOS5wbmciLCJ3aWR0aCI6Ijw9ODI5In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.L2enKwZ7etzEboJ6yRXiJSz99cvQwkE210qKHNRPAl8',
-				'Orange': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dem12xa-41c21a6b-59de-45ad-a620-178c924e8c0e.png/v1/fill/w_829,h_829/_670_floette__orange_flower__by_tonofdirt726_dem12xa-fullview.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9ODI5IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZW0xMnhhLTQxYzIxYTZiLTU5ZGUtNDVhZC1hNjIwLTE3OGM5MjRlOGMwZS5wbmciLCJ3aWR0aCI6Ijw9ODI5In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.Lr6NW_IRZoAbc_Wot0EXrRIrCQMi8lx7Zrlm3Iw5CcM'
+				'Orange': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dem12xa-41c21a6b-59de-45ad-a620-178c924e8c0e.png/v1/fill/w_829,h_829/_670_floette__orange_flower__by_tonofdirt726_dem12xa-fullview.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9ODI5IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZW0xMnhhLTQxYzIxYTZiLTU5ZGUtNDVhZC1hNjIwLTE3OGM5MjRlOGMwZS5wbmciLCJ3aWR0aCI6Ijw9ODI5In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.Lr6NW_IRZoAbc_Wot0EXrRIrCQMi8lx7Zrlm3Iw5CcM',
+				'Eternal': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/djmkft3-d9ee2c86-fd4e-4e9d-97b2-ef6c953ac7cd.png/v1/fill/w_829,h_829/_670_floette__eternal__by_tonofdirt726_djmkft3-pre.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9MTA2OCIsInBhdGgiOiIvZi9lNDhkNmI5ZC0zYjFkLTQ2YTAtYTI1NC0zYTQ0OGVjM2E4YTUvZGpta2Z0My1kOWVlMmM4Ni1mZDRlLTRlOWQtOTdiMi1lZjZjOTUzYWM3Y2QucG5nIiwid2lkdGgiOiI8PTEwNjgifV1dLCJhdWQiOlsidXJuOnNlcnZpY2U6aW1hZ2Uub3BlcmF0aW9ucyJdfQ.zS6er3kQL3Gap6cXO9ohD3P3C2diOUlEJ2qLJX1K5IA',
+				'Mega': 'https://i.ibb.co/spRYVpMN/670-Floette.png'
 			}) 
 		},
 		{ name: 'Florges', dexNum: '671', type1: 'Fairy', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Female', percentage: 100 } ]), 
@@ -2839,15 +3139,18 @@ db.serialize(() => {
 		{ name: 'Meowstic', dexNum: '678', type1: 'Psychic', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Male (M)', percentage: 50 }, 
-				{name: 'Female (F)', percentage: 50 } 
+				{name: 'Female (F)', percentage: 50 },
+				{name: 'Mega', percentage: 0 }
 			]), 
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/6/6d/0678Meowstic-Male.png', 
-				'Female (F)': 'https://archives.bulbagarden.net/media/upload/1/1f/0678Meowstic-Female.png' 
+				'Female (F)': 'https://archives.bulbagarden.net/media/upload/1/1f/0678Meowstic-Female.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/4/40/0678Meowstic-Mega.png'
 			}), 
 			shinyImageLinks: JSON.stringify({ 
 				default: 'https://static.wikia.nocookie.net/shiny-pokemon/images/6/62/Male_meowstic.png/revision/latest/scale-to-width-down/400?cb=20220420141001', 
-				'Female (F)': 'https://static.wikia.nocookie.net/shiny-pokemon/images/f/f3/Female_meowstic.png/revision/latest/scale-to-width-down/340?cb=20220420140922' 
+				'Female (F)': 'https://static.wikia.nocookie.net/shiny-pokemon/images/f/f3/Female_meowstic.png/revision/latest/scale-to-width-down/340?cb=20220420140922',
+				'Mega': 'https://i.ibb.co/bMLVWgyh/678-Meowstic.png'
 			}) 
 		},
 		{ name: 'Honedge', dexNum: '679', type1: 'Steel', type2: 'Ghost', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/4/48/0679Honedge.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddloj98-d59cd906-a8a2-4e03-a781-97b9bb277b34.png' }) },
@@ -2871,11 +3174,50 @@ db.serialize(() => {
 		{ name: 'Swirlix', dexNum: '684', type1: 'Fairy', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/a/a7/0684Swirlix.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlojql-86264934-ce61-4d64-88a6-7e799b952ddc.png' }) },
 		{ name: 'Slurpuff', dexNum: '685', type1: 'Fairy', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/c/c4/0685Slurpuff.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlojs5-b8263d13-d8cb-4b31-994a-d6fe9685e39a.png/v1/fill/w_841,h_841/_685_slurpuff_by_tonofdirt726_ddlojs5-fullview.png' }) },
 		{ name: 'Inkay', dexNum: '686', type1: 'Dark', type2: 'Psychic', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/3/3d/0686Inkay.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddloju7-07c393c3-9603-4064-b755-086257057fee.png' }) },
-		{ name: 'Malamar', dexNum: '687', type1: 'Dark', type2: 'Psychic', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/5/58/0687Malamar.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlojx0-7f827dc7-42bb-42a6-92fe-db362d81fe74.png' }) },
+		{ name: 'Malamar', dexNum: '687', type1: 'Dark', type2: 'Psychic', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/5/58/0687Malamar.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/a/ae/0687Malamar-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlojx0-7f827dc7-42bb-42a6-92fe-db362d81fe74.png',
+				'Mega': 'https://i.ibb.co/fGK9Z5FN/687-Malamar.png'
+			}) 
+		},
 		{ name: 'Binacle', dexNum: '688', type1: 'Rock', type2: 'Water', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/9/90/0688Binacle.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrwpg-81328597-0353-4338-92ed-c50e54664011.png/v1/fit/w_818,h_818/_688_binacle_by_tonofdirt726_ddlrwpg-414w-2x.png' }) },
-		{ name: 'Barbaracle', dexNum: '689', type1: 'Rock', type2: 'Water', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/3/36/0689Barbaracle.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrws7-64da5de7-9cca-4b9e-acb0-223d62b3d23f.png/v1/fill/w_851,h_851/_689_barbaracle_by_tonofdirt726_ddlrws7-fullview.png' }) },
+		{ name: 'Barbaracle', dexNum: '689', type1: 'Rock', type2: 'Water', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/3/36/0689Barbaracle.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/e/e9/0689Barbaracle-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrws7-64da5de7-9cca-4b9e-acb0-223d62b3d23f.png/v1/fill/w_851,h_851/_689_barbaracle_by_tonofdirt726_ddlrws7-fullview.png',
+				'Mega': 'https://i.ibb.co/2050hWBL/689-Barbaracle.png'
+			}) 
+		},
 		{ name: 'Skrelp', dexNum: '690', type1: 'Poison', type2: 'Water', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/e/e7/0690Skrelp.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrwur-c0099630-b05f-4562-a92b-1ceafbd65f65.png' }) },
-		{ name: 'Dragalge', dexNum: '691', type1: 'Poison', type2: 'Dragon', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/4/4c/0691Dragalge.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrwwo-0a9b72d7-e882-4dd8-9301-9d7b92c3238f.png/v1/fill/w_865,h_865/_691_dragalge_by_tonofdirt726_ddlrwwo-fullview.png' }) },
+		{ name: 'Dragalge', dexNum: '691', type1: 'Poison', type2: 'Dragon', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/4/4c/0691Dragalge.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/9/97/0691Dragalge-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrwwo-0a9b72d7-e882-4dd8-9301-9d7b92c3238f.png/v1/fill/w_865,h_865/_691_dragalge_by_tonofdirt726_ddlrwwo-fullview.png',
+				'Mega': 'https://i.ibb.co/3YTyNp1p/691-Dragalge.png'
+			}) 
+		},
 		{ name: 'Clauncher', dexNum: '692', type1: 'Water', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/f/ff/0692Clauncher.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrwz4-476d191c-a22a-495e-8da1-d197184a4a17.png' }) },
 		{ name: 'Clawitzer', dexNum: '693', type1: 'Water', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/f/f1/0693Clawitzer.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrx1j-519e1eb6-1cf2-409e-b39a-0baa36f85995.png' }) },
 		{ name: 'Helioptile', dexNum: '694', type1: 'Electric', type2: 'Normal', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/c/cc/0694Helioptile.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrx48-a5843f1a-6492-454e-b0dc-5ddc6e73faf0.png' }) },
@@ -2885,7 +3227,20 @@ db.serialize(() => {
 		{ name: 'Amaura', dexNum: '698', type1: 'Rock', type2: 'Ice', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/0/09/0698Amaura.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrxge-b5499aab-3a59-46ed-ab5a-94e24472d03f.png' }) },
 		{ name: 'Aurorus', dexNum: '699', type1: 'Rock', type2: 'Ice', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/5/56/0699Aurorus.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrxin-9bd6ff1f-4d28-43dd-bd5c-bcfdba3c148a.png' }) },
 		{ name: 'Sylveon', dexNum: '700', type1: 'Fairy', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/d/d0/0700Sylveon.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrxkv-520fda09-e02a-40c3-99da-9590d69fd3d3.png' }) },
-		{ name: 'Hawlucha', dexNum: '701', type1: 'Fighting', type2: 'Flying', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/6/69/0701Hawlucha.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrxmi-747ae0ac-d6a2-4cf6-913d-aad49c82d289.png/v1/fill/w_870,h_870/_701_hawlucha_by_tonofdirt726_ddlrxmi-fullview.png' }) },
+		{ name: 'Hawlucha', dexNum: '701', type1: 'Fighting', type2: 'Flying', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/6/69/0701Hawlucha.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/4/49/0701Hawlucha-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrxmi-747ae0ac-d6a2-4cf6-913d-aad49c82d289.png/v1/fill/w_870,h_870/_701_hawlucha_by_tonofdirt726_ddlrxmi-fullview.png',
+				'Mega': 'https://i.ibb.co/wFqF5Nbk/701-Hawlucha.png'
+			}) 
+		},
 		{ name: 'Dedenne', dexNum: '702', type1: 'Electric', type2: 'Fairy', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/4/4f/0702Dedenne.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrxq5-d4c2648a-cfe7-45cf-a930-855abd2a5298.png' }) },
 		{ name: 'Carbink', dexNum: '703', type1: 'Rock', type2: 'Fairy', region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/f/fb/0703Carbink.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrxsp-a6152ea8-f21e-4e3a-9db0-3814b8abff74.png/v1/fill/w_830,h_830/_703_carbink_by_tonofdirt726_ddlrxsp-fullview.png' }) },
 		{ name: 'Goomy', dexNum: '704', type1: 'Dragon', type2: null, region: 'Kalos', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/1/16/0704Goomy.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrxue-f3144297-0874-4c44-8e8e-8620b7c36355.png/v1/fit/w_790,h_790/_704_goomy_by_tonofdirt726_ddlrxue-414w-2x.png' }) },
@@ -2983,17 +3338,20 @@ db.serialize(() => {
 			forms: JSON.stringify([ 
 				{name: '50% Forme', percentage: 65 },
 				{name: '10% Forme', percentage: 25 },
-				{name: 'Complete Forme', percentage: 10 }
+				{name: 'Complete Forme', percentage: 10 },
+				{name: 'Mega', percentage: 0 }
 			]), 
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/9/92/0718Zygarde.png',
 				'10% Forme': 'https://archives.bulbagarden.net/media/upload/f/f8/0718Zygarde-10Percent.png',
-				'Complete Forme': 'https://archives.bulbagarden.net/media/upload/f/fb/0718Zygarde-Complete.png'
+				'Complete Forme': 'https://archives.bulbagarden.net/media/upload/f/fb/0718Zygarde-Complete.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/8/8c/0718Zygarde-Mega.png'
 			}), 
 			shinyImageLinks: JSON.stringify({ 
 				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlryn1-05da0c1e-b789-4fbe-9be9-bfd4d5dfb837.png',
 				'10% Forme': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlryq3-d7784a98-b3a6-470a-866b-3639a445f0cd.png',
-				'Complete Forme': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrysu-a6d2cf6b-e4f6-4b9c-b87d-5af88da69e8c.png'
+				'Complete Forme': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddlrysu-a6d2cf6b-e4f6-4b9c-b87d-5af88da69e8c.png',
+				'Mega': 'https://i.ibb.co/YFgcy3sW/718-Zygarde.png'
 			}) 
 		},
 		{ name: 'Diancie', dexNum: '719', type1: 'Rock', type2: 'Fairy', region: 'Kalos', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
@@ -3057,7 +3415,20 @@ db.serialize(() => {
 		{ name: 'Charjabug', dexNum: '737', type1: 'Bug', type2: 'Electric', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/3/33/0737Charjabug.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddm80cd-e8d8babe-60d9-42d2-a627-2e2d7bc92312.png' }) },
 		{ name: 'Vikavolt', dexNum: '738', type1: 'Bug', type2: 'Electric', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/c/c9/0738Vikavolt.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddm80fs-043df9dc-cafd-43b6-90e0-a373247269c6.png' }) },
 		{ name: 'Crabrawler', dexNum: '739', type1: 'Fighting', type2: null, region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/83/0739Crabrawler.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddm80nn-3134d5fd-27a6-4b23-a6a2-fb3f4ccc430d.png' }) },
-		{ name: 'Crabominable', dexNum: '740', type1: 'Fighting', type2: 'Ice', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/2/29/0740Crabominable.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddm80qs-892a7002-1aac-4e7e-88af-52af93bbfc95.png/v1/fill/w_883,h_883/_740_crabominable_by_tonofdirt726_ddm80qs-fullview.png' }) },
+		{ name: 'Crabominable', dexNum: '740', type1: 'Fighting', type2: 'Ice', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/2/29/0740Crabominable.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/7/75/0740Crabominable-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddm80qs-892a7002-1aac-4e7e-88af-52af93bbfc95.png/v1/fill/w_883,h_883/_740_crabominable_by_tonofdirt726_ddm80qs-fullview.png',
+				'Mega': 'https://i.ibb.co/DDd0fG0p/740-Crabominable.png'
+			}) 
+		},
 		{ name: 'Oricorio', dexNum: '741', type1: 'Fire', type2: 'Flying', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 25 }, { name: 'Female', percentage: 75 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Baile Style', percentage: 25 },
@@ -3133,7 +3504,20 @@ db.serialize(() => {
 		{ name: 'Oranguru', dexNum: '765', type1: 'Normal', type2: 'Psychic', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/f/f7/0765Oranguru.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddme6je-22e884cb-8a35-48ec-a601-cbd3c156fb74.png' }) },
 		{ name: 'Passimian', dexNum: '766', type1: 'Fighting', type2: null, region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/1/17/0766Passimian.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddme6ks-e53fbacb-a918-43eb-aaa2-737ee4f46fd6.png' }) },
 		{ name: 'Wimpod', dexNum: '767', type1: 'Bug', type2: 'Water', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/0/07/0767Wimpod.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn3yth-6197d8d6-2428-43b4-a232-5ef61dcf4127.png' }) },
-		{ name: 'Golisopod', dexNum: '768', type1: 'Bug', type2: 'Water', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/3/32/0768Golisopod.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn3yxh-66f07f3e-1cfe-4dde-b4a8-015ebc1a19a2.png/v1/fill/w_887,h_887/_768_golisopod_by_tonofdirt726_ddn3yxh-fullview.png' }) },
+		{ name: 'Golisopod', dexNum: '768', type1: 'Bug', type2: 'Water', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/3/32/0768Golisopod.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/c/c7/0768Golisopod-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn3yxh-66f07f3e-1cfe-4dde-b4a8-015ebc1a19a2.png/v1/fill/w_887,h_887/_768_golisopod_by_tonofdirt726_ddn3yxh-fullview.png',
+				'Mega': 'https://i.ibb.co/NnCRqXHC/768-Golisopod.png'
+			}) 
+		},
 		{ name: 'Sandygast', dexNum: '769', type1: 'Ghost', type2: 'Ground', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/c/cf/0769Sandygast.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn3z12-07138953-7b93-4f42-bb2b-62e12200bccf.png' }) },
 		{ name: 'Palossand', dexNum: '770', type1: 'Ghost', type2: 'Ground', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/2/29/0770Palossand.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn3z40-3a4006fa-371d-435e-a312-eb98ca2a38d6.png' }) },
 		{ name: 'Pyukumuku', dexNum: '771', type1: 'Water', type2: null, region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/84/0771Pyukumuku.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn3z6z-3427c2e5-88a5-4c00-8b3f-1d54f5225157.png' }) },
@@ -3250,7 +3634,20 @@ db.serialize(() => {
 			}) 
 		},
 		{ name: 'Bruxish', dexNum: '779', type1: 'Water', type2: 'Psychic', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/a/ac/0779Bruxish.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn40fv-4441b1c5-6236-408e-b7b6-a52905e59d39.png' }) },
-		{ name: 'Drampa', dexNum: '780', type1: 'Normal', type2: 'Dragon', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/1/10/0780Drampa.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn40o0-1c228811-3e69-40b1-b3f1-d40d36bff230.png' }) },
+		{ name: 'Drampa', dexNum: '780', type1: 'Normal', type2: 'Dragon', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/1/10/0780Drampa.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/4/40/0780Drampa-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn40o0-1c228811-3e69-40b1-b3f1-d40d36bff230.png',
+				'Mega': 'https://i.ibb.co/39VS5BrJ/780-Drampa.png'
+			}) 
+		},
 		{ name: 'Dhelmise', dexNum: '781', type1: 'Ghost', type2: 'Grass', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/80/0781Dhelmise.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn40uh-a41a6a70-a439-4742-bf2a-1014cea6a10a.png/v1/fill/w_862,h_862/_781_dhelmise_by_tonofdirt726_ddn40uh-fullview.png' }) },
 		{ name: 'Jangmo-o', dexNum: '782', type1: 'Dragon', type2: null, region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/84/0782Jangmo-o.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn40y9-3c11b1d2-b46a-4c0d-8f64-dbbf2b0949fc.png' }) },
 		{ name: 'Hakamo-o', dexNum: '783', type1: 'Dragon', type2: 'Fighting', region: 'Alola', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/a/ae/0783Hakamo-o.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn4119-b7014054-e4f6-4048-8f6f-446c518bd24d.png' }) },
@@ -3293,15 +3690,21 @@ db.serialize(() => {
 		{ name: 'Magearna', dexNum: '801', type1: 'Steel', type2: 'Fairy', region: 'Alola', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Default', percentage: 95 },
-				{name: 'Original', percentage: 5 }
+				{name: 'Original', percentage: 5 },
+				{name: 'Mega', percentage: 0 },
+				{name: 'Mega Original', percentage: 0 }
 			]), 
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/c/cb/0801Magearna.png',
-				'Original': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dekpeev-7750ce66-ad64-4cc3-b430-ed68f82eb94c.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGVrcGVldi03NzUwY2U2Ni1hZDY0LTRjYzMtYjQzMC1lZDY4ZjgyZWI5NGMucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.K4HFH0tNqgdAY5w88VBxYYITWkS1UlB44x0SR1bKuSE'
+				'Original': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dekpeev-7750ce66-ad64-4cc3-b430-ed68f82eb94c.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGVrcGVldi03NzUwY2U2Ni1hZDY0LTRjYzMtYjQzMC1lZDY4ZjgyZWI5NGMucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.K4HFH0tNqgdAY5w88VBxYYITWkS1UlB44x0SR1bKuSE',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/e/ee/0801Magearna-Mega.png',
+				'Mega Original': 'https://archives.bulbagarden.net/media/upload/6/6b/0801Magearna-Original_Mega.png'
 			}), 
 			shinyImageLinks: JSON.stringify({ 
 				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddym7gv-9f9312ef-e792-43dc-b33e-a0ee7e1e4792.png',
-				'Original': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn43n1-d9bd38f3-0346-4c4e-aa02-723af0978857.png'
+				'Original': 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn43n1-d9bd38f3-0346-4c4e-aa02-723af0978857.png',
+				'Mega': 'https://i.ibb.co/Wvm2L0Dh/801-Magearna.png',
+				'Mega Original': 'https://i.ibb.co/WWs8j1m2/801-Magearna-Original.png'
 			}) 
 		},
 		{ name: 'Marshadow', dexNum: '802', type1: 'Fighting', type2: 'Ghost', region: 'Alola', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
@@ -3322,7 +3725,20 @@ db.serialize(() => {
 		{ name: 'Naganadel', dexNum: '804', type1: 'Poison', type2: 'Dragon', region: 'Alola', isLM: 4, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/84/0804Naganadel.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn441l-d46324ef-57fe-4c60-a4af-272b6b2658d0.png' }) },
 		{ name: 'Stakataka', dexNum: '805', type1: 'Rock', type2: 'Steel', region: 'Alola', isLM: 4, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/3/30/0805Stakataka.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn444f-bd1ff26c-497f-438a-98eb-244daaf3f29c.png/v1/fit/w_806,h_806/_805_stakataka_by_tonofdirt726_ddn444f-414w-2x.png' }) },
 		{ name: 'Blacephalon', dexNum: '806', type1: 'Fire', type2: 'Ghost', region: 'Alola', isLM: 4, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/4/48/0806Blacephalon.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn447r-9f5372fd-a90b-4529-be4a-b1f4eee14861.png' }) },
-		{ name: 'Zeraora', dexNum: '807', type1: 'Electric', type2: null, region: 'Alola', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/c/c5/0807Zeraora.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn44az-db0bbbc8-4a57-4989-98c8-9946372008f4.png' }) },
+		{ name: 'Zeraora', dexNum: '807', type1: 'Electric', type2: null, region: 'Alola', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/c/c5/0807Zeraora.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/d/d3/0807Zeraora-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn44az-db0bbbc8-4a57-4989-98c8-9946372008f4.png',
+				'Mega': 'https://i.ibb.co/kg3W8jFb/807-Zeraora.png'
+			}) 
+		},
 		{ name: 'Meltan', dexNum: '808', type1: 'Steel', type2: null, region: 'Alola', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/b/bc/0808Meltan.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddn44d7-79ddea05-fd83-428e-9aa3-3b2fdbefee5b.png' }) },
 		{ name: 'Melmetal', dexNum: '809', type1: 'Steel', type2: null, region: 'Alola', isLM: 2, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
 			forms: JSON.stringify([ 
@@ -3659,7 +4075,20 @@ db.serialize(() => {
 				'Gigantamax': 'https://archives.bulbagarden.net/media/upload/9/93/0869Alcremie-Gigantamax.png'
 			}) 
 		},
-		{ name: 'Falinks', dexNum: '870', type1: 'Fighting', type2: null, region: 'Galar', isLM: 0, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/87/0870Falinks.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddxrw4m-9164503c-8849-4fc5-b019-4c25c55db906.png' }) },
+		{ name: 'Falinks', dexNum: '870', type1: 'Fighting', type2: null, region: 'Galar', isLM: 0, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/8/87/0870Falinks.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/3/37/0870Falinks-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddxrw4m-9164503c-8849-4fc5-b019-4c25c55db906.png',
+				'Mega': 'https://i.ibb.co/B2hXg3ZG/870-Falinks.png'
+			}) 
+		},
 		{ name: 'Pincurchin', dexNum: '871', type1: 'Electric', type2: null, region: 'Galar', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/c/cf/0871Pincurchin.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddxrw6l-62deb0b1-0189-466a-b66c-958e139a9baf.png' }) },
 		{ name: 'Snom', dexNum: '872', type1: 'Ice', type2: 'Bug', region: 'Galar', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/84/0872Snom.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddxrw8y-8dbae56c-ec63-483e-b0b7-893c838a624e.png/v1/fit/w_742,h_742/_872_snom_by_tonofdirt726_ddxrw8y-375w-2x.png' }) },
 		{ name: 'Frosmoth', dexNum: '873', type1: 'Ice', type2: 'Bug', region: 'Galar', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/b/b2/0873Frosmoth.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/i/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/ddxrwav-132e4fb8-5b53-408d-b257-379dd6547c26.png' }) },
@@ -3964,7 +4393,20 @@ db.serialize(() => {
 		{ name: 'Toedscruel', dexNum: '949', type1: 'Ground', type2: 'Grass', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/8c/0949Toedscruel.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp490e-b038ce84-a116-4d53-aac4-c376fc07a162.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZwNDkwZS1iMDM4Y2U4NC1hMTE2LTRkNTMtYWFjNC1jMzc2ZmMwN2ExNjIucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.FpTFun57bXmrTjVibfOW1ROoN7ntayErk2gNWCtUDyI' }) },
 		{ name: 'Klawf', dexNum: '950', type1: 'Rock', type2: null, region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/5/5a/0950Klawf.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfhqqp6-b6681586-071c-42b7-8b7e-784960ed06a1.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZocXFwNi1iNjY4MTU4Ni0wNzFjLTQyYjctOGI3ZS03ODQ5NjBlZDA2YTEucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0._pJrz8pxHqi9LU3LLpDPHV5GoCfgB9BiHvzfXIZw1F4' }) },
 		{ name: 'Capsakid', dexNum: '951', type1: 'Grass', type2: null, region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/c/c5/0951Capsakid.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp491i-304eacf9-8fc8-4075-b6d8-9bbed3ab205d.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZwNDkxaS0zMDRlYWNmOS04ZmM4LTQwNzUtYjZkOC05YmJlZDNhYjIwNWQucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.9RmnCffHZgELZhOGUT-mzlqeUHqSvdzeqQ-V8jvc_-s' }) },
-		{ name: 'Scovillain', dexNum: '952', type1: 'Grass', type2: 'Fire', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/f/f7/0952Scovillain.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp492o-c39536a2-b433-4a8d-8100-b1eaebc8a469.png/v1/fit/w_534,h_534/_952_scovillain_by_tonofdirt726_dfp492o-375w-2x.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9NTM0IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZnA0OTJvLWMzOTUzNmEyLWI0MzMtNGE4ZC04MTAwLWIxZWFlYmM4YTQ2OS5wbmciLCJ3aWR0aCI6Ijw9NTM0In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.-DO1XJ6u21Ubo3kDMuIIJqPaaWj3Inm_48cFdJtRZDU' }) },
+		{ name: 'Scovillain', dexNum: '952', type1: 'Grass', type2: 'Fire', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/f/f7/0952Scovillain.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/2/20/0952Scovillain-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp492o-c39536a2-b433-4a8d-8100-b1eaebc8a469.png/v1/fit/w_534,h_534/_952_scovillain_by_tonofdirt726_dfp492o-375w-2x.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9NTM0IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZnA0OTJvLWMzOTUzNmEyLWI0MzMtNGE4ZC04MTAwLWIxZWFlYmM4YTQ2OS5wbmciLCJ3aWR0aCI6Ijw9NTM0In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.-DO1XJ6u21Ubo3kDMuIIJqPaaWj3Inm_48cFdJtRZDU',
+				'Mega': 'https://i.ibb.co/RGrthXzf/952-Scovillain.png'
+			}) 
+		},
 		{ name: 'Rellor', dexNum: '953', type1: 'Bug', type2: null, region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/2/2f/0953Rellor.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp493k-1592ea4e-5534-4e5d-9712-f8a275ed3c7f.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZwNDkzay0xNTkyZWE0ZS01NTM0LTRlNWQtOTcxMi1mOGEyNzVlZDNjN2YucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.c-zECtuBtGpbxWLdbZwYxRgxgEmF2BGnVHqLIUJnY8w' }) },
 		{ name: 'Rabsca', dexNum: '954', type1: 'Bug', type2: 'Psychic', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/7/7a/0954Rabsca.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp494e-fc63afd4-d0fc-43de-9454-0c804e345cb4.png/v1/fit/w_534,h_534/_954_rabsca_by_tonofdirt726_dfp494e-375w-2x.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9NTM0IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZnA0OTRlLWZjNjNhZmQ0LWQwZmMtNDNkZS05NDU0LTBjODA0ZTM0NWNiNC5wbmciLCJ3aWR0aCI6Ijw9NTM0In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.SQ0mmusOwX0k_ugvdk7pLNs-s4id37FiXHKnXk_1_MU' }) },
 		{ name: 'Flittle', dexNum: '955', type1: 'Psychic', type2: null, region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/5/5c/0955Flittle.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp495f-10ec5257-3fd8-4c20-a82e-d771cd107352.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZwNDk1Zi0xMGVjNTI1Ny0zZmQ4LTRjMjAtYTgyZS1kNzcxY2QxMDczNTIucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.FmksYKERbUyYZivBw_QvNwfYjiexWEo2I0bM2EaAa28' }) },
@@ -3995,7 +4437,20 @@ db.serialize(() => {
 		{ name: 'Cyclizar', dexNum: '967', type1: 'Dragon', type2: 'Normal', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/7/74/0967Cyclizar.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfii2o9-7839684f-5952-4938-b8e5-3c4188005546.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZpaTJvOS03ODM5Njg0Zi01OTUyLTQ5MzgtYjhlNS0zYzQxODgwMDU1NDYucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.IAkR0yO9P8zdN2xBwQKf6tUyHBUw6p_3IW4qrNaZGu4' }) },
 		{ name: 'Orthworm', dexNum: '968', type1: 'Steel', type2: null, region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/2/25/0968Orthworm.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp49mu-66697321-ed56-4c7a-8db9-ceef4b558fee.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZwNDltdS02NjY5NzMyMS1lZDU2LTRjN2EtOGRiOS1jZWVmNGI1NThmZWUucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.5P6Rq9_-SgtMHUQMSdN8rWan6Ki8SCcBGefY5KU7eqk' }) },
 		{ name: 'Glimmet', dexNum: '969', type1: 'Rock', type2: 'Poison', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/3/37/0969Glimmet.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp49ny-5881c7b1-d2c9-4c21-9090-b81c0f575b4f.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZwNDlueS01ODgxYzdiMS1kMmM5LTRjMjEtOTA5MC1iODFjMGY1NzViNGYucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.a3WPmyP27ZisI6ucJyaJ8IGnZe88D6HDfLG2oyxqjwM' }) },
-		{ name: 'Glimmora', dexNum: '970', type1: 'Rock', type2: 'Poison', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/d/df/0970Glimmora.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp49os-096410e5-dbcc-4ca1-8c89-aadc777715d2.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZwNDlvcy0wOTY0MTBlNS1kYmNjLTRjYTEtOGM4OS1hYWRjNzc3NzE1ZDIucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0._5dF4WrOt7YX6z5eLVk4r82eqEskn4LYr2b2BDya64I' }) },
+		{ name: 'Glimmora', dexNum: '970', type1: 'Rock', type2: 'Poison', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/d/df/0970Glimmora.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/e/e1/0970Glimmora-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp49os-096410e5-dbcc-4ca1-8c89-aadc777715d2.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZwNDlvcy0wOTY0MTBlNS1kYmNjLTRjYTEtOGM4OS1hYWRjNzc3NzE1ZDIucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0._5dF4WrOt7YX6z5eLVk4r82eqEskn4LYr2b2BDya64I',
+				'Mega': 'https://i.ibb.co/S48X6Fb9/970-Glimmora.png'
+			}) 
+		},
 		{ name: 'Greavard', dexNum: '971', type1: 'Ghost', type2: null, region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/2/22/0971Greavard.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfhqr7s-a12c9d8b-c934-438a-92ef-07583ef8d1b3.png/v1/fill/w_1280,h_1281/_971_greavard_by_tonofdirt726_dfhqr7s-fullview.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9MTI4MSIsInBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZocXI3cy1hMTJjOWQ4Yi1jOTM0LTQzOGEtOTJlZi0wNzU4M2VmOGQxYjMucG5nIiwid2lkdGgiOiI8PTEyODAifV1dLCJhdWQiOlsidXJuOnNlcnZpY2U6aW1hZ2Uub3BlcmF0aW9ucyJdfQ.Izyed_7Ntcj69aRU35TGZsOiIC5G_KiJa6gbL5_1hUA' }) },
 		{ name: 'Houndstone', dexNum: '972', type1: 'Ghost', type2: null, region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/8/85/0972Houndstone.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp49pv-41e6cf59-5478-4943-aa72-78f1bb830a01.png/v1/fit/w_534,h_534/_972_houndstone_by_tonofdirt726_dfp49pv-375w-2x.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9NTM0IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZnA0OXB2LTQxZTZjZjU5LTU0NzgtNDk0My1hYTcyLTc4ZjFiYjgzMGEwMS5wbmciLCJ3aWR0aCI6Ijw9NTM0In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.nKFHEdf22FUrianG55WUXo4bbCM4f3ldAa_piufyQeE' }) },
 		{ name: 'Flamigo', dexNum: '973', type1: 'Flying', type2: 'Fighting', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/0/07/0973Flamigo.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp49qm-0550963c-7dd8-4458-b9a8-23c8f59ac233.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZwNDlxbS0wNTUwOTYzYy03ZGQ4LTQ0NTgtYjlhOC0yM2M4ZjU5YWMyMzMucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.zvlakF1WnEqaFXmCY5vUjDXjRs1lQvRck-655JAQWzE' }) },
@@ -4007,17 +4462,20 @@ db.serialize(() => {
 			forms: JSON.stringify([ 
 				{name: 'Curly', percentage: 33.4 },
 				{name: 'Droopy', percentage: 33.3 },
-				{name: 'Stretchy', percentage: 33.3 }
+				{name: 'Stretchy', percentage: 33.3 },
+				{name: 'Mega', percentage: 0 }
 			]), 
 			imageLinks: JSON.stringify({ 
 				default: 'https://archives.bulbagarden.net/media/upload/3/34/0978Tatsugiri.png',
 				'Droopy': 'https://archives.bulbagarden.net/media/upload/5/5b/0978Tatsugiri-Droopy.png',
-				'Stretchy': 'https://archives.bulbagarden.net/media/upload/0/06/0978Tatsugiri-Stretchy.png'
+				'Stretchy': 'https://archives.bulbagarden.net/media/upload/0/06/0978Tatsugiri-Stretchy.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/2/22/0978Tatsugiri-Stretchy_Mega.png'
 			}), 
 			shinyImageLinks: JSON.stringify({ 
 				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp49uc-1e99abba-e5dc-47a1-897b-4b1f39579a3d.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZwNDl1Yy0xZTk5YWJiYS1lNWRjLTQ3YTEtODk3Yi00YjFmMzk1NzlhM2QucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.Dpw9U3SuHgDiJ14d0BeVk9nlVAh4ihWH3DbePiUJuFo',
 				'Droopy': 'https://i.ibb.co/fN0FRxp/978-Tatsugiri-Droopy-Form.png',
-				'Stretchy': 'https://i.ibb.co/RNktrGy/978-Tatsugiri-Stretchy-Form.png'
+				'Stretchy': 'https://i.ibb.co/RNktrGy/978-Tatsugiri-Stretchy-Form.png',
+				'Mega': 'https://i.ibb.co/byZ0f4b/978-Tatsugiri.png'
 			}) 
 		},
 		{ name: 'Annihilape', dexNum: '979', type1: 'Fighting', type2: 'Ghost', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/a/a7/0979Annihilape.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp49yd-f972a99a-a663-4863-b0d1-8dd17f0ca661.png/v1/fit/w_534,h_534/_979_annihilape_by_tonofdirt726_dfp49yd-375w-2x.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9NTM0IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZnA0OXlkLWY5NzJhOTlhLWE2NjMtNDg2My1iMGQxLThkZDE3ZjBjYTY2MS5wbmciLCJ3aWR0aCI6Ijw9NTM0In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.8p0Z3OM0L7z9XlK-ujOdq77ZcSxQAWMBjqWpnokU6K0' }) },
@@ -4052,7 +4510,20 @@ db.serialize(() => {
 		{ name: 'Iron Thorns', dexNum: '995', type1: 'Rock', type2: 'Electric', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/f/fb/0995Iron_Thorns.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp4afp-ca482bd4-c585-4d21-8354-acbf30866bcf.png/v1/fit/w_534,h_534/_995_iron_thorns_by_tonofdirt726_dfp4afp-375w-2x.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9NTM0IiwicGF0aCI6IlwvZlwvZTQ4ZDZiOWQtM2IxZC00NmEwLWEyNTQtM2E0NDhlYzNhOGE1XC9kZnA0YWZwLWNhNDgyYmQ0LWM1ODUtNGQyMS04MzU0LWFjYmYzMDg2NmJjZi5wbmciLCJ3aWR0aCI6Ijw9NTM0In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.3ENgHVVt7QOO6-07lY2Af35k6TEqRMmRsgCeuyf4cuY' }) },
 		{ name: 'Frigibax', dexNum: '996', type1: 'Dragon', type2: 'Ice', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/d/d8/0996Frigibax.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp4agr-169360cb-e4d8-4f40-a6a1-7cb3b766f938.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZwNGFnci0xNjkzNjBjYi1lNGQ4LTRmNDAtYTZhMS03Y2IzYjc2NmY5MzgucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.wE9ptWhMaa6WgWdkyq1vBtDDHieO90XtQVEfYNn1KrU' }) },
 		{ name: 'Arctibax', dexNum: '997', type1: 'Dragon', type2: 'Ice', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/5/53/0997Arctibax.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp4ahr-7995442f-88d8-4a7b-8f68-2db5ce46ada3.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZwNGFoci03OTk1NDQyZi04OGQ4LTRhN2ItOGY2OC0yZGI1Y2U0NmFkYTMucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.E9EdJV8_nLTyVmqmCIXvKVkPQR9mRsaBX-s7qnmongU' }) },
-		{ name: 'Baxcalibur', dexNum: '998', type1: 'Dragon', type2: 'Ice', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/7/70/0998Baxcalibur.png' }), shinyImageLinks: JSON.stringify({ default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp4aj0-bd8443cf-478d-4a4f-8551-82d476d15c21.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZwNGFqMC1iZDg0NDNjZi00NzhkLTRhNGYtODU1MS04MmQ0NzZkMTVjMjEucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.2L6H6CilFUkoRD_fqT6jEMAQccT06bPAIT3EoW9tfkw' }) },
+		{ name: 'Baxcalibur', dexNum: '998', type1: 'Dragon', type2: 'Ice', region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), 
+			forms: JSON.stringify([ 
+				{name: 'Default', percentage: 100 },
+				{name: 'Mega', percentage: 0 }
+			]), 
+			imageLinks: JSON.stringify({ 
+				default: 'https://archives.bulbagarden.net/media/upload/7/70/0998Baxcalibur.png',
+				'Mega': 'https://archives.bulbagarden.net/media/upload/0/0b/0998Baxcalibur-Mega.png'
+			}), 
+			shinyImageLinks: JSON.stringify({ 
+				default: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/e48d6b9d-3b1d-46a0-a254-3a448ec3a8a5/dfp4aj0-bd8443cf-478d-4a4f-8551-82d476d15c21.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcL2U0OGQ2YjlkLTNiMWQtNDZhMC1hMjU0LTNhNDQ4ZWMzYThhNVwvZGZwNGFqMC1iZDg0NDNjZi00NzhkLTRhNGYtODU1MS04MmQ0NzZkMTVjMjEucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.2L6H6CilFUkoRD_fqT6jEMAQccT06bPAIT3EoW9tfkw',
+				'Mega': 'https://i.ibb.co/9HvG0pB5/998-Baxcalibur.png'
+			}) 
+		},
 		{ name: 'Gimmighoul', dexNum: '999', type1: 'Ghost', type2: null, region: 'Paldea', isLM: 0, gender: JSON.stringify([ { name: 'Unknown', percentage: 100 } ]), 
 			forms: JSON.stringify([ 
 				{name: 'Chest', percentage: 90 },
@@ -4288,7 +4759,16 @@ db.serialize(() => {
 		{ name: 'Combat Breed Tauros', dexNum: '128A', type1: 'Fighting', type2: null, region: 'Paldea', isLM: 3, gender: JSON.stringify([ { name: 'Male', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/2/25/0128Tauros-Paldea_Combat.png' }), shinyImageLinks: JSON.stringify({ default: 'https://i.ibb.co/b6SY2Hc/128-Tauros-Combat-Breed.png' }) },
 		{ name: 'Blaze Breed Tauros', dexNum: '128B', type1: 'Fighting', type2: 'Fire', region: 'Paldea', isLM: 3, gender: JSON.stringify([ { name: 'Male', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/f/f5/0128Tauros-Paldea_Blaze.png' }), shinyImageLinks: JSON.stringify({ default: 'https://i.ibb.co/xfH0fm4/128-Tauros-Blaze-Breed.png' }) },
 		{ name: 'Aqua Breed Tauros', dexNum: '128C', type1: 'Fighting', type2: 'Water', region: 'Paldea', isLM: 3, gender: JSON.stringify([ { name: 'Male', percentage: 100 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/d/d9/0128Tauros-Paldea_Aqua.png' }), shinyImageLinks: JSON.stringify({ default: 'https://i.ibb.co/3CJF6kn/128-Tauros-Aqua-Breed.png' }) },
+		{ name: 'Mega Meganium', dexNum: '154A', type1: 'Grass', type2: 'Fairy', region: 'Johto', isLM: 3, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/e/e1/0154Meganium-Mega.png' }), shinyImageLinks: JSON.stringify({ default: 'https://i.ibb.co/TMRfVPCs/154-Meganium.png' }) },
+		{ name: 'Mega Feraligatr', dexNum: '160A', type1: 'Water', type2: 'Dragon', region: 'Johto', isLM: 3, gender: JSON.stringify([ { name: 'Male', percentage: 87.5 }, { name: 'Female', percentage: 12.5 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/4/42/0160Feraligatr-Mega.png' }), shinyImageLinks: JSON.stringify({ default: 'https://i.ibb.co/spvwGdCr/160-Feraligatr.png' }) },
+		{ name: 'Mega Barbaracle', dexNum: '689A', type1: 'Rock', type2: 'Fighting', region: 'Kalos', isLM: 3, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/e/e9/0689Barbaracle-Mega.png' }), shinyImageLinks: JSON.stringify({ default: 'https://i.ibb.co/2050hWBL/689-Barbaracle.png' }) },
+		{ name: 'Mega Clefable', dexNum: '36A', type1: 'Fairy', type2: 'Flying', region: 'Kanto', isLM: 3, gender: JSON.stringify([ { name: 'Male', percentage: 25 }, { name: 'Female', percentage: 75 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/5/5a/0036Clefable-Mega.png' }), shinyImageLinks: JSON.stringify({ default: 'https://i.ibb.co/Jj3XpPkb/036-Clefable.png' }) },
+		{ name: 'Mega Z Absol', dexNum: '359A', type1: 'Dark', type2: 'Ghost', region: 'Hoenn', isLM: 3, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/e/e1/0359Absol-Mega_Z.png' }), shinyImageLinks: JSON.stringify({ default: 'https://i.ibb.co/vxw0NFBT/359-Absol-Z.png' }) },
+		{ name: 'Mega Chimecho', dexNum: '358A', type1: 'Psychic', type2: 'Steel', region: 'Hoenn', isLM: 3, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/b/b6/0358Chimecho-Mega.png' }), shinyImageLinks: JSON.stringify({ default: 'https://i.ibb.co/60Xs8cLz/358-Chimecho.png' }) },
+		{ name: 'Mega Golisopod', dexNum: '768A', type1: 'Bug', type2: 'Steel', region: 'Alola', isLM: 3, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/c/c7/0768Golisopod-Mega.png' }), shinyImageLinks: JSON.stringify({ default: 'https://i.ibb.co/NnCRqXHC/768-Golisopod.png' }) },
+		{ name: 'Mega Staraptor', dexNum: '398A', type1: 'Fighting', type2: 'Flying', region: 'Sinnoh', isLM: 3, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: 'https://archives.bulbagarden.net/media/upload/4/44/0398Staraptor-Mega.png' }), shinyImageLinks: JSON.stringify({ default: 'https://i.ibb.co/60VN9F6p/398-Staraptor.png' }) },
 	];
+
 	
 	//{ name: '', dexNum: '801', type1: '', type2: null, region: 'Alola', isLM: 3, gender: JSON.stringify([ { name: 'Male', percentage: 50 }, { name: 'Female', percentage: 50 } ]), forms: JSON.stringify([ {name: 'Default', percentage: 100 } ]), imageLinks: JSON.stringify({ default: '' }), shinyImageLinks: JSON.stringify({ default: '' }) },
 	

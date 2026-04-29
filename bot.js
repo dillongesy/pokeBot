@@ -6821,6 +6821,7 @@ client.on('messageCreate', (message) => {
 								const selectedMonName = selectedMon.name.replace("✨", "");
 								if (itemRow.pokemon_usage === selectedMonName) {
 									let oldItem = null;
+									//Give held item back
 									if (itemRow.reusable === 2 && selectedMon.form !== 'Default') {
 										const oldItemRow = shopItems
 											.filter(shopItem => 
@@ -6837,16 +6838,31 @@ client.on('messageCreate', (message) => {
 											oldItem = oldItemRow[0].item_name;
 										}
 									}
+
 									if (itemRow.itemNum === 558 && !(selectedMon.form === 'Dusk Mane' || selectedMon.form === 'Dawn Wings')) {
 										message.channel.send('This item requires Dusk Mane or Dawn Wings form to use!');
 										return;
 									}
+									if (itemRow.itemNum === 155 && !(selectedMon.form === 'Eternal')) {
+										message.channel.send('This item requires Eternal form to use!');
+										return;
+									}
+									if (itemRow.itemNum === 180 && !(selectedMon.form === 'Complete Forme')) {
+										message.channel.send('This item requires Zygarde Complete Forme to use!');
+										return;
+									}
+
 									let oldPokemon = {
 										name: pokemonArr[partyNum - 1].name,
 										form: pokemonArr[partyNum - 1].form,
 										gender: pokemonArr[partyNum - 1].gender
 									};
-									pokemonArr[partyNum - 1].form = itemRow.new_form;
+									if (oldPokemon.name === 'Magearna' && oldPokemon.form === 'Original' && itemRow.itemNum === 192) {
+										pokemonArr[partyNum - 1].form = 'Mega Original';
+									}
+									else {
+										pokemonArr[partyNum - 1].form = itemRow.new_form;
+									}
 									let newPokemon = {
 										name: pokemonArr[partyNum - 1].name,
 										form: pokemonArr[partyNum - 1].form,
@@ -6854,7 +6870,6 @@ client.on('messageCreate', (message) => {
 									};
 									
 									if (itemRow.reusable !== 1) {
-										//inventoryArr.splice(itemNum - 1, 1);
 										if (itemCount === 1) {
 											inventoryArr.splice(itemNum - 1, 1);
 										}
@@ -6863,7 +6878,6 @@ client.on('messageCreate', (message) => {
 										}
 									}
 									if (oldItem) {
-										//inventoryArr = inventoryArr.concat(oldItem);
 										let foundFlag = false;
 										for (let i = 0; i < inventoryArr.length; i++) {
 											if (inventoryArr[i].includes(oldItem)) {
@@ -6893,6 +6907,7 @@ client.on('messageCreate', (message) => {
 										message.channel.send('Transformation Successful.')
 									});
 								}
+								//defaulter here
 								else if (itemRow.pokemon_usage === 'Form_All') {
 									if (defaultList.includes(selectedMonName) 
 										|| selectedMon.form.startsWith('Mega')
@@ -6958,6 +6973,27 @@ client.on('messageCreate', (message) => {
 										else if (selectedMonName === 'Ogerpon') {
 											pokemonArr[partyNum - 1].form = 'Teal';
 										}
+										else if (selectedMonName === 'Meowstic') {
+											pokemonArr[partyNum - 1].form = 'Male';
+											pokemonArr[partyNum - 1].gender = 'Male';
+										}
+										else if (selectedMonName === 'Pyroar') {
+											pokemonArr[partyNum - 1].form = 'Male';
+											pokemonArr[partyNum - 1].gender = 'Male';
+										}
+										else if (selectedMonName === 'Zygarde') {
+											pokemonArr[partyNum - 1].form = 'Complete Forme';
+										}
+										else if (selectedMonName === 'Tatsugiri') {
+											pokemonArr[partyNum - 1].form = 'Stretchy';
+										}
+										else if (selectedMonName === 'Magearna' && selectedMon.form === 'Mega Original') {
+											pokemonArr[partyNum - 1].form = 'Original';
+										}
+										else if (selectedMonName === 'Floette') {
+											pokemonArr[partyNum - 1].form = 'Eternal';
+										}
+										
 
 										else {
 											pokemonArr[partyNum - 1].form = itemRow.new_form;
