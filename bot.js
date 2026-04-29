@@ -5818,7 +5818,7 @@ client.on('messageCreate', (message) => {
 						}
 						else if (args[0].toLowerCase() === 'mega') {
 							const megaMinNum = 100;
-							const megaMaxNum = 149;
+							const megaMaxNum = 193;
 							filteredItems = shopItems.filter(item => item.itemNum <= megaMaxNum && item.itemNum >= megaMinNum);
 							shopHeader = 'Mega Stone Shop';
 							shopDescription = 'List of available Mega Stone items in the shop' + '\n' + 
@@ -6913,11 +6913,22 @@ client.on('messageCreate', (message) => {
 										|| selectedMon.form.startsWith('Mega')
 										|| selectedMon.form.includes('Gigantamax')) {
 										let oldItem = null;
-										const oldItemRow = shopItems
-											.filter(shopItem => 
-												shopItem.new_form === selectedMon.form 
-												&& shopItem.reusable === 2 
-												&& shopItem.pokemon_usage === selectedMonName);
+										let oldItemRow = [];
+										if (selectedMon.name === 'Magearna' && selectedMon.form === 'Mega Original') {
+											oldItemRow = shopItems
+												.filter(shopItem => 
+													shopItem.new_form === 'Mega'
+													&& shopItem.reusable === 2 
+													&& shopItem.pokemon_usage === selectedMonName);
+										} 
+										else {
+											oldItemRow = shopItems
+												.filter(shopItem => 
+													shopItem.new_form === selectedMon.form 
+													&& shopItem.reusable === 2 
+													&& shopItem.pokemon_usage === selectedMonName);
+										}
+
 										//CHECK
 										//TODO: delete this check in the future, just a failsafe
 										if (oldItemRow.length > 1) {
