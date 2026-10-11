@@ -1,0 +1,123 @@
+PokeDropperV2 - TODO
+====================
+
+Known bugs, loose ends and planned features. Roughly in priority order within
+each section.
+
+
+BATTLES
+-------
+
+[ ] PvP battles
+    The engine already supports two arbitrary teams; this needs a challenge /
+    accept flow, both players choosing moves each turn, and a reward table.
+
+[ ] Event battle rewards
+    Elite Four and champion milestones currently pay coins (with
+    milestoneBonus). Planned: gold and/or lootboxes for these instead.
+
+[ ] Consecutive-fights mode
+    HP and PP fully restore after every battle. Idea: an optional run of
+    back-to-back fights where they carry over.
+
+[ ] Weather-based abilities
+    Weather itself works (Utils/field.js), but Drizzle, Drought, Sand Stream,
+    Snow Warning, Chlorophyll, Swift Swim, Sand Force, Rain Dish etc. are
+    inert. See the header of Utils/battleeffects.js.
+
+[ ] Choice item lock
+    Choice Band / Specs / Scarf give their boost but don't lock the holder into
+    one move. Needs the move buttons to grey out the other three.
+
+[ ] Move flags (punch, bite, sound, bullet, contact)
+    The importer doesn't pull PokeAPI's move flags, so Iron Fist, Strong Jaw,
+    Punk Rock, Bulletproof and Soundproof do nothing, and contact is guessed
+    by makesContact(). Import the flags and use them directly.
+
+[ ] Not modelled yet
+    - Terrain, screens (Reflect / Light Screen), entry hazards
+    - Confusion and infatuation (so Own Tempo, Oblivious, Cute Charm are inert)
+    - Trace, Imposter, Transform, Skill Swap
+    - Multi-turn moves (Solar Beam etc. fire immediately; Bide is simplified)
+    - Mega Evolution / Gigantamax during a battle
+
+[ ] Smarter opponent AI
+    The opponent always picks its highest-damage move and never switches.
+    Milestone battles could use something better.
+
+
+EVOLUTION AND FRIENDSHIP
+------------------------
+
+[ ] Friendship sources
+    happiness.fromBattle() and fromPetting() are stubs that throw. Berries
+    are currently the only way to raise friendship. Petting needs a command
+    and a per-Pokemon cooldown column.
+
+[ ] Enforce friendship evolutions
+    About 20 evolutions require minHappiness (Azurill, Chansey, Golbat, the
+    Eevee friendship lines...). Utils/evolution.js ignores it so they aren't
+    stuck behind berries. Turn the check on once friendship can be earned by
+    playing (one-line change, see Utils/happiness.js).
+
+[ ] Battle-only evolution triggers (8 evolutions currently unreachable)
+    primeape -> annihilape       use Rage Fist 20 times
+    qwilfish -> overqwil         use Barb Barrage (strong style)
+    stantler -> wyrdeer          use Psyshield Bash (agile style)
+    farfetchd -> sirfetchd       3 critical hits in one battle
+    basculin -> basculegion      take recoil damage
+    yamask   -> runerigus        take damage
+    bisharp  -> kingambit        defeat 3 Bisharp holding a Leader's Crest
+    Listed in UNSUPPORTED in Utils/evolution.js. Now that battles exist, most
+    of these can be tracked per battle or as a stored counter.
+
+
+CONTENT
+-------
+
+[ ] Remaining Alcremie Sweets
+    Only 2 of the 7 Sweets are sold, because PokeAPI has artwork for only some
+    Alcremie forms. Add the rest once artwork exists (Utils/evolution.js,
+    Utils/shop.js).
+
+[ ] Legends Z-A TMs
+    18 Z-A TMs exist in Data/Machines but no Pokemon can learn them yet
+    (PokeAPI has no Z-A learnsets). They are hidden from the shop and will
+    appear automatically after a re-import once PokeAPI adds the data.
+
+[ ] Daily / weekly challenges that award lootboxes
+
+[ ] Bag sections (group .bag by category without breaking slot numbers)
+
+[ ] .changelog command (low priority)
+
+
+ECONOMY
+-------
+
+[ ] Rebalance the economy
+    Prices are scaled centrally by rates.priceScale. Review coin income from
+    catches and battles against shop prices once there is real play data.
+
+
+INFRASTRUCTURE
+--------------
+
+[ ] Database migrations
+    There is no upgrade path: a SCHEMA_VERSION bump makes the bot refuse to
+    open the existing database. Production now holds real player data, so the
+    next schema change needs a migration step (e.g. numbered ALTER TABLE
+    scripts keyed off PRAGMA user_version) instead of a reset.
+
+[ ] Automated tests
+    The repo has no test suite (some comments still mention tests). The
+    modules' `node Utils/<file>.js` self-checks are the only automated
+    checks. Worth adding at least battle, obedience, quest and trade tests.
+
+[ ] Scheduled database backups on the production server
+
+[ ] Add a LICENSE file
+
+[ ] Remove unused code
+    items.formIsConsistent / itemForForm (only needed for repairing old
+    records), happiness.PET_COOLDOWN_MS until petting exists.

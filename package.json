@@ -1,17 +1,25 @@
 {
-  "name": "discordbot",
+  "name": "pokedropper-v2",
   "version": "1.0.0",
-  "main": "bot.js",
+  "description": "A Discord bot for catching, training and battling Pokemon, built on data from PokeAPI.",
+  "type": "commonjs",
+  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "setup": "node Utils/importdata.js && node --no-warnings=ExperimentalWarning Utils/deploy.js",
+    "start": "node --no-warnings=ExperimentalWarning index.js",
+    "deploy": "node --no-warnings=ExperimentalWarning Utils/deploy.js",
+    "import": "node Utils/importdata.js",
+    "import:pokemon": "node Utils/importdata.js pokemon",
+    "import:content": "node Utils/importdata.js quests shop goldshop",
+    "db": "node --no-warnings=ExperimentalWarning Utils/db.js",
+    "wipe": "node --no-warnings=ExperimentalWarning Utils/wipedatabase.js",
+    "drop": "node --no-warnings=ExperimentalWarning Commands/drop.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "discord.js": "^14.11.0",
-    "dotenv": "^16.4.5",
-    "sqlite3": "^6.0.1"
+    "discord.js": "^14.22.0"
   },
-  "description": ""
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "private": true
 }
