@@ -162,8 +162,23 @@ time the bot starts.
 
 ## Running on a server
 
-To keep the bot running after you log out and restart it if it crashes, use a
-process manager such as [pm2](https://pm2.keymetrics.io):
+To keep the bot running after you log out and restart it if it crashes, run
+it as a service.
+
+**systemd (Linux):** from the bot's folder, as your normal user (not root):
+
+```bash
+chmod +x install-service.sh
+./install-service.sh
+```
+
+This creates and starts a `pokedropper` service that runs on boot, using
+whichever Node.js is on your PATH (including nvm installs). View the logs with
+`sudo journalctl -u pokedropper -f` and restart with
+`sudo systemctl restart pokedropper`. Re-run the script if you upgrade
+Node.js.
+
+**pm2:** alternatively, use [pm2](https://pm2.keymetrics.io):
 
 ```bash
 npm install -g pm2
@@ -180,7 +195,8 @@ Useful commands: `pm2 logs pokedropper`, `pm2 restart pokedropper`,
 If you already have players on another machine, copy their database across
 instead of starting fresh:
 
-1. Stop the bot on the old machine (Ctrl+C or `pm2 stop`). Shutting it down
+1. Stop the bot on the old machine (Ctrl+C, `sudo systemctl stop pokedropper`
+   or `pm2 stop pokedropper`). Shutting it down
    cleanly writes everything into the main database file.
 2. Copy `Data/pokedropper.db` to the `Data/` folder on the new machine. If
    `pokedropper.db-wal` or `pokedropper.db-shm` files exist next to it, copy
@@ -201,7 +217,7 @@ git pull
 npm install
 npm run import:content    # if quests or shops changed
 npm run deploy            # if any slash commands changed
-pm2 restart pokedropper
+sudo systemctl restart pokedropper   # or: pm2 restart pokedropper
 ```
 
 If the database schema changes in an update (`SCHEMA_VERSION` in
