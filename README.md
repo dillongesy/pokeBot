@@ -178,26 +178,13 @@ whichever Node.js is on your PATH (including nvm installs). View the logs with
 `sudo systemctl restart pokedropper`. Re-run the script if you upgrade
 Node.js.
 
-**pm2:** alternatively, use [pm2](https://pm2.keymetrics.io):
-
-```bash
-npm install -g pm2
-pm2 start npm --name pokedropper -- start
-pm2 save
-pm2 startup      # prints a command that starts pm2 on boot; run it
-```
-
-Useful commands: `pm2 logs pokedropper`, `pm2 restart pokedropper`,
-`pm2 stop pokedropper`.
-
 ### Moving an existing player database
 
 If you already have players on another machine, copy their database across
 instead of starting fresh:
 
-1. Stop the bot on the old machine (Ctrl+C, `sudo systemctl stop pokedropper`
-   or `pm2 stop pokedropper`). Shutting it down
-   cleanly writes everything into the main database file.
+1. Stop the bot on the old machine (Ctrl+C or `sudo systemctl stop pokedropper`).
+   Shutting it down cleanly writes everything into the main database file.
 2. Copy `Data/pokedropper.db` to the `Data/` folder on the new machine. If
    `pokedropper.db-wal` or `pokedropper.db-shm` files exist next to it, copy
    those too.
@@ -217,7 +204,7 @@ git pull
 npm install
 npm run import:content    # if quests or shops changed
 npm run deploy            # if any slash commands changed
-sudo systemctl restart pokedropper   # or: pm2 restart pokedropper
+sudo systemctl restart pokedropper
 ```
 
 If the database schema changes in an update (`SCHEMA_VERSION` in
