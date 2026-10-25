@@ -58,7 +58,7 @@ function buildList() {
       value: rows
         .map((row) => {
           const why = row.note ? ` - ${row.note}` : '';
-          return `<@${row.discord_user_id}> · added ${ago(row.added_at)} by <@${row.added_by}>${why}`;
+          return `<@${row.discord_user_id}>, added ${ago(row.added_at)} by <@${row.added_by}>${why}`;
         })
         .join('\n')
         .slice(0, 1024),

@@ -139,9 +139,9 @@ function buildView(row) {
     .setFooter({
       // The global id, which never changes (unlike the per-owner party number).
       text:
-        `#${row.party_number} · ID ${row.id} · ` +
+        `#${row.party_number}, ID ${row.id}, ` +
         `caught by ${row.original_trainer_id === row.current_trainer_id ? 'you' : 'someone else'}` +
-        (row.equipped_item ? ` · holding ${titleCase(row.equipped_item)}` : ''),
+        (row.equipped_item ? `, holding ${titleCase(row.equipped_item)}` : ''),
     });
 
   const met = metLine(row);

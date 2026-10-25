@@ -340,8 +340,8 @@ function buildParty(user, args) {
       .setColor(color)
       .setFooter({
         text:
-          `${total} shown · sorted by ${SORT_LABELS[known]} ${options.direction}` +
-          ` · page ${index + 1}/${pages}`,
+          `${total} shown, sorted by ${SORT_LABELS[known]} ${options.direction}.` +
+          ` Page ${index + 1}/${pages}`,
       });
   };
 

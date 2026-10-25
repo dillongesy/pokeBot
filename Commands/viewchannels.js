@@ -35,7 +35,7 @@ function view(guildId) {
       text:
         rows.length > PAGE
           ? `Showing ${PAGE} of ${rows.length} channels`
-          : `${rows.length} channel${rows.length === 1 ? '' : 's'} · .resetchannels opens it back up`,
+          : `${rows.length} channel${rows.length === 1 ? '' : 's'}. Use .resetchannels to open it back up.`,
     });
 
   return { embeds: [embed] };

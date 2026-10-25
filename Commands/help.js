@@ -164,7 +164,7 @@ function commandLine(command) {
   const label = isCommand ? `\`${command.usage}\`` : `**${command.usage}**`;
 
   const others = isCommand ? otherAliases(command) : [];
-  const tail = others.length ? `  ·  also \`.${others.join('` `.')}\`` : '';
+  const tail = others.length ? ` (also \`.${others.join('` `.')}\`)` : '';
 
   return `${label}${tail}${command.soon ? '  *(soon)*' : ''}\n${command.blurb}`;
 }
@@ -217,8 +217,8 @@ function buildPaged(userId) {
 
     embed.setFooter({
       text:
-        `Page ${index + 1}/${pages} · everything works as a slash command too · ` +
-        '.help <command> for one in detail',
+        `Page ${index + 1}/${pages}. Everything works as a slash command too, ` +
+        'and .help <command> shows one in detail.',
     });
 
     return embed;

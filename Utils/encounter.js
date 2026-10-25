@@ -76,8 +76,9 @@ function npcTeamSize(cleared, total) {
 /**
  * What level an opponent shows up at.
  *
- * Close to the trainer's cap and never below 2. Based on the cap rather than
- * the team brought, so bringing weaker Pokemon doesn't make battles easier.
+ * Close to the level anchor (see levelAnchor) and never below 2. The anchor
+ * never drops below the cap, so bringing weaker Pokemon doesn't make battles
+ * easier.
  */
 function opponentLevel(cap, rng, spread = rates.battle.wildSpread) {
   const offset = Math.round((rng() * 2 - 1) * spread);
@@ -319,19 +320,38 @@ function playerTeam(rows, movesFor, cap) {
 // ---------------------------------------------------------------------------
 
 /**
+ * The level opponents are built around: the cap, or the strongest Pokemon
+ * brought if that is higher.
+ *
+ * Pokemon can obey up to MAX_OVER_CAP levels past the cap, and Exp. Share
+ * keeps the whole party climbing, so teams settle a few levels over it.
+ * Anchoring to the cap alone left opponents about ten levels behind. Bringing
+ * weaker Pokemon never lowers the anchor below the cap.
+ *
+ * @param {number} cap
+ * @param {Array<{level: number}>} team  the player's combatants
+ */
+function levelAnchor(cap, team = []) {
+  return Math.max(cap, ...team.map((mon) => mon.level || 0));
+}
+
+/**
  * Everything about the fight that is about to happen, except the player's side.
+ *
+ * `anchor` is the level the opponents are built around (see levelAnchor); it
+ * defaults to the cap.
  *
  * @returns {{ kind, name, team, level }}
  */
-function opponentFor({ kind, cap, cleared, total, speciesIds, fight, rng }) {
+function opponentFor({ kind, cap, anchor = cap, cleared, total, speciesIds, fight, rng }) {
   if (kind === MILESTONE) {
-    const team = milestoneTeam(fight, cap, rng);
+    const team = milestoneTeam(fight, anchor, rng);
     return {
       kind: MILESTONE,
       name: fight.name,
       region: fight.region,
       team,
-      level: Math.max(...team.map((mon) => mon.level), cap),
+      level: Math.max(...team.map((mon) => mon.level), anchor),
     };
   }
 
@@ -341,23 +361,23 @@ function opponentFor({ kind, cap, cleared, total, speciesIds, fight, rng }) {
 
   if (kind === TRAINER) {
     const size = npcTeamSize(cleared, total);
-    const team = npcTeam(speciesIds.slice(0, size), cap, rng, progress);
+    const team = npcTeam(speciesIds.slice(0, size), anchor, rng, progress);
     const title = TRAINER_CLASSES[Math.floor(rng() * TRAINER_CLASSES.length)];
 
     return {
       kind: TRAINER,
       name: title,
       team,
-      level: team.length ? Math.max(...team.map((mon) => mon.level)) : cap,
+      level: team.length ? Math.max(...team.map((mon) => mon.level)) : anchor,
     };
   }
 
-  const team = wildTeam(speciesIds[0], cap, rng, progress);
+  const team = wildTeam(speciesIds[0], anchor, rng, progress);
   return {
     kind: WILD,
     name: team.length ? `Wild ${team[0].name}` : 'Wild Pokemon',
     team,
-    level: team.length ? team[0].level : cap,
+    level: team.length ? team[0].level : anchor,
   };
 }
 
@@ -377,6 +397,7 @@ module.exports = {
   milestoneTeam,
   TEAM_SIZE: battle.TEAM_SIZE,
   playerTeam,
+  levelAnchor,
   opponentFor,
 };
 

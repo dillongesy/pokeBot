@@ -127,7 +127,7 @@ function buildList(user, entries, { title, color, empty }) {
       .setDescription(slice.map(line).join('\n'))
       .setColor(color)
       .setFooter({
-        text: `${entries.length} quest${entries.length === 1 ? '' : 's'} · page ${index + 1}/${pages} · .qp <name> for one`,
+        text: `${entries.length} quest${entries.length === 1 ? '' : 's'}. Page ${index + 1}/${pages}. Use .qp <name> for one.`,
       });
   };
 

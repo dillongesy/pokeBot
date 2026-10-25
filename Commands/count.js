@@ -35,7 +35,7 @@ function buildCount(user) {
 
     const lines = slice.map((row, i) => {
       const place = index * PAGE_SIZE + i + 1;
-      const mark = row.rarity === 'normal' ? '' : ` · ${rarity.LABELS[row.rarity]}`;
+      const mark = row.rarity === 'normal' ? '' : ` (${rarity.LABELS[row.rarity]})`;
       return `\`${String(place).padStart(3, ' ')}\` **${row.display_name}** ×${row.total}${mark}`;
     });
 
@@ -44,7 +44,7 @@ function buildCount(user) {
       .setDescription(lines.join('\n'))
       .setColor(0x4287f5)
       .setFooter({
-        text: `${rows.length} species · ${total} Pokemon · page ${index + 1}/${pages}`,
+        text: `${rows.length} species, ${total} Pokemon. Page ${index + 1}/${pages}`,
       });
   };
 

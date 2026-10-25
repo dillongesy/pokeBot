@@ -30,6 +30,8 @@ const content = require('../Utils/content');
 const questengine = require('../Utils/questengine');
 const { displayName, ivPercent, titleCase } = require('../Utils/display');
 const evolution = require('../Utils/evolution');
+const learnset = require('../Utils/learnset');
+const moveprompt = require('../Utils/moveprompt');
 
 /** How long an unanswered offer stands. */
 const TTL_MS = 5 * 60 * 1000;
@@ -44,9 +46,9 @@ const DECLINE_WORDS = new Set(['decline', 'no', 'reject', 'deny']);
 function describe(row) {
   if (!row) return '*nothing*';
   const held = row.equipped_item
-    ? ` · holding ${content.item(row.equipped_item)?.displayName || titleCase(row.equipped_item)}`
+    ? `, holding ${content.item(row.equipped_item)?.displayName || titleCase(row.equipped_item)}`
     : '';
-  return `**${displayName(row)}** · Lv.${row.level} · IV ${ivPercent(row)}%${held}`;
+  return `**${displayName(row)}**, Lv.${row.level}, IV ${ivPercent(row)}%${held}`;
 }
 
 /** Pull a Discord user id out of a mention, or accept a raw id. */
@@ -110,7 +112,7 @@ function offer(fromUserId, targetRaw, rawPokemonId, channelId) {
         '`.trade accept <your pokemon>` to swap for one of yours\n' +
         '`.trade decline` to say no',
     })
-    .setFooter({ text: 'Expires in 5 minutes · trades are always one for one' });
+    .setFooter({ text: 'Expires in 5 minutes. Trades are always one for one.' });
 
   return { embeds: [embed] };
 }
@@ -170,6 +172,9 @@ function accept(userId, rawPokemonId) {
     evolveOnTrade(given.id, trade.from_user_id),
   ].filter(Boolean);
 
+  // Evolution moves with no free slot: each new owner is asked which to forget.
+  const offers = evolutions.map((evolved) => evolved.offer).filter(Boolean);
+
   const embed = new EmbedBuilder()
     .setTitle('Trade complete')
     .setColor(0x2ecc71)
@@ -180,7 +185,7 @@ function accept(userId, rawPokemonId) {
     .setFooter({ text: 'Original trainers are unchanged' });
 
   for (const evolved of evolutions) {
-    embed.addFields({ name: 'Evolution!', value: evolved });
+    embed.addFields({ name: 'Evolution!', value: evolved.text });
   }
 
   // Recalculate quests for both players. The trade is already committed, so a
@@ -194,7 +199,8 @@ function accept(userId, rawPokemonId) {
     console.error('Quest sync failed after a trade:', err);
   }
 
-  return { embeds: [embed] };
+  // `offers` is not part of the message; the caller strips it and asks.
+  return { embeds: [embed], offers };
 }
 
 /**
@@ -204,7 +210,10 @@ function accept(userId, rawPokemonId) {
  * Held-item trade evolutions consume the item (Onix holding a Metal Coat).
  * Other held items are kept. An Everstone prevents evolution.
  *
- * @returns {string|null} something to show, or null if nothing happened
+ * Evolution moves go into free slots straight away; the rest come back as
+ * `offer` for the new owner to be asked about.
+ *
+ * @returns {{text: string, offer: object|null}|null} null if nothing happened
  */
 function evolveOnTrade(pokemonId, ownerId) {
   const row = store.getOwnedPokemon(ownerId, pokemonId);
@@ -223,11 +232,29 @@ function evolveOnTrade(pokemonId, ownerId) {
   }
 
   const updated = store.updatePokemon(pokemonId, changes);
+  const { learned, offered } = store.learnMoves(pokemonId, learnset.movesOnGrowth(row, updated));
 
-  return (
-    `${displayName(row)} evolved into **${displayName(updated)}**!` +
-    (consumedName ? ` The ${consumedName} was used up.` : '')
-  );
+  return {
+    text:
+      `${displayName(row)} evolved into **${displayName(updated)}**!` +
+      (consumedName ? ` The ${consumedName} was used up.` : '') +
+      (learned.length ? ` It learned **${learned.join('**, **')}**.` : ''),
+    offer: offered.length ? { userId: ownerId, pokemonId, moves: offered } : null,
+  };
+}
+
+/**
+ * Send a reply, then ask about any evolution moves that need a slot freed.
+ *
+ * Each owner answers their own prompt.
+ *
+ * @param {function} send  posts a payload, returns the Message
+ */
+async function reply(send, result) {
+  const { offers, ...payload } = result;
+  await send(payload);
+
+  for (const offer of offers || []) await moveprompt.askAll({ send, ...offer });
 }
 
 function decline(userId) {
@@ -332,7 +359,11 @@ module.exports = {
     }
 
     if (sub === 'accept') {
-      await interaction.reply(accept(userId, interaction.options.getInteger('pokemon')));
+      // The first payload is the reply; move prompts follow it up.
+      await reply(
+        (payload) => (interaction.replied ? interaction.followUp(payload) : interaction.reply(payload)),
+        accept(userId, interaction.options.getInteger('pokemon'))
+      );
       return;
     }
 
@@ -362,7 +393,7 @@ module.exports = {
       return;
     }
 
-    await message.channel.send(run(message.author.id, args, message.channelId));
+    await reply((payload) => message.channel.send(payload), run(message.author.id, args, message.channelId));
   },
 
   offer,

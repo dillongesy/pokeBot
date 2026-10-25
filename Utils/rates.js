@@ -224,7 +224,7 @@ module.exports = {
     maxNpcTeam: 6,
 
     /**
-     * How far either side of the trainer's cap an opponent can appear.
+     * How far either side of the level anchor an opponent can appear.
      *
      * Kept small so fights stay balanced around the cap.
      */
@@ -233,27 +233,32 @@ module.exports = {
     /**
      * Opponent level bands, rolled per opponent.
      *
-     * Most opponents are near the cap, but some are lower so that
-     * lower-level Pokemon can still win fights. Rewards scale with the
-     * opponent's level, so weak opponents can't be farmed.
+     * Measured from the level anchor (encounter.levelAnchor): the cap, or the
+     * strongest Pokemon brought if that is higher. Most opponents are near
+     * it, and some are lower so that newer catches can still win fights.
+     * Rewards scale with the opponent's level, so weak opponents can't be
+     * farmed.
      *
-     * The top band uses absolute offsets from the cap; the others use
-     * fractions of it (fractions near the cap would be too narrow at low
+     * The top band uses absolute offsets from the anchor; the others use
+     * fractions of it (fractions near the anchor would be too narrow at low
      * levels).
+     *
+     * Simulated over a whole climb, these keep the average opponent within
+     * about three levels of the party.
      */
     levelBands: [
-      { weight: 50, offsetFrom: -2, offsetTo: 2 },
-      { weight: 27, fractionFrom: 0.6, fractionTo: 0.9 },
-      { weight: 13, fractionFrom: 0.2, fractionTo: 0.55 },
+      { weight: 65, offsetFrom: -2, offsetTo: 2 },
+      { weight: 25, fractionFrom: 0.8, fractionTo: 0.95 },
+      { weight: 10, fractionFrom: 0.5, fractionTo: 0.75 },
 
       /**
-       * Above the cap, to keep ordinary battles challenging (players bring
-       * six Pokemon; opponents bring two to four).
+       * Above the anchor, to keep ordinary battles challenging (players bring
+       * six Pokemon; opponents bring two to six).
        *
        * `rampsWith` scales the weight by the player's progress, so early
        * battles stay gentle. See encounter.variedLevel.
        */
-      { weight: 22, offsetFrom: 3, offsetTo: 8, rampsWith: 'progress' },
+      { weight: 15, offsetFrom: 3, offsetTo: 6, rampsWith: 'progress' },
     ],
 
     /**

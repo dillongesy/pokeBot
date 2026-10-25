@@ -214,7 +214,7 @@ function renderCard(userId, state) {
     name: 'Owned',
     value:
       `**${owned.total.toLocaleString('en-US')}** total` +
-      (forms.length > 1 ? ` · **${ownedForm.toLocaleString('en-US')}** of this form` : ''),
+      (forms.length > 1 ? `\n**${ownedForm.toLocaleString('en-US')}** of this form` : ''),
     inline: true,
   });
 
@@ -227,7 +227,7 @@ function renderCard(userId, state) {
           const mark = f.folder === found.formFolder ? '**' : '';
           const rate = f.percentage > 0 ? `${f.percentage}%` : 'no drop';
           const have = owned.byForm.get(f.folder) || 0;
-          return `${mark}${f.folder}${mark} - ${rate}${have ? ` · you have ${have}` : ''}`;
+          return `${mark}${f.folder}${mark} - ${rate}${have ? ` (you have ${have})` : ''}`;
         })
       ),
     });
@@ -250,7 +250,7 @@ function renderCard(userId, state) {
         owned.total
           ? `you own ${ownedForm} of this form, ${owned.total} across all forms`
           : 'you own none of any form',
-      ].join(' · '),
+      ].join('. '),
   });
 
   const art = artwork(found.speciesId, found.formFolder, shiny);

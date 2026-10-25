@@ -95,7 +95,7 @@ function buildUncaught(user, args) {
       .setTitle(title)
       .setDescription(lines.join('\n'))
       .setColor(0xed4245)
-      .setFooter({ text: `${missing.length} still missing · page ${index + 1}/${pages}` });
+      .setFooter({ text: `${missing.length} still missing. Page ${index + 1}/${pages}` });
   };
 
   return { pages, page: 0, render, missing };

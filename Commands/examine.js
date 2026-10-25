@@ -259,7 +259,7 @@ function priceLine(slug) {
   for (const section of content.shop().sections || []) {
     for (const entry of section.items || []) {
       if (entry.item === slug) {
-        return `**${entry.price.toLocaleString('en-US')}** coins · ${section.name}`;
+        return `**${entry.price.toLocaleString('en-US')}** coins in ${section.name}`;
       }
     }
   }

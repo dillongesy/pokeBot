@@ -85,8 +85,8 @@ function buildTeam(owner, mine) {
 
         return (
           `\`${i + 1}\` ${obeys ? '' : '⚠️ '}**${displayName(row)}**${gender ? ' ' + gender : ''}` +
-          ` · Lv.${row.level} · IV ${ivPercent(row)}% · ${types}` +
-          (obeys ? '' : ' · **will not obey**')
+          `, Lv.${row.level}, IV ${ivPercent(row)}%, ${types}` +
+          (obeys ? '' : ' (**will not obey**)')
         );
       })
       .join('\n')
@@ -106,8 +106,8 @@ function buildTeam(owner, mine) {
   embed.setFooter({
     text:
       `${Math.min(TEAM_SIZE, total)} of ${total.toLocaleString('en-US')}` +
-      ` · this is the battle team` +
-      ` · .team ${mine ? '' : '@' + owner.username + ' '}v <1-${rows.length}> for one in full`,
+      ` is the battle team.` +
+      ` Use .team ${mine ? '' : '@' + owner.username + ' '}v <1-${rows.length}> for one in full.`,
   });
 
   return { embeds: [embed] };

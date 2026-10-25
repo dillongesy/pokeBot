@@ -94,13 +94,13 @@ function ivPercent(row) {
   return Math.round((row.iv_total / (MAX_IV * STATS.length)) * 1000) / 10;
 }
 
-/** "Charizard M · Lv.54" - one Pokemon on one line, for lists. */
+/** "Charizard M, Lv.54" - one Pokemon on one line, for lists. */
 function summaryLine(row) {
   const gender = GENDER_SYMBOLS[row.gender] || '';
   return (
     `\`#${String(row.party_number ?? row.id).padStart(4, ' ')}\` ` +
     `${displayName(row)}${gender ? ' ' + gender : ''}` +
-    ` · Lv.${row.level} · IV ${ivPercent(row)}%`
+    `, Lv.${row.level}, IV ${ivPercent(row)}%`
   );
 }
 

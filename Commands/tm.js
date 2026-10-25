@@ -26,7 +26,7 @@ const PER_TYPE = 14;
 
 const CLASS_LABEL = { physical: 'Physical', special: 'Special', status: 'Status' };
 
-/** "Flamethrower · 90 power" */
+/** "Flamethrower `90`" */
 function brief(tm) {
   const power = tm.power ? `${tm.power}` : tm.nominalPower ? `~${tm.nominalPower}` : '-';
   return `${tm.moveDisplayName} \`${power}\``;
@@ -70,7 +70,7 @@ function listFor(userId, row, showAll) {
   }
 
   for (const [type, list] of [...byType].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const shown = list.slice(0, PER_TYPE).map(brief).join(' · ');
+    const shown = list.slice(0, PER_TYPE).map(brief).join(', ');
     const rest = list.length > PER_TYPE ? ` … and ${list.length - PER_TYPE} more` : '';
     embed.addFields({ name: titleCase(type), value: shown + rest });
   }
@@ -163,9 +163,9 @@ function teach(userId, row, query, rawSlot) {
     {
       name: tm.moveDisplayName,
       value:
-        `${titleCase(data.type || '?')} · ` +
-        `${CLASS_LABEL[data.damageClass] || titleCase(data.damageClass || '?')} · ` +
-        `${data.power || '-'} power · ${data.accuracy ? `${data.accuracy}%` : '-'} acc · ` +
+        `${titleCase(data.type || '?')}, ` +
+        `${CLASS_LABEL[data.damageClass] || titleCase(data.damageClass || '?')}\n` +
+        `Power ${data.power || '-'}, accuracy ${data.accuracy ? `${data.accuracy}%` : '-'}, ` +
         `${data.pp || '-'} PP`,
     },
     {

@@ -161,7 +161,7 @@ function announce(completed) {
 
       return (
         `🏅 Quest complete - **${quest.collection || quest.id}**` +
-        (parts.length ? ` · ${parts.join(', ')}` : '')
+        (parts.length ? `: ${parts.join(', ')}` : '')
       );
     })
     .join('\n');

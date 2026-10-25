@@ -130,7 +130,7 @@ function buildGoldShop(user) {
   }
 
   embed.setFields(capFields(embed.data.fields || []));
-  embed.setFooter({ text: '.goldbuy <id> to buy · .me to see what is active' });
+  embed.setFooter({ text: 'Use .goldbuy <id> to buy, and .me to see what is active.' });
 
   return { embeds: [embed] };
 }

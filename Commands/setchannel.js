@@ -119,7 +119,7 @@ function configure(guildId, args) {
     });
   }
 
-  embed.setFooter({ text: '.viewchannels to see them all · .setchannel remove #x to undo' });
+  embed.setFooter({ text: 'Use .viewchannels to see them all, and .setchannel remove #x to undo.' });
 
   return { embeds: [embed] };
 }

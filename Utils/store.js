@@ -966,6 +966,7 @@ function awardBattle(userId, payout) {
       // one evolution (Caterpie -> Metapod -> Butterfree). Bounded as a
       // safeguard against bad data.
       const evolutions = [];
+      const evolvedInto = [];
       let extras = [];
 
       if (after.level > before) {
@@ -977,36 +978,23 @@ function awardBattle(userId, payout) {
           after = updatePokemon(after.id, evolved.changes);
 
           evolutions.push({ from: wasCalled, into: evolved.target.name });
+          evolvedInto.push(after);
           if (evolved.alsoCreates) extras.push(evolved.alsoCreates);
         }
       }
 
-      // New level-up moves. With a free slot the move is learned directly;
-      // otherwise it is reported so the player can choose later with
-      // `.moves <id> learn` (derived from level, so it never expires).
-      const learned = [];
-      const offered = [];
-
-      if (after.level > before) {
-        const fresh = learnset.movesLearnedBetween(
-          after.species_id, after.form_folder, before, after.level
-        );
-
-        for (const candidate of fresh) {
-          const known = movesOf(row.id);
-          if (known.some((slot) => slot.move === candidate.name)) continue;
-
-          if (known.length < learnset.MAX_MOVES) {
-            const taught = teachMove(row.id, candidate.name);
-            if (taught.ok) learned.push(candidate.displayName);
-          } else {
-            offered.push({ move: candidate.name, displayName: candidate.displayName });
-          }
-        }
-      }
+      // New level-up and evolution moves. With a free slot the move is
+      // learned directly; otherwise the caller asks which move to forget
+      // (Utils/moveprompt.js). `.moves <n> learn` can still teach it later,
+      // since what it can learn is derived from its level.
+      const { learned, offered } = learnMoves(
+        row.id,
+        learnset.movesOnGrowth({ ...row, level: before }, after, evolvedInto)
+      );
 
       result.pokemon.push({
         id: row.id,
+        partyNumber: row.party_number,
         name: row.nickname || row.display_name,
         level: after.level,
         levelledFrom: after.level > before ? before : null,
@@ -1156,6 +1144,34 @@ function teachMove(pokemonId, moveName, slot = null) {
     .run(pokemonId, target, moveName);
 
   return { ok: true, slot: target, replaced };
+}
+
+/**
+ * Teach newly earned moves into any free slots.
+ *
+ * Moves it already knows are skipped. Whatever doesn't fit is returned so the
+ * player can be asked which move to forget (Utils/moveprompt.js).
+ *
+ * @param {Array<{name, displayName}>} moves  in learning order
+ * @returns {{ learned: string[], offered: Array<{name, displayName, level, evolution}> }}
+ */
+function learnMoves(pokemonId, moves) {
+  const learned = [];
+  const offered = [];
+
+  for (const move of moves) {
+    const known = movesOf(pokemonId);
+    if (known.some((slot) => slot.move === move.name)) continue;
+
+    if (known.length < learnset.MAX_MOVES) {
+      const taught = teachMove(pokemonId, move.name);
+      if (taught.ok) learned.push(move.displayName);
+    } else {
+      offered.push(move);
+    }
+  }
+
+  return { learned, offered };
 }
 
 /** Forget one move, leaving the slot empty. Refuses to leave a Pokemon mute. */
@@ -2129,6 +2145,7 @@ function setNickname(userId, pokemonId, nickname) {
 }
 
 module.exports = {
+  learnMoves,
   ensureUser,
   getUser,
   addCoins,

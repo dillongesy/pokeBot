@@ -123,7 +123,7 @@ module.exports = [
       {"dex":148}, {"dex":149},
     ],
     reward: {"gold":14,"coins":0,"items":[]},
-    notes: "Legends and Mythicals excluded · contributed by Neil",
+    notes: "Legends and Mythicals excluded. Contributed by Neil.",
   },
 
   {
@@ -200,7 +200,7 @@ module.exports = [
       {"dex":247}, {"dex":248},
     ],
     reward: {"gold":9,"coins":0,"items":[]},
-    notes: "Legends and Mythicals excluded · contributed by Neil",
+    notes: "Legends and Mythicals excluded. Contributed by Neil.",
   },
 
   {
@@ -338,7 +338,7 @@ module.exports = [
       {"dex":376},
     ],
     reward: {"gold":12,"coins":0,"items":[]},
-    notes: "Legends and Mythicals excluded · contributed by Neil",
+    notes: "Legends and Mythicals excluded. Contributed by Neil.",
   },
 
   {
@@ -443,7 +443,7 @@ module.exports = [
       {"dex":479},
     ],
     reward: {"gold":9,"coins":0,"items":[]},
-    notes: "Legends and Mythicals excluded · contributed by Neil",
+    notes: "Legends and Mythicals excluded. Contributed by Neil.",
   },
 
   {
@@ -547,7 +547,7 @@ module.exports = [
       {"dex":635}, {"dex":636}, {"dex":637},
     ],
     reward: {"gold":14,"coins":0,"items":[]},
-    notes: "Legends and Mythicals excluded · contributed by Neil",
+    notes: "Legends and Mythicals excluded. Contributed by Neil.",
   },
 
   {
@@ -631,7 +631,7 @@ module.exports = [
       {"dex":714}, {"dex":715},
     ],
     reward: {"gold":6,"coins":0,"items":[]},
-    notes: "Legends and Mythicals excluded · contributed by Neil",
+    notes: "Legends and Mythicals excluded. Contributed by Neil.",
   },
 
   {
@@ -737,7 +737,7 @@ module.exports = [
       {"dex":89,"form":"Alola"}, {"dex":103,"form":"Alola"}, {"dex":105,"form":"Alola"},
     ],
     reward: {"gold":6,"coins":0,"items":[]},
-    notes: "Legends and Mythicals excluded · contributed by Neil",
+    notes: "Legends and Mythicals excluded. Contributed by Neil.",
   },
 
   {
@@ -896,7 +896,7 @@ module.exports = [
       {"dex":555,"form":"Galar Zen"}, {"dex":562,"form":"Galar"}, {"dex":618,"form":"Galar"},
     ],
     reward: {"gold":8,"coins":0,"items":[]},
-    notes: "Legends and Mythicals excluded · contributed by Neil",
+    notes: "Legends and Mythicals excluded. Contributed by Neil.",
   },
 
   {
@@ -1002,7 +1002,7 @@ module.exports = [
       {"dex":128,"form":"Paldea Aqua Breed"}, {"dex":194,"form":"Paldea"},
     ],
     reward: {"gold":10,"coins":0,"items":[]},
-    notes: "Legends and Mythicals excluded · contributed by Neil",
+    notes: "Legends and Mythicals excluded. Contributed by Neil.",
   },
 
   {

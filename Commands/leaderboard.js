@@ -213,7 +213,7 @@ async function buildLeaderboard(client, viewerId, rawBoard) {
   }
 
   if (resolved.board === 'species' || resolved.board === 'server') {
-    embed.setFooter({ text: 'Any Pokemon name works · .lb dex for overall completion' });
+    embed.setFooter({ text: 'Any Pokemon name works. Use .lb dex for overall completion.' });
   } else {
     const others = Object.keys(ALIASES)
       .filter((b) => b !== resolved.board)

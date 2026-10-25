@@ -11,6 +11,10 @@
  *
  * A form with no learnset of its own (all Gigantamax forms, and Legends Z-A
  * Megas so far) uses its species' default form.
+ *
+ * PokeAPI lists evolution moves (Decidueye's Spirit Shackle) as level-up moves
+ * at level 0. They are kept at level 1 for ordering and marked `evolution`, so
+ * they can be offered when the Pokemon evolves into this form.
  */
 
 const content = require('./content');
@@ -46,7 +50,7 @@ function strengthOf(name) {
  * Sorted by level, then weakest first within a level (movesAtLevel takes the
  * last four, so the strongest survive), then by name for a stable order.
  *
- * @returns {{ versionGroup: string|null, moves: Array<{name, displayName, level}> }}
+ * @returns {{ versionGroup: string|null, moves: Array<{name, displayName, level, evolution}> }}
  */
 function levelUpMoves(speciesId, formFolder) {
   const key = `${speciesId}/${formFolder}`;
@@ -88,7 +92,7 @@ function build(speciesId, formFolder) {
         strengthOf(a.name) - strengthOf(b.name) ||
         a.name.localeCompare(b.name)
     )
-    .map(({ name, displayName, level }) => ({ name, displayName, level }));
+    .map(({ name, displayName, level, evolution }) => ({ name, displayName, level, evolution }));
 
   return { versionGroup, moves };
 }
@@ -105,6 +109,7 @@ function readLevelUp(form) {
         name: move.name,
         displayName: move.displayName,
         level: learn.level || 1,
+        evolution: !learn.level,
         versionGroup: learn.versionGroup,
       });
     }
@@ -126,6 +131,36 @@ function movesLearnedBetween(speciesId, formFolder, fromLevel, toLevel) {
   return moves
     .filter((move) => move.level > fromLevel && move.level <= toLevel)
     .sort((a, b) => a.level - b.level);
+}
+
+/** The moves this form learns the moment something evolves into it. */
+function evolutionMoves(speciesId, formFolder) {
+  return levelUpMoves(speciesId, formFolder).moves.filter((move) => move.evolution);
+}
+
+/**
+ * Every new move a Pokemon has earned by growing from `before` to `after`.
+ *
+ * Level-up moves in `(before.level, after.level]` from its current list, plus
+ * the evolution moves of each form it evolved into along the way. `steps`
+ * lists those forms ({species_id, form_folder}); when omitted, a change of
+ * species counts as one step into `after`.
+ *
+ * An Everstone stops the evolution, so the species stays the same and only
+ * that species' own moves are earned.
+ *
+ * @returns {Array<{name, displayName, level, evolution}>} in learning order
+ */
+function movesOnGrowth(before, after, steps = null) {
+  const evolvedInto = steps || (before.species_id !== after.species_id ? [after] : []);
+
+  const earned = [
+    ...movesLearnedBetween(after.species_id, after.form_folder, before.level, after.level),
+    ...evolvedInto.flatMap((step) => evolutionMoves(step.species_id, step.form_folder)),
+  ];
+
+  const seen = new Set();
+  return earned.filter((move) => !seen.has(move.name) && seen.add(move.name));
 }
 
 /**
@@ -228,6 +263,8 @@ module.exports = {
   levelUpMoves,
   movesAtLevel,
   movesLearnedBetween,
+  evolutionMoves,
+  movesOnGrowth,
   learnableAt,
   allMoves,
   move,

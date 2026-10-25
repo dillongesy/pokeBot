@@ -39,7 +39,8 @@ const EFFECT_CHARS = 96;
  * followed by the name, the effect and the buy command:
  *
  *   `  3,000` **Fire Stone**
- *   Evolves an Eevee into Flareon… · `.buy fire-stone`
+ *   Evolves an Eevee into Flareon…
+ *   `.buy fire-stone`
  *
  * @param {number} width  how wide the price column is, for this page
  */
@@ -60,7 +61,7 @@ function itemLine(entry, width, coins) {
 
   return (
     `${shown} ${affordable ? '**' + name + '**' : name}\n` +
-    `${effect ? effect + ' · ' : ''}\`.buy ${entry.item}\``
+    `${effect ? effect + '\n' : ''}\`.buy ${entry.item}\``
   );
 }
 
@@ -122,8 +123,8 @@ function buildShop(user) {
       )
       .setFooter({
         text:
-          `${money(coins)} coins · ${affordable} of ${whole.length} affordable in ` +
-          `${section.name} · page ${index + 1}/${pages}`,
+          `${money(coins)} coins, ${affordable} of ${whole.length} affordable in ` +
+          `${section.name}. Page ${index + 1}/${pages}`,
       });
   };
 
@@ -150,7 +151,7 @@ function buildGoldShop(user) {
     embed.addFields({
       name: clip(`${entry.name} - ${money(entry.price)} gold`, LIMITS.fieldName),
       value: clip(
-        `\`${entry.id}\` · ${duration(entry.durationHours)}\n${entry.description}`,
+        `\`${entry.id}\`, lasts ${duration(entry.durationHours)}\n${entry.description}`,
         LIMITS.fieldValue
       ),
     });
@@ -304,7 +305,7 @@ function buildForSpecies(user, species) {
         `${item ? item.displayName : titleCase(entry.item)} - ${money(entry.price)}`,
         LIMITS.fieldName
       ),
-      value: clip(`\`${entry.item}\`\n${entry.why} · *${entry.section}*`, LIMITS.fieldValue),
+      value: clip(`\`${entry.item}\`\n${entry.why} *(${entry.section})*`, LIMITS.fieldValue),
     });
   }
 
@@ -312,7 +313,7 @@ function buildForSpecies(user, species) {
 
   // Rare Candy and vitamins work on everything, so mention them in a footnote.
   embed.setFooter({
-    text: 'Rare Candy and the vitamins work on anything · .shop training',
+    text: 'Rare Candy and the vitamins work on anything. See .shop training.',
   });
 
   return { embeds: [embed] };

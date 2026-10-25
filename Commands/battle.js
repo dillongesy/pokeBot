@@ -41,6 +41,7 @@ const typechart = require('../Utils/typechart');
 const movepower = require('../Utils/movepower');
 const { titleCase, capitalize } = require('../Utils/display');
 const partylock = require('../Utils/partylock');
+const moveprompt = require('../Utils/moveprompt');
 const drop = require('./drop');
 
 const POKEMON_DIR = path.join(__dirname, '..', 'Data', 'Pokemon');
@@ -106,7 +107,7 @@ function lineFor(mon, side) {
 /**
  * What one move button says.
  *
- * "Thunderbolt · 90 · 15/15": name, power and remaining PP. Status moves show
+ * "Thunderbolt (90) 15/15 PP": name, power and remaining PP. Status moves show
  * no power.
  *
  * Power is calculated against the current opponent, so variable-power moves
@@ -125,7 +126,7 @@ function moveLabel(entry, attacker, defender) {
   const pp = `${entry.pp}/${entry.maxPp}`;
 
   // Discord limits button labels to 80 characters.
-  return `${entry.data.displayName}${power ? ` · ${power}` : ''} · ${pp}`.slice(0, 80);
+  return `${entry.data.displayName}${power ? ` (${power})` : ''} ${pp} PP`.slice(0, 80);
 }
 
 /** Turn the engine's events into something readable, dropping the noise. */
@@ -278,7 +279,7 @@ function buildCard(state, log) {
   const recent = log.slice(-9);
   if (recent.length) embed.setDescription(recent.join('\n'));
 
-  embed.setFooter({ text: `Turn ${state.turn + 1} · ${TURN_MS / 1000}s to choose` });
+  embed.setFooter({ text: `Turn ${state.turn + 1}, ${TURN_MS / 1000}s to choose` });
 
   return embed;
 }
@@ -455,7 +456,7 @@ function prepare(userId, wantsMilestone, rng = Math.random) {
       brought,
       fight: standing.next,
       opponent: encounter.opponentFor({
-        kind: encounter.MILESTONE, cap, fight: standing.next, rng,
+        kind: encounter.MILESTONE, cap, anchor: encounter.levelAnchor(cap, team), fight: standing.next, rng,
       }),
     };
   }
@@ -482,6 +483,7 @@ function prepare(userId, wantsMilestone, rng = Math.random) {
     opponent: encounter.opponentFor({
       kind,
       cap,
+      anchor: encounter.levelAnchor(cap, team),
       cleared: standing.milestonesCleared,
       total: standing.totalMilestones,
       speciesIds,
@@ -514,12 +516,14 @@ function settle(userId, state, setup, outcome = null) {
   });
 
   // Starting levels, so awardBattle can work out evolutions and new moves
-  // (experience itself was paid during the fight). Falls back to current
-  // levels if the start wasn't recorded.
+  // (experience itself was paid during the fight). Every recorded Pokemon is
+  // passed: the battle state's levels are never updated as exp is paid, so
+  // awardBattle compares against the stored level and skips anyone who didn't
+  // grow.
   const startedAt = setup.startedAt || new Map();
 
   payout.grew = state.sides[0].team
-    .filter((mon) => startedAt.has(mon.id) && mon.level > startedAt.get(mon.id))
+    .filter((mon) => startedAt.has(mon.id))
     .map((mon) => ({ id: mon.id, from: startedAt.get(mon.id) }));
 
   const applied = store.awardBattle(userId, payout);
@@ -546,10 +550,8 @@ function settle(userId, state, setup, outcome = null) {
       lines.push(`${mon.name} learned **${mon.learned.join('**, **')}**!`);
     }
 
-    // Moves that need a slot freed get their own message instead.
-    for (const offer of mon.offered || []) {
-      offers.push({ id: mon.id, name: mon.name, move: offer });
-    }
+    // Moves that need a slot freed get their own prompt instead (see conclude).
+    if ((mon.offered || []).length) offers.push({ id: mon.id, moves: mon.offered });
 
     // Evolutions are announced separately (see `announcements` below).
     for (const step of mon.evolutions || []) evolutions.push(step);
@@ -593,19 +595,6 @@ function settle(userId, state, setup, outcome = null) {
     );
   }
 
-  // Moves that need a slot freed: explain how to learn them with
-  // `.moves <id> learn`. The offer never expires, since it is derived from
-  // the Pokemon's level.
-  for (const offer of offers) {
-    announcements.push(
-      [
-        `### 📘 ${offer.name} wants to learn ${offer.move.displayName}!`,
-        `But **${offer.name}** already knows four moves.`,
-        `\`.moves ${offer.id}\` to see them, then \`.moves ${offer.id} learn ${offer.move.move} <slot>\` to make room.`,
-      ].join('\n')
-    );
-  }
-
   // Announce a milestone battle as soon as it unlocks.
   if (applied.levelled && applied.levelled.becamePending) {
     const standing = store.trainerProgress(userId);
@@ -622,7 +611,7 @@ function settle(userId, state, setup, outcome = null) {
     }
   }
 
-  return { lines, announcements };
+  return { lines, announcements, offers };
 }
 
 // ---------------------------------------------------------------------------
@@ -866,7 +855,7 @@ function payKnockouts({ userId, state, cap, paid }) {
  * none, so the card is edited directly.
  */
 async function conclude({ userId, state, setup, card, log, outcome = null, edit = null }) {
-  const { lines, announcements } = settle(userId, state, setup, outcome);
+  const { lines, announcements, offers } = settle(userId, state, setup, outcome);
 
   const heading =
     outcome === 'fled'
@@ -892,6 +881,18 @@ async function conclude({ userId, state, setup, card, log, outcome = null, edit 
     for (const text of announcements) {
       await card.channel.send({ content: text }).catch(() => {});
     }
+  }
+
+  // Moves that need a slot freed: ask which to forget, one card at a time.
+  // Not awaited, so the battle (and its party lock) ends while they wait.
+  if (offers.length && card && card.channel && typeof card.channel.send === 'function') {
+    const send = (payload) => card.channel.send(payload);
+
+    (async () => {
+      for (const offer of offers) {
+        await moveprompt.askAll({ send, userId, pokemonId: offer.id, moves: offer.moves });
+      }
+    })().catch((err) => console.error('Move offers failed:', err));
   }
 }
 

@@ -59,7 +59,7 @@ function trainerBlock(account) {
   const next = milestones.next(standing.milestonesCleared);
   const total = milestones.total();
 
-  const stars = standing.prestige ? ` · ${'★'.repeat(Math.min(standing.prestige, 5))}` : '';
+  const stars = standing.prestige ? ` ${'★'.repeat(Math.min(standing.prestige, 5))}` : '';
   const heading =
     `**Level ${standing.level}**${stars}` +
     (standing.prestige > 5 ? ` (prestige ${standing.prestige})` : '');
@@ -76,15 +76,15 @@ function trainerBlock(account) {
   }
 
   const upNext = next
-    ? `Next: **${next.name}** · ${next.region}` +
-      (next.type ? ` · ${titleCase(next.type)}` : '')
+    ? `Next: **${next.name}** of ${next.region}` +
+      (next.type ? ` (${titleCase(next.type)})` : '')
     : `All ${total} milestones beaten`;
 
   return {
     name: 'Trainer',
     value:
       `${heading}\n${progress}\n` +
-      `Commands Pokemon up to **level ${standing.cap}** · ` +
+      `Commands Pokemon up to **level ${standing.cap}**\n` +
       `${money(standing.milestonesCleared)}/${total} milestones\n${upNext}`,
   };
 }
@@ -106,7 +106,7 @@ function buildProfile(user) {
   if (account.battles_won || account.battles_lost) {
     embed.addFields({
       name: 'Battles',
-      value: `${money(account.battles_won)} won · ${money(account.battles_lost)} lost`,
+      value: `${money(account.battles_won)} won, ${money(account.battles_lost)} lost`,
       inline: true,
     });
   }
@@ -144,7 +144,7 @@ function buildProfile(user) {
     embed.addFields({
       name: 'Active buffs',
       value: buffs
-        .map((b) => `**${buffLabel(b.buff)}** ×${b.value} · ${remaining(b.expires_at)}`)
+        .map((b) => `**${buffLabel(b.buff)}** ×${b.value}, ${remaining(b.expires_at)}`)
         .join('\n'),
     });
   }

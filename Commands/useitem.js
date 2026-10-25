@@ -22,6 +22,8 @@ const { displayName, colorFor, titleCase, fitLines, clip, LIMITS } = require('..
 const { describeItem } = require('./examine');
 const { loadSpecies, loadForm, createPokemon } = require('../Utils/pokemon');
 const evolution = require('../Utils/evolution');
+const learnset = require('../Utils/learnset');
+const moveprompt = require('../Utils/moveprompt');
 
 /**
  * Take whatever a Pokemon is holding and put it back in the bag.
@@ -188,7 +190,7 @@ function openLootbox(userId, rawCount) {
       .map(([key, n]) => {
         const [tier, slug] = key.split('|');
         const item = content.item(slug);
-        return `**${lootbox.TIER_LOOK[tier].label}** · ${item ? item.displayName : titleCase(slug)}${n > 1 ? ` ×${n}` : ''}`;
+        return `**${lootbox.TIER_LOOK[tier].label}**: ${item ? item.displayName : titleCase(slug)}${n > 1 ? ` ×${n}` : ''}`;
       });
 
     embed.setDescription(fitLines(lines, 3500));
@@ -198,7 +200,7 @@ function openLootbox(userId, rawCount) {
   embed.setFooter({
     text:
       (left ? `${left} Lootbox${left === 1 ? '' : 'es'} left` : 'No Lootboxes left') +
-      (asked > wanted ? ` · opened ${wanted}, the most in one go is ${MAX_OPENS}` : ''),
+      (asked > wanted ? `. Opened ${wanted}, the most in one go is ${MAX_OPENS}` : ''),
   });
 
   return { embeds: [embed] };
@@ -228,7 +230,7 @@ function equipConsumable(userId, slug) {
     .setTitle(`Equipped ${incense.nameOf(slug)}`)
     .setColor(slot === 'repel' ? 0x6390f0 : 0xd685ad)
     .setDescription(incense.describe(slug))
-    .setFooter({ text: 'Spent on your next .drop · .useitem clear-repel or clear-incense to take it off' });
+    .setFooter({ text: 'Spent on your next .drop. Use .useitem clear-repel or clear-incense to take it off.' });
 
   if (result.replaced) {
     embed.addFields({
@@ -336,6 +338,11 @@ function use(userId, rawPokemonId, rawItem) {
   const updated = store.updatePokemon(row.id, result.changes);
   const item = content.item(slug);
 
+  // New moves from levelling (Rare Candy) or evolving (including evolution
+  // moves). Free slots fill straight away; the rest are asked about once this
+  // reply is sent (see Utils/moveprompt.js).
+  const { learned, offered } = store.learnMoves(row.id, learnset.movesOnGrowth(row, updated));
+
   // Nincada evolving into Ninjask also produces a Shedinja.
   let extra = null;
   if (result.alsoCreates) extra = spawnExtra(userId, result.alsoCreates);
@@ -361,6 +368,10 @@ function use(userId, rawPokemonId, rawItem) {
     );
   }
 
+  if (learned.length) {
+    embed.addFields({ name: 'Learned', value: `**${learned.join('**, **')}**` });
+  }
+
   // Evolving or changing form changes which species are owned, so recalculate
   // quest progress (recalculated rather than incremented, so the old species
   // isn't treated as lost).
@@ -371,7 +382,23 @@ function use(userId, rawPokemonId, rawItem) {
     console.error('Quest sync failed after using an item:', err);
   }
 
-  return { embeds: [embed] };
+  // `offered` is not part of the message; the caller strips it and asks.
+  return {
+    embeds: [embed],
+    offered: offered.length ? { pokemonId: row.id, moves: offered } : null,
+  };
+}
+
+/**
+ * Send what `use` returned, then ask about any moves that need a slot freed.
+ *
+ * @param {function} send  posts a payload, returns the Message
+ */
+async function reply(send, userId, result) {
+  const { offered, ...payload } = result;
+  await send(payload);
+
+  if (offered) await moveprompt.askAll({ send, userId, ...offered });
 }
 
 module.exports = {
@@ -398,16 +425,25 @@ module.exports = {
     const pokemon = interaction.options.getInteger('pokemon');
 
     // Slot items take no Pokemon, so the item is the first argument.
-    await interaction.reply(
+    const result =
       pokemon === null
         ? use(interaction.user.id, item, null)
-        : use(interaction.user.id, pokemon, item)
-    );
+        : use(interaction.user.id, pokemon, item);
+
+    // The first payload is the reply; move prompts follow it up.
+    const send = (payload) =>
+      interaction.replied ? interaction.followUp(payload) : interaction.reply(payload);
+
+    await reply(send, interaction.user.id, result);
   },
 
   async run(message, args) {
     store.ensureUser(message.author.id);
-    await message.channel.send(use(message.author.id, args[0], args[1]));
+    await reply(
+      (payload) => message.channel.send(payload),
+      message.author.id,
+      use(message.author.id, args[0], args[1])
+    );
   },
 
   use,

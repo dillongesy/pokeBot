@@ -66,7 +66,7 @@ function buildCompare(viewer, other, args = []) {
 
     const lines = slice.map((species) => {
       const bucket = rarity.of(species.id);
-      const mark = bucket === 'normal' ? '' : ` · ${rarity.LABELS[bucket]}`;
+      const mark = bucket === 'normal' ? '' : ` (${rarity.LABELS[bucket]})`;
       return `\`#${String(species.id).padStart(4, '0')}\` ${species.displayName}${mark}`;
     });
 
@@ -74,7 +74,7 @@ function buildCompare(viewer, other, args = []) {
       .setTitle(title)
       .setDescription(lines.join('\n'))
       .setColor(0x5865f2)
-      .setFooter({ text: `${missing.length} species · page ${index + 1}/${pages}` });
+      .setFooter({ text: `${missing.length} species. Page ${index + 1}/${pages}` });
   };
 
   return { pages, page: 0, render, missing };

@@ -160,7 +160,7 @@ function purchase(userId, rawId, rawQuantity) {
       embed.addFields({
         name: 'Next',
         value: due
-          ? `**${due.name}** - ${money(due.price)} gold · \`.goldbuy ${due.id}\``
+          ? `**${due.name}** - ${money(due.price)} gold, \`.goldbuy ${due.id}\``
           : 'That was the last tier. This buff is maxed out.',
       });
     }

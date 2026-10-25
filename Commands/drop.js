@@ -380,7 +380,7 @@ function buildDropMessage(drop, used = {}) {
 
   if (spent.length) {
     embed.setFooter({
-      text: `Used ${spent.join(' + ')}` + (drop.notes && drop.notes.length ? ` · ${drop.notes.join(' · ')}` : ''),
+      text: `Used ${spent.join(' + ')}` + (drop.notes && drop.notes.length ? `. ${drop.notes.join('. ')}` : ''),
     });
   }
 

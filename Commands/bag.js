@@ -39,7 +39,7 @@ function buildBag(user, sort = null) {
   const mode = sort || (balance ? balance.bag_sort : 'shop');
 
   const wallet =
-    `**${money(balance ? balance.coins : 0)}** coins · ` +
+    `**${money(balance ? balance.coins : 0)}** coins and ` +
     `**${money(balance ? balance.gold : 0)}** gold`;
 
   if (!rows.length) {
@@ -60,7 +60,7 @@ function buildBag(user, sort = null) {
     const lines = slice.map(
       (row) =>
         `\`${String(row.slot).padStart(width, ' ')}\` **${row.displayName}** ×${row.quantity}` +
-        ` · ${row.category}`
+        ` (${row.category})`
     );
 
     return new EmbedBuilder()
@@ -69,9 +69,9 @@ function buildBag(user, sort = null) {
       .setDescription(`${wallet}\n\n${lines.join('\n')}`)
       .setFooter({
         text:
-          `${rows.length} item${rows.length === 1 ? '' : 's'} · ${SORT_LABELS[mode] || mode}` +
-          ` · page ${index + 1}/${pages}` +
-          ' · .examine <n> to read one',
+          `${rows.length} item${rows.length === 1 ? '' : 's'}, ${SORT_LABELS[mode] || mode}.` +
+          ` Page ${index + 1}/${pages}.` +
+          ' Use .examine <n> to read one.',
       });
   };
 
