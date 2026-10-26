@@ -309,6 +309,7 @@ function clearVolatiles(mon) {
 
   mon.protectedNow = false;
   mon.protectStreak = 0;
+  mon.flinched = false;
   mon.trapped = null;
   mon.seededBy = null;
   mon.substitute = 0;
@@ -1246,6 +1247,13 @@ function resolveTurn(state, actions) {
     if (!canAct(attacker, rng, events)) continue;
 
     useMove(attacker, defender, action.slot, rng, events, state.field);
+  }
+
+  // A flinch only stops a Pokemon that has not moved yet this turn. One from
+  // a slower attacker lands after its target has already acted, so it must
+  // not carry over and cost the target its next turn.
+  for (const side of state.sides) {
+    for (const mon of side.team) mon.flinched = false;
   }
 
   // End of turn, in the games' order: item and ability effects first
