@@ -36,6 +36,7 @@ const path = require('path');
 const FORM_RATES = require('./formrates');
 const ARTWORK = require('./artwork');
 const CUSTOM = require('./custom');
+const formnames = require('./formnames');
 
 // ---------------------------------------------------------------------------
 // Config
@@ -475,16 +476,17 @@ function regionForForm(slug, speciesRegion) {
 }
 
 /**
- * What to call a form on a card: "Ho-Oh", "Ninetales Alola", "Kommo-o Totem".
+ * What to call a form on a card: "Ho-Oh", "Alolan Ninetales", "Totem Kommo-o".
  *
- * The species part uses PokeAPI's English name (which keeps punctuation); only
- * the form suffix is title-cased from the slug.
+ * The species part uses PokeAPI's English name (which keeps punctuation); the
+ * form label is title-cased from the slug, and Utils/formnames.js decides the
+ * word order.
  */
-function formDisplayName(slug, speciesSlug, speciesDisplay) {
+function formDisplayName(slug, speciesSlug, speciesDisplay, isDefault = false) {
   if (slug === speciesSlug) return speciesDisplay;
 
   if (slug.startsWith(`${speciesSlug}-`)) {
-    return `${speciesDisplay} ${titleCase(slug.slice(speciesSlug.length + 1))}`.trim();
+    return formnames.formDisplayName(speciesDisplay, titleCase(slug.slice(speciesSlug.length + 1)), isDefault);
   }
 
   return titleCase(slug);
@@ -708,8 +710,13 @@ async function importPokemon(options) {
         name: isCustom ? entry.custom.name : entry.form.name,
         // Uses the species' English name plus the form suffix (see above).
         displayName: isCustom
-          ? `${info.displayName} ${entry.custom.name}`
-          : formDisplayName(entry.form.name, species.name, info.displayName),
+          ? formnames.formDisplayName(info.displayName, entry.custom.name)
+          : formDisplayName(
+            entry.form.name,
+            species.name,
+            info.displayName,
+            Boolean(entry.form.is_default) && variety.is_default
+          ),
         formName: folderName,
         folder: folderName,
         species: { id: species.id, name: species.name },

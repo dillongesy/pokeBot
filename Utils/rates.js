@@ -269,6 +269,12 @@ module.exports = {
 
     /** What a milestone pays on top, as a multiple of the ordinary reward. */
     milestoneBonus: 5,
+
+    /**
+     * Lootboxes for clearing a milestone. An Elite Four counts once, when the
+     * fourth member falls.
+     */
+    milestoneLootboxes: 1,
   },
 
   /**

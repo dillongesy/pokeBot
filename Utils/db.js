@@ -28,7 +28,7 @@ const DB_FILE = path.join(__dirname, '..', 'Data', 'pokedropper.db');
  * Stored in SQLite's `PRAGMA user_version`, so an out-of-date file fails
  * clearly at startup instead of with "no such column" errors later.
  */
-const SCHEMA_VERSION = 12;
+const SCHEMA_VERSION = 13;
 
 /**
  * Which Elite Four members a player has beaten on the milestone in front of
@@ -454,7 +454,50 @@ ${ELITE_FOUR_WINS}`;
 const MIGRATIONS = {
   10: DAILY_QUESTS,
   11: ELITE_FOUR_WINS,
+  12: renameFormsAndBackpayMilestones,
 };
+
+/**
+ * Schema 13 changes no tables. It is a one-off data fix, run once per
+ * database:
+ *
+ *   1. Form names read naturally: "Alolan Rattata", not "Rattata Alola"
+ *      (Utils/formnames.js). Renames the generated Data/Pokemon files too,
+ *      since they live outside git on each server.
+ *
+ *   2. Milestones now pay a Lootbox each. Everyone is paid for those already
+ *      beaten, including full ladders before a prestige.
+ */
+function renameFormsAndBackpayMilestones(handle) {
+  const { renameAll } = require('./formnames');
+  const milestones = require('./milestones');
+  const rates = require('./rates');
+  const { LOOTBOX } = require('./lootbox');
+
+  const renamed = renameAll(handle);
+  console.log(`Renamed ${renamed.forms} forms and ${renamed.rows} stored Pokemon.`);
+
+  const perLadder = milestones.total();
+  const each = rates.battle.milestoneLootboxes;
+  let players = 0;
+  let boxes = 0;
+
+  const give = handle.prepare(
+    `INSERT INTO inventory (discord_user_id, item, quantity) VALUES (?, ?, ?)
+     ON CONFLICT(discord_user_id, item) DO UPDATE SET quantity = quantity + excluded.quantity`
+  );
+
+  for (const user of handle.prepare('SELECT discord_user_id, milestones_cleared, prestige FROM users').all()) {
+    const beaten = (user.prestige || 0) * perLadder + (user.milestones_cleared || 0);
+    if (beaten <= 0) continue;
+
+    give.run(user.discord_user_id, LOOTBOX, beaten * each);
+    players += 1;
+    boxes += beaten * each;
+  }
+
+  console.log(`Paid ${boxes} Lootboxes to ${players} players for milestones already beaten.`);
+}
 
 // ---------------------------------------------------------------------------
 // Connection
@@ -499,7 +542,10 @@ function applySchema(handle) {
   while (version < SCHEMA_VERSION && MIGRATIONS[version]) {
     handle.exec('BEGIN');
     try {
-      handle.exec(MIGRATIONS[version]);
+      // A step is either SQL or a function given the handle (for data fixes).
+      const step = MIGRATIONS[version];
+      if (typeof step === 'function') step(handle);
+      else handle.exec(step);
       handle.exec(`PRAGMA user_version = ${version + 1}`);
       handle.exec('COMMIT');
     } catch (err) {

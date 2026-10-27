@@ -18,6 +18,7 @@ const milestones = require('./milestones');
 const rewards = require('./rewards');
 const obedience = require('./obedience');
 const evolution = require('./evolution');
+const lootbox = require('./lootbox');
 const { normaliseName, recalculateStats } = require('./pokemon');
 
 const now = () => Date.now();
@@ -810,6 +811,11 @@ function clearMilestone(userId) {
       .prepare('DELETE FROM elite_four_wins WHERE discord_user_id = ? AND milestone = ?')
       .run(userId, row.milestones_cleared);
 
+    // Every milestone pays Lootboxes, in the same transaction as the clear so
+    // it can only be paid once.
+    const lootboxes = rates.battle.milestoneLootboxes || 0;
+    if (lootboxes > 0) addItem(userId, lootbox.LOOTBOX, lootboxes);
+
     handle.exec('COMMIT');
 
     return {
@@ -817,6 +823,7 @@ function clearMilestone(userId) {
       level: settled.level,
       cap: settled.cap,
       levelsGained: settled.levelsGained,
+      lootboxes,
     };
   } catch (err) {
     handle.exec('ROLLBACK');

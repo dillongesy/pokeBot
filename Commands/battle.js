@@ -669,6 +669,9 @@ function settle(userId, state, setup, outcome = null) {
     lines.push('');
     lines.push(`**${member ? `The ${milestones.title(member)}` : setup.fight.name} is behind you.**`);
     lines.push(`Trainer level **${cleared.level}** - you now command Pokemon up to **level ${cleared.cap}**.`);
+    if (cleared.lootboxes) {
+      lines.push(`You got **${cleared.lootboxes} Lootbox${cleared.lootboxes === 1 ? '' : 'es'}**!`);
+    }
     if (after.next) {
       lines.push(
         `Next: **${milestones.title(after.next)}**` +
