@@ -30,6 +30,7 @@ const {
 
 const store = require('../Utils/store');
 const pager = require('../Utils/pager');
+const livebuttons = require('../Utils/livebuttons');
 const { normaliseName, loadSpecies, loadForm, evolutionTier } = require('../Utils/pokemon');
 const { TYPE_COLORS, SHINY_COLOR, GENDER_SYMBOLS, capitalize, titleCase, fitLines, clip, LIMITS } = require('../Utils/display');
 
@@ -271,8 +272,8 @@ function renderCard(userId, state) {
 // The interactive shell
 // ---------------------------------------------------------------------------
 
-/** How long the buttons stay active. */
-const TIMEOUT_MS = 120_000;
+/** How long the buttons stay active after the last press, and at most (see Utils/pager.js). */
+const { IDLE_MS, MAX_MS } = pager;
 
 /** Discord's limit on dropdown options. */
 const MAX_FORM_OPTIONS = 25;
@@ -404,8 +405,11 @@ async function sendDex({ send, userId, query, shiny = false }) {
 
   const collector = message.createMessageComponentCollector({
     filter: (i) => i.user.id === userId,
-    time: TIMEOUT_MS,
+    idle: IDLE_MS,
+    time: MAX_MS,
   });
+
+  livebuttons.track(message, userId);
 
   collector.on('collect', async (interaction) => {
     state = applyPress(state, interaction.customId, interaction.values || []);
@@ -427,6 +431,8 @@ async function sendDex({ send, userId, query, shiny = false }) {
   });
 
   collector.on('end', async () => {
+    livebuttons.release(message);
+
     try {
       await message.edit({ components: buildComponents(state, true) });
     } catch (err) {

@@ -20,6 +20,7 @@ const { tryCatch } = require('./Commands/catch');
 const db = require('./Utils/db');
 const reminders = require('./Utils/reminders');
 const channels = require('./Utils/channels');
+const livebuttons = require('./Utils/livebuttons');
 
 const ENV_FILE = path.join(__dirname, '.env');
 const PREFIX = '.';
@@ -120,6 +121,14 @@ client.on('messageCreate', async (message) => {
 });
 
 client.on('interactionCreate', async (interaction) => {
+  // Buttons and menus are handled by their own collectors. This only answers
+  // the presses none of them will: expired, left over from before a restart,
+  // or pressed by someone else.
+  if (interaction.isMessageComponent()) {
+    await livebuttons.answerStray(interaction);
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const command = slash.find((c) => c.data.name === interaction.commandName);

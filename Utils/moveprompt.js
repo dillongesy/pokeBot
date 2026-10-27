@@ -24,10 +24,14 @@ const store = require('./store');
 const content = require('./content');
 const learnset = require('./learnset');
 const moveinfo = require('./moveinfo');
+const livebuttons = require('./livebuttons');
 const { displayName, colorFor, titleCase, clip } = require('./display');
 
-/** How long the buttons stay live. */
-const ANSWER_MS = 120_000;
+/**
+ * How long the buttons stay live. One press answers it, so there is no idle
+ * timer to refresh; it is long so a player who steps away can still choose.
+ */
+const ANSWER_MS = 15 * 60_000;
 
 const KEEP = 'learn:keep';
 
@@ -112,6 +116,8 @@ async function ask({ send, userId, pokemonId, move }) {
   const prompt = await send({ embeds: [card(row, move, known)], components: buttons(known) });
   if (!prompt || typeof prompt.awaitMessageComponent !== 'function') return;
 
+  livebuttons.track(prompt, userId);
+
   let choice;
   try {
     choice = await prompt.awaitMessageComponent({
@@ -120,6 +126,8 @@ async function ask({ send, userId, pokemonId, move }) {
       filter: (button) => button.user.id === userId,
     });
   } catch {
+    livebuttons.release(prompt);
+
     // Timed out: keep its moves and leave the card readable.
     await prompt
       .edit({
@@ -136,6 +144,8 @@ async function ask({ send, userId, pokemonId, move }) {
       .catch(() => {});
     return;
   }
+
+  livebuttons.release(prompt);
 
   // It may have been traded or released while the card was waiting.
   const now = store.getOwnedPokemon(userId, pokemonId);

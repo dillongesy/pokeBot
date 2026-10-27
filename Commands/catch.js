@@ -14,6 +14,7 @@
 
 const store = require('../Utils/store');
 const questengine = require('../Utils/questengine');
+const daily = require('../Utils/daily');
 const { displayName } = require('../Utils/display');
 
 /** Longer messages are never a guess. Generous to allow for localised names. */
@@ -68,10 +69,19 @@ async function tryCatch(message) {
     console.error('Quest sync failed after a catch:', err);
   }
 
+  // Daily quest progress. Only says anything when it completes one.
+  let dailyNotices = [];
+  try {
+    dailyNotices = daily.recordCatch(message.author.id);
+  } catch (err) {
+    console.error('Daily quest update failed after a catch:', err);
+  }
+
   await message.channel.send(
     `Added ${displayName(drop)} to ${trainer}'s party! ` +
       `Level ${drop.level}. You gained **${coins}** coins for your catch.` +
-      (finished ? `\n${finished}` : '')
+      (finished ? `\n${finished}` : '') +
+      (dailyNotices.length ? `\n${dailyNotices.join('\n')}` : '')
   );
 
   return true;

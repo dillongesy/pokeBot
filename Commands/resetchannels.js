@@ -19,6 +19,7 @@ const {
 } = require('discord.js');
 
 const channels = require('../Utils/channels');
+const livebuttons = require('../Utils/livebuttons');
 const { mayConfigure, DENIED } = require('./setchannel');
 
 /** How long the confirmation button stays live. */
@@ -74,6 +75,7 @@ async function askThenReset({ guildId, userId, send }) {
   if (asked.done) return send(asked.payload);
 
   const prompt = await send({ ...asked.payload, components: [buttons()] });
+  livebuttons.track(prompt, userId);
 
   let choice = null;
   try {
@@ -84,9 +86,12 @@ async function askThenReset({ guildId, userId, send }) {
     });
   } catch {
     // Timed out: remove the buttons.
+    livebuttons.release(prompt);
     await prompt.edit({ components: [] }).catch(() => {});
     return prompt;
   }
+
+  livebuttons.release(prompt);
 
   if (choice.customId === 'resetchannels:no') {
     await choice.update({

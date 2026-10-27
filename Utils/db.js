@@ -7,9 +7,10 @@
  * or compile. Only player data is stored here; static game data (species,
  * items, quests, shop stock) lives as files under Data/.
  *
- * The schema below is created on an empty database. There is no automatic
- * migration: if SCHEMA_VERSION changes, an older database file is refused on
- * startup and has to be upgraded by hand or rebuilt.
+ * The schema below is created on an empty database. An older database is
+ * upgraded by MIGRATIONS when there is a path from its version (additive
+ * changes only); otherwise it is refused on startup and has to be upgraded by
+ * hand or rebuilt.
  *
  * Run `node Utils/db.js` to create it, or `node Utils/db.js --reset` to delete
  * and rebuild it.
@@ -27,7 +28,39 @@ const DB_FILE = path.join(__dirname, '..', 'Data', 'pokedropper.db');
  * Stored in SQLite's `PRAGMA user_version`, so an out-of-date file fails
  * clearly at startup instead of with "no such column" errors later.
  */
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
+
+/**
+ * Daily quests: one row per player per day, where a day runs midnight to
+ * midnight US Central (see Utils/daily.js).
+ *
+ * Old rows are pruned after a week. `vote_created_at` is kept on the row so a
+ * top.gg vote is only ever credited once, even across midnight.
+ */
+const DAILY_QUESTS = `
+CREATE TABLE daily_quests (
+  discord_user_id TEXT NOT NULL REFERENCES users(discord_user_id) ON DELETE CASCADE,
+
+  -- 'YYYY-MM-DD' in America/Chicago.
+  day             TEXT NOT NULL,
+
+  catch_target    INTEGER NOT NULL,
+  catches         INTEGER NOT NULL DEFAULT 0,
+  battle_target   INTEGER NOT NULL,
+  wins            INTEGER NOT NULL DEFAULT 0,
+
+  -- 1 once each reward has been paid.
+  catch_done      INTEGER NOT NULL DEFAULT 0,
+  battle_done     INTEGER NOT NULL DEFAULT 0,
+  vote_done       INTEGER NOT NULL DEFAULT 0,
+  bonus_done      INTEGER NOT NULL DEFAULT 0,
+
+  -- When the credited vote was cast, per top.gg. Milliseconds since the epoch.
+  vote_created_at INTEGER,
+
+  PRIMARY KEY (discord_user_id, day)
+);
+`;
 
 const SCHEMA = `
 -- ---------------------------------------------------------------------------
@@ -386,7 +419,24 @@ CREATE TABLE admins (
   added_at        INTEGER NOT NULL,
   note            TEXT
 );
-`;
+
+${DAILY_QUESTS}`;
+
+// ---------------------------------------------------------------------------
+// Migrations
+// ---------------------------------------------------------------------------
+
+/**
+ * Upgrades from one schema version to the next, keyed by the version they
+ * start from. Each must only add (new tables, new columns), so a live
+ * database keeps its players.
+ *
+ * A database more than one version behind runs each step in turn. One with no
+ * path forward is still refused (see applySchema).
+ */
+const MIGRATIONS = {
+  10: DAILY_QUESTS,
+};
 
 // ---------------------------------------------------------------------------
 // Connection
@@ -424,12 +474,29 @@ function applySchema(handle) {
     return { created: true };
   }
 
-  const version = handle.prepare('PRAGMA user_version').get().user_version;
+  let version = handle.prepare('PRAGMA user_version').get().user_version;
+
+  // Step an older database forward, one version at a time, each step in its
+  // own transaction.
+  while (version < SCHEMA_VERSION && MIGRATIONS[version]) {
+    handle.exec('BEGIN');
+    try {
+      handle.exec(MIGRATIONS[version]);
+      handle.exec(`PRAGMA user_version = ${version + 1}`);
+      handle.exec('COMMIT');
+    } catch (err) {
+      handle.exec('ROLLBACK');
+      throw new Error(`Could not upgrade the schema from version ${version}: ${err.message}`);
+    }
+
+    console.log(`Upgraded Data/pokedropper.db from schema version ${version} to ${version + 1}.`);
+    version += 1;
+  }
 
   if (version !== SCHEMA_VERSION) {
     throw new Error(
       `Data/pokedropper.db was built by schema version ${version}, but this is version ` +
-        `${SCHEMA_VERSION}. There are no migrations - run "node Utils/db.js --reset" to ` +
+        `${SCHEMA_VERSION}, and there is no migration from it - run "node Utils/db.js --reset" to ` +
         'rebuild it. Player progress in it will be lost.'
     );
   }

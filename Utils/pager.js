@@ -9,8 +9,16 @@
 
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
-/** How long the buttons stay active. */
-const TIMEOUT_MS = 60_000;
+const livebuttons = require('./livebuttons');
+
+/** How long the buttons stay active after the last press. Each press restarts it. */
+const IDLE_MS = 5 * 60_000;
+
+/**
+ * The longest the buttons stay active however often they are pressed, so
+ * listeners don't pile up. Each one checks every button press the bot sees.
+ */
+const MAX_MS = 30 * 60_000;
 
 const BUTTONS = [
   { id: 'pageFirst', label: '⏪' },
@@ -64,8 +72,11 @@ async function sendPaged({ send, pages, page = 0, render, userId }) {
 
   const collector = message.createMessageComponentCollector({
     filter: (i) => i.user.id === userId,
-    time: TIMEOUT_MS,
+    idle: IDLE_MS,
+    time: MAX_MS,
   });
+
+  livebuttons.track(message, userId);
 
   collector.on('collect', async (interaction) => {
     current = nextPage(current, total, interaction.customId);
@@ -78,6 +89,8 @@ async function sendPaged({ send, pages, page = 0, render, userId }) {
   });
 
   collector.on('end', async () => {
+    livebuttons.release(message);
+
     try {
       await message.edit({ components: [buildRow(true)] });
     } catch (err) {
@@ -102,4 +115,4 @@ function interactionSender(interaction) {
   };
 }
 
-module.exports = { sendPaged, buildRow, nextPage, interactionSender, TIMEOUT_MS, BUTTONS };
+module.exports = { sendPaged, buildRow, nextPage, interactionSender, IDLE_MS, MAX_MS, BUTTONS };

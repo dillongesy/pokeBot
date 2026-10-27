@@ -61,6 +61,7 @@ const GROUPS = [
     name: '🏆 Progress',
     commands: [
       { name: 'me', usage: '.me', blurb: 'Your coins, gold, buffs and totals.' },
+      { name: 'daily', usage: '.daily', blurb: 'Three quests a day, plus a vote on top.gg. Resets at midnight Central.' },
       { name: 'dex', usage: '.dex <name>', blurb: 'Look up any Pokemon. Buttons walk the dex.' },
       { name: 'questprogress', usage: '.qp', blurb: 'What you are closest to finishing. `.qp done` for the rest.' },
       { name: 'count', usage: '.count', blurb: 'How many of each species you own.' },

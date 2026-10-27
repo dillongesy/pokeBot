@@ -270,4 +270,33 @@ module.exports = {
     /** What a milestone pays on top, as a multiple of the ordinary reward. */
     milestoneBonus: 5,
   },
+
+  /**
+   * Daily quests (Utils/daily.js, `.daily`).
+   *
+   * Twice as many battles as catches, since battles have no cooldown. Days
+   * run midnight to midnight in `timezone`, daylight saving included.
+   */
+  daily: {
+    timezone: 'America/Chicago',
+    timezoneLabel: 'Central',
+
+    catchTarget: 5,
+    battleTarget: 10,
+
+    /** Paid when the catch quest is finished. */
+    catchCoins: 250,
+
+    /**
+     * Paid when the battle quest is finished: a Rare Candy this often,
+     * otherwise a random TM that at least one Pokemon can learn.
+     */
+    rareCandyChance: 0.5,
+
+    /** Paid for voting on top.gg. */
+    voteLootboxes: 1,
+
+    /** Paid on top once all three are done. */
+    bonusLootboxes: 2,
+  },
 };

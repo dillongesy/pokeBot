@@ -42,6 +42,8 @@ const movepower = require('../Utils/movepower');
 const { titleCase, capitalize } = require('../Utils/display');
 const partylock = require('../Utils/partylock');
 const moveprompt = require('../Utils/moveprompt');
+const livebuttons = require('../Utils/livebuttons');
+const daily = require('../Utils/daily');
 const drop = require('./drop');
 
 const POKEMON_DIR = path.join(__dirname, '..', 'Data', 'Pokemon');
@@ -533,6 +535,13 @@ function settle(userId, state, setup, outcome = null) {
     lines.push(`**${setup.opponent.name} was defeated!**`);
     if (applied.coins) lines.push(`You earned **${applied.coins.toLocaleString()}** coins.`);
     if (applied.trainerExp) lines.push(`**+${applied.trainerExp.toLocaleString()}** trainer exp.`);
+
+    // Daily quest progress. Only says anything when it completes one.
+    try {
+      lines.push(...daily.recordWin(userId));
+    } catch (err) {
+      console.error('Daily quest update failed after a battle:', err);
+    }
   } else if (outcome === 'fled') {
     lines.push(
       state.kind === 'wild'
@@ -669,14 +678,18 @@ async function run(message, args) {
     components: buildControls(state),
   });
 
+  // So presses from anyone else get an answer (see Utils/livebuttons.js).
+  livebuttons.track(card, userId);
+
   try {
     await loop({ userId, state, setup, card, log });
   } catch (err) {
     console.error('Battle failed:', err);
     await card.edit({ content: 'The battle broke. Nothing was lost.', components: [] }).catch(() => {});
   } finally {
-    // Always release the battle and the party lock.
+    // Always release the battle, its buttons and the party lock.
     active.delete(userId);
+    livebuttons.release(card);
     partylock.release(userId);
   }
 }
