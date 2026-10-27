@@ -1461,6 +1461,32 @@ function chooseMove(attacker, defender) {
   return best;
 }
 
+/**
+ * Apply a level gained mid-battle to a Pokemon that is still fighting.
+ *
+ * `row` is its stored row after the level-up (stats already recalculated).
+ * As in the games, current HP rises by however much max HP did, and a
+ * fainted Pokemon stays fainted. Evolution waits for the end of the battle.
+ */
+function applyLevelUp(mon, row) {
+  if (!mon || !row) return;
+
+  const gained = row.stat_hp - mon.maxHp;
+
+  mon.level = row.level;
+  mon.stats = {
+    hp: row.stat_hp,
+    attack: row.stat_attack,
+    defense: row.stat_defense,
+    specialAttack: row.stat_special_attack,
+    specialDefense: row.stat_special_defense,
+    speed: row.stat_speed,
+  };
+  mon.maxHp = row.stat_hp;
+
+  if (!mon.fainted) mon.hp = Math.max(1, Math.min(mon.maxHp, mon.hp + Math.max(0, gained)));
+}
+
 module.exports = {
   TEAM_SIZE,
   MAX_TURNS,
@@ -1470,6 +1496,7 @@ module.exports = {
   rngFrom,
   hashSeed,
   combatantFrom,
+  applyLevelUp,
   create,
   activeOf,
   benchOf,

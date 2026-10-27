@@ -554,11 +554,16 @@ function prepare(userId, wantsMilestone, rng = Math.random, memberName = null) {
  * @param {string} outcome  'fled' when they walked away or ran out of time
  */
 function settle(userId, state, setup, outcome = null) {
-  // `lines` is the summary for the battle card; `announcements` (evolutions,
-  // milestones) are posted as separate messages.
+  // `lines` is the summary for the battle card. Everything else is posted as
+  // separate messages, in this order (assembled at the bottom):
+  //
+  //   level-ups -> obedience warnings -> evolutions -> Lootbox -> milestone unlock
   const evolutions = [];
   const offers = [];
-  const announcements = [];
+  const levelUps = [];
+  const stopsObeying = [];
+  let lootboxMessage = null;
+  const unlocks = [];
 
   // One Elite Four member. Only the win that completes all four pays as a
   // milestone; the others pay like an ordinary trainer.
@@ -581,10 +586,9 @@ function settle(userId, state, setup, outcome = null) {
   });
 
   // Starting levels, so awardBattle can work out evolutions and new moves
-  // (experience itself was paid during the fight). Every recorded Pokemon is
-  // passed: the battle state's levels are never updated as exp is paid, so
-  // awardBattle compares against the stored level and skips anyone who didn't
-  // grow.
+  // (experience, and the levels it brought, were paid during the fight).
+  // Every recorded Pokemon is passed; awardBattle compares against the stored
+  // level and skips anyone who didn't grow.
   const startedAt = setup.startedAt || new Map();
 
   payout.grew = state.sides[0].team
@@ -615,17 +619,26 @@ function settle(userId, state, setup, outcome = null) {
     lines.push(`**You were defeated.** Nothing was lost. Try again with \`.battle\`.`);
   }
 
-  // Experience lines were already logged per knockout.
+  // Experience lines were already logged per knockout. Level-ups, and the
+  // moves they taught, get their own message.
   for (const mon of applied.pokemon) {
-    // Moves learned into a free slot go on the card.
+    if (mon.levelledFrom) {
+      const grew = mon.level - mon.levelledFrom;
+      levelUps.push(
+        `**${mon.name}** grew to **level ${mon.level}**!` +
+          (grew > 1 ? ` (up ${grew} from ${mon.levelledFrom})` : '')
+      );
+    }
+
+    // Moves learned into a free slot.
     if ((mon.learned || []).length) {
-      lines.push(`${mon.name} learned **${mon.learned.join('**, **')}**!`);
+      levelUps.push(`${mon.name} learned **${mon.learned.join('**, **')}**!`);
     }
 
     // Moves that need a slot freed get their own prompt instead (see conclude).
     if ((mon.offered || []).length) offers.push({ id: mon.id, moves: mon.offered });
 
-    // Evolutions are announced separately (see `announcements` below).
+    // Evolutions are announced separately (see the bottom of this function).
     for (const step of mon.evolutions || []) evolutions.push(step);
   }
 
@@ -670,7 +683,12 @@ function settle(userId, state, setup, outcome = null) {
     lines.push(`**${member ? `The ${milestones.title(member)}` : setup.fight.name} is behind you.**`);
     lines.push(`Trainer level **${cleared.level}** - you now command Pokemon up to **level ${cleared.cap}**.`);
     if (cleared.lootboxes) {
-      lines.push(`You got **${cleared.lootboxes} Lootbox${cleared.lootboxes === 1 ? '' : 'es'}**!`);
+      const boxes = cleared.lootboxes === 1 ? 'a Lootbox' : `${cleared.lootboxes} Lootboxes`;
+      lootboxMessage = [
+        `### 🎁 You received ${boxes}!`,
+        `For beating **${member ? `the ${milestones.title(member)}` : setup.fight.name}**. ` +
+          `Open ${cleared.lootboxes === 1 ? 'it' : 'them'} with \`.use lootbox\`.`,
+      ].join('\n');
     }
     if (after.next) {
       lines.push(
@@ -700,17 +718,18 @@ function settle(userId, state, setup, outcome = null) {
     const text = obedience.describeWarning(warning, mon.name, standingNow.cap, nextFight);
 
     // Going over gets its own message so it can't be missed; reaching the
-    // limit is a line on the card.
-    if (warning.kind === 'over') announcements.push(`### ⚠️ ${mon.name} will stop obeying you\n${text}`);
-    else lines.push(`⚠️ ${text}`);
+    // limit goes with the level-ups.
+    if (warning.kind === 'over') stopsObeying.push(`### ⚠️ ${mon.name} will stop obeying you\n${text}`);
+    else levelUps.push(`⚠️ ${text}`);
   }
 
   // ------------------------------------------------------------------
   // What gets its own message.
   // ------------------------------------------------------------------
 
+  const evolving = [];
   for (const step of evolutions) {
-    announcements.push(
+    evolving.push(
       [
         `### ✨ What? ${step.from} is evolving!`,
         `**${step.from}** evolved into **${step.into}**!`,
@@ -725,7 +744,7 @@ function settle(userId, state, setup, outcome = null) {
     if (standing.next && milestones.isEliteFour(standing.next)) {
       const names = standing.next.members.map((m) => m.name);
 
-      announcements.push(
+      unlocks.push(
         [
           `### 🏆 Elite Four ${milestones.listNames(names)} are waiting for you.`,
           `Your trainer bar is full - the **${milestones.title(standing.next)}** is the next ` +
@@ -735,7 +754,7 @@ function settle(userId, state, setup, outcome = null) {
         ].join('\n')
       );
     } else if (standing.next) {
-      announcements.push(
+      unlocks.push(
         [
           `### 🏆 ${standing.next.name} is waiting for you.`,
           `Your trainer bar is full - **${standing.next.name}** of ${standing.next.region} is ` +
@@ -745,6 +764,14 @@ function settle(userId, state, setup, outcome = null) {
       );
     }
   }
+
+  const announcements = [
+    ...(levelUps.length ? [`### 📈 Level up!\n${levelUps.join('\n')}`] : []),
+    ...stopsObeying,
+    ...evolving,
+    ...(lootboxMessage ? [lootboxMessage] : []),
+    ...unlocks,
+  ];
 
   return { lines, announcements, offers };
 }
@@ -949,8 +976,10 @@ async function loop({ userId, state, setup, card, log }) {
  * `paid` is the set of opponent ids already settled, kept for the whole
  * battle so a fainted opponent is not paid for again on later turns.
  *
- * Only experience and EVs are handled here; evolutions and new moves wait
- * until the end (see settle()).
+ * A Pokemon that levels up does so straight away: its level, stats and HP
+ * change for the rest of the fight. The log only shows the experience; the
+ * level-ups are announced together once the battle is over (see settle()).
+ * Evolutions and new moves also wait until the end.
  *
  * @returns {string[]} lines for the battle log
  */
@@ -975,10 +1004,13 @@ function payKnockouts({ userId, state, cap, paid }) {
     }
 
     for (const mon of applied) {
-      lines.push(
-        `${mon.name} gained **${mon.exp.toLocaleString()}** exp` +
-          (mon.levelledFrom ? ` and grew to **level ${mon.level}**!` : '.')
-      );
+      lines.push(`${mon.name} gained **${mon.exp.toLocaleString()}** exp.`);
+
+      // Grow it in the fight too, so its new level and stats count from now.
+      if (mon.levelledFrom) {
+        const fighter = playerSide.team.find((m) => m.id === mon.id);
+        battle.applyLevelUp(fighter, store.getOwnedPokemon(userId, mon.id));
+      }
     }
   }
 
@@ -1015,8 +1047,9 @@ async function conclude({ userId, state, setup, card, log, outcome = null, edit 
   if (edit) await edit.update(payload).catch(() => {});
   else await card.edit(payload).catch(() => {});
 
-  // Post evolutions and milestone unlocks as separate messages. Best-effort:
-  // rewards are already saved, and the headless test driver has no channel.
+  // Post level-ups, warnings, evolutions, the Lootbox and milestone unlocks as
+  // separate messages, in that order (see settle()). Best-effort: rewards are
+  // already saved, and the headless test driver has no channel.
   if (announcements.length && card && card.channel && typeof card.channel.send === 'function') {
     for (const text of announcements) {
       await card.channel.send({ content: text }).catch(() => {});

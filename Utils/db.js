@@ -450,54 +450,13 @@ ${ELITE_FOUR_WINS}`;
  *
  * A database more than one version behind runs each step in turn. One with no
  * path forward is still refused (see applySchema).
- */
-const MIGRATIONS = {
-  10: DAILY_QUESTS,
-  11: ELITE_FOUR_WINS,
-  12: renameFormsAndBackpayMilestones,
-};
-
-/**
- * Schema 13 changes no tables. It is a one-off data fix, run once per
- * database:
  *
- *   1. Form names read naturally: "Alolan Rattata", not "Rattata Alola"
- *      (Utils/formnames.js). Renames the generated Data/Pokemon files too,
- *      since they live outside git on each server.
- *
- *   2. Milestones now pay a Lootbox each. Everyone is paid for those already
- *      beaten, including full ladders before a prestige.
+ * A step is SQL, or a function given the handle for a one-off data fix. Steps
+ * are removed once every live database has run them; the last ones (10 to 13:
+ * daily quests, Elite Four wins, form renames and the milestone Lootbox
+ * back-pay) were removed after the server reached 13.
  */
-function renameFormsAndBackpayMilestones(handle) {
-  const { renameAll } = require('./formnames');
-  const milestones = require('./milestones');
-  const rates = require('./rates');
-  const { LOOTBOX } = require('./lootbox');
-
-  const renamed = renameAll(handle);
-  console.log(`Renamed ${renamed.forms} forms and ${renamed.rows} stored Pokemon.`);
-
-  const perLadder = milestones.total();
-  const each = rates.battle.milestoneLootboxes;
-  let players = 0;
-  let boxes = 0;
-
-  const give = handle.prepare(
-    `INSERT INTO inventory (discord_user_id, item, quantity) VALUES (?, ?, ?)
-     ON CONFLICT(discord_user_id, item) DO UPDATE SET quantity = quantity + excluded.quantity`
-  );
-
-  for (const user of handle.prepare('SELECT discord_user_id, milestones_cleared, prestige FROM users').all()) {
-    const beaten = (user.prestige || 0) * perLadder + (user.milestones_cleared || 0);
-    if (beaten <= 0) continue;
-
-    give.run(user.discord_user_id, LOOTBOX, beaten * each);
-    players += 1;
-    boxes += beaten * each;
-  }
-
-  console.log(`Paid ${boxes} Lootboxes to ${players} players for milestones already beaten.`);
-}
+const MIGRATIONS = {};
 
 // ---------------------------------------------------------------------------
 // Connection
