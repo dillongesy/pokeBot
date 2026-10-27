@@ -24,6 +24,8 @@ const { loadSpecies, loadForm, createPokemon } = require('../Utils/pokemon');
 const evolution = require('../Utils/evolution');
 const learnset = require('../Utils/learnset');
 const moveprompt = require('../Utils/moveprompt');
+const obedience = require('../Utils/obedience');
+const milestones = require('../Utils/milestones');
 
 /**
  * Take whatever a Pokemon is holding and put it back in the bag.
@@ -370,6 +372,24 @@ function use(userId, rawPokemonId, rawItem) {
 
   if (learned.length) {
     embed.addFields({ name: 'Learned', value: `**${learned.join('**, **')}**` });
+  }
+
+  // Rare Candy can take a Pokemon to, or past, the level it will obey at.
+  if (updated.level > row.level) {
+    const standing = store.trainerProgress(userId);
+    const warning = obedience.levelWarning(updated, row.level, standing.cap);
+
+    if (warning) {
+      embed.addFields({
+        name: warning.kind === 'over' ? '⚠️ It will stop obeying you' : '⚠️ At your limit',
+        value: obedience.describeWarning(
+          warning,
+          displayName(updated),
+          standing.cap,
+          standing.next ? milestones.title(standing.next, true) : null
+        ),
+      });
+    }
   }
 
   // Evolving or changing form changes which species are owned, so recalculate

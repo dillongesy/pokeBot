@@ -67,18 +67,32 @@ function trainerBlock(account) {
   // Three states: earning exp, ready for the next milestone, or all done.
   let progress;
 
+  // An Elite Four is four battles; show who is still standing.
+  const left = next && milestones.isEliteFour(next)
+    ? (() => {
+      const beaten = store.eliteFourBeaten(account.discord_user_id, next.order);
+      return next.members.map((m) => m.name).filter((name) => !beaten.has(name));
+    })()
+    : null;
+
   if (!next) {
     progress = `${bar(1)} **every canon fight beaten** - ready to prestige`;
   } else if (standing.pending) {
-    progress = `${bar(1)} **ready** - ${next.name} is waiting. \`.battle milestone\``;
+    const who = left ? `Elite Four ${milestones.listNames(left)}` : next.name;
+    progress = `${bar(1)} **ready** - ${who} ${left && left.length > 1 ? 'are' : 'is'} waiting. \`.battle milestone\``;
   } else {
     progress = `${bar(standing.fraction)} ${money(standing.exp)} / ${money(standing.needed)}`;
   }
 
-  const upNext = next
-    ? `Next: **${next.name}** of ${next.region}` +
-      (next.type ? ` (${titleCase(next.type)})` : '')
-    : `All ${total} milestones beaten`;
+  let upNext;
+  if (!next) {
+    upNext = `All ${total} milestones beaten`;
+  } else if (left) {
+    const marks = next.members.map((m) => (left.includes(m.name) ? m.name : `~~${m.name}~~ ✅`));
+    upNext = `Next: **${milestones.title(next)}**: ${marks.join(', ')}`;
+  } else {
+    upNext = `Next: **${next.name}** of ${next.region}` + (next.type ? ` (${titleCase(next.type)})` : '');
+  }
 
   return {
     name: 'Trainer',

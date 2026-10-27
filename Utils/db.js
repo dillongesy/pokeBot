@@ -28,7 +28,23 @@ const DB_FILE = path.join(__dirname, '..', 'Data', 'pokedropper.db');
  * Stored in SQLite's `PRAGMA user_version`, so an out-of-date file fails
  * clearly at startup instead of with "no such column" errors later.
  */
-const SCHEMA_VERSION = 11;
+const SCHEMA_VERSION = 12;
+
+/**
+ * Which Elite Four members a player has beaten on the milestone in front of
+ * them. `milestone` is its 1-based ladder order. Rows are deleted when that
+ * milestone is cleared, so a prestige starts the four again.
+ */
+const ELITE_FOUR_WINS = `
+CREATE TABLE elite_four_wins (
+  discord_user_id TEXT NOT NULL REFERENCES users(discord_user_id) ON DELETE CASCADE,
+  milestone       INTEGER NOT NULL,
+  member          TEXT NOT NULL,
+  beaten_at       INTEGER NOT NULL,
+
+  PRIMARY KEY (discord_user_id, milestone, member)
+);
+`;
 
 /**
  * Daily quests: one row per player per day, where a day runs midnight to
@@ -420,7 +436,8 @@ CREATE TABLE admins (
   note            TEXT
 );
 
-${DAILY_QUESTS}`;
+${DAILY_QUESTS}
+${ELITE_FOUR_WINS}`;
 
 // ---------------------------------------------------------------------------
 // Migrations
@@ -436,6 +453,7 @@ ${DAILY_QUESTS}`;
  */
 const MIGRATIONS = {
   10: DAILY_QUESTS,
+  11: ELITE_FOUR_WINS,
 };
 
 // ---------------------------------------------------------------------------

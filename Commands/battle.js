@@ -3,8 +3,13 @@
 /**
  * .battle - fight something.
  *
- *   .battle             whatever the world puts in front of you
- *   .battle milestone   the gym leader waiting at your trainer level
+ *   .battle                    whatever the world puts in front of you
+ *   .battle milestone          the gym leader waiting at your trainer level
+ *   .battle milestone <name>   one Elite Four member, in any order
+ *
+ * An Elite Four is one milestone made of four battles. All four unlock
+ * together; ordinary rewards are paid for each, and the milestone itself is
+ * cleared (with its rewards) by beating the last one.
  *
  * Whether a battle is wild or against a trainer is decided by
  * Utils/encounter.js; the mix shifts with trainer level. Milestone battles
@@ -44,6 +49,7 @@ const partylock = require('../Utils/partylock');
 const moveprompt = require('../Utils/moveprompt');
 const livebuttons = require('../Utils/livebuttons');
 const daily = require('../Utils/daily');
+const obedience = require('../Utils/obedience');
 const drop = require('./drop');
 
 const POKEMON_DIR = path.join(__dirname, '..', 'Data', 'Pokemon');
@@ -256,7 +262,7 @@ function buildCard(state, log) {
   const title = {
     wild: `A wild ${theirs.name} appeared!`,
     trainer: `${foeSide.name} wants to battle!`,
-    milestone: `${foeSide.name} is waiting.`,
+    milestone: `${foeSide.name} wants to battle!`,
   }[state.kind] || 'Battle!';
 
   // Player on the left, opponent on the right, matching the sprites.
@@ -398,12 +404,54 @@ function buildSwitchRow(state, forced = false) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Which fight `.battle milestone` means.
+ *
+ * A gym or champion is just the milestone. For an Elite Four it is one
+ * member: the one named, or the first not yet beaten.
+ *
+ * @returns {{ fight: object } | { error: string }}
+ */
+function chooseMember(userId, fight, memberName) {
+  if (!milestones.isEliteFour(fight)) return { fight };
+
+  const beaten = store.eliteFourBeaten(userId, fight.order);
+  const left = fight.members.filter((member) => !beaten.has(member.name));
+  const everyone = milestones.listNames(fight.members.map((member) => member.name));
+
+  if (!memberName) {
+    // All four beaten but somehow not cleared: let the last be fought again.
+    return { fight: milestones.memberFight(fight, left[0] || fight.members[fight.members.length - 1]) };
+  }
+
+  const wanted = String(memberName).toLowerCase();
+  const member = fight.members.find((m) => m.name.toLowerCase() === wanted);
+
+  if (!member) {
+    return {
+      error:
+        `The ${milestones.title(fight)} is ${everyone}. ` +
+        `Pick one with \`.battle milestone <name>\`, or leave the name off to take the next in line.`,
+    };
+  }
+
+  if (beaten.has(member.name) && left.length) {
+    return {
+      error:
+        `You have already beaten **${member.name}**. ` +
+        `Still to go: **${milestones.listNames(left.map((m) => m.name))}**.`,
+    };
+  }
+
+  return { fight: milestones.memberFight(fight, member) };
+}
+
+/**
  * Everything needed to start, or a reason not to.
  *
  * Refuses an empty team, a locked milestone or a second concurrent battle,
  * and explains how to fix each. Testable without Discord.
  */
-function prepare(userId, wantsMilestone, rng = Math.random) {
+function prepare(userId, wantsMilestone, rng = Math.random, memberName = null) {
   if (active.has(userId)) {
     return { error: 'You are already in a battle. Finish that one first.' };
   }
@@ -444,11 +492,14 @@ function prepare(userId, wantsMilestone, rng = Math.random) {
     if (!standing.pending) {
       return {
         error:
-          `**${standing.next.name}** is not ready for you yet - ` +
+          `**${milestones.title(standing.next)}** is not ready for you yet - ` +
           `${standing.remaining.toLocaleString()} more trainer exp. Win some ordinary ` +
           'battles first with `.battle`.',
       };
     }
+
+    const chosen = chooseMember(userId, standing.next, memberName);
+    if (chosen.error) return { error: chosen.error };
 
     return {
       kind: encounter.MILESTONE,
@@ -456,9 +507,9 @@ function prepare(userId, wantsMilestone, rng = Math.random) {
       refused,
       cap,
       brought,
-      fight: standing.next,
+      fight: chosen.fight,
       opponent: encounter.opponentFor({
-        kind: encounter.MILESTONE, cap, anchor: encounter.levelAnchor(cap, team), fight: standing.next, rng,
+        kind: encounter.MILESTONE, cap, anchor: encounter.levelAnchor(cap, team), fight: chosen.fight, rng,
       }),
     };
   }
@@ -508,9 +559,21 @@ function settle(userId, state, setup, outcome = null) {
   const evolutions = [];
   const offers = [];
   const announcements = [];
+
+  // One Elite Four member. Only the win that completes all four pays as a
+  // milestone; the others pay like an ordinary trainer.
+  const member = setup.fight && setup.fight.member ? setup.fight : null;
+  let finishesEliteFour = false;
+
+  if (member && state.winner === 0) {
+    const beaten = store.eliteFourBeaten(userId, member.order);
+    beaten.add(member.member);
+    finishesEliteFour = member.roster.every((name) => beaten.has(name));
+  }
+
   const payout = rewards.forBattle({
     state,
-    kind: setup.kind,
+    kind: member && !finishesEliteFour ? encounter.TRAINER : setup.kind,
     opponentLevel: setup.opponent.level,
 
     // Seeded from the battle so the coin roll is reproducible.
@@ -580,15 +643,63 @@ function settle(userId, state, setup, outcome = null) {
     );
   }
 
+  // Record the member before the milestone is cleared, since clearing it
+  // clears its member wins too.
+  if (member && payout.won) {
+    store.recordEliteFourWin(userId, member.order, member.member);
+
+    if (!finishesEliteFour) {
+      const beaten = store.eliteFourBeaten(userId, member.order);
+      const left = member.roster.filter((name) => !beaten.has(name));
+
+      lines.push('');
+      lines.push(
+        `**${member.member} is beaten!** That is ${beaten.size} of the Elite Four. ` +
+          `Still to go: **${milestones.listNames(left)}**.`
+      );
+      lines.push('`.battle milestone` takes on the next, or name one: `.battle milestone ' +
+        `${left[0].toLowerCase()}\`.`);
+    }
+  }
+
   if (payout.clearsMilestone) {
     const cleared = store.clearMilestone(userId);
     const after = store.trainerProgress(userId);
 
     lines.push('');
-    lines.push(`**${setup.fight.name} is behind you.**`);
+    lines.push(`**${member ? `The ${milestones.title(member)}` : setup.fight.name} is behind you.**`);
     lines.push(`Trainer level **${cleared.level}** - you now command Pokemon up to **level ${cleared.cap}**.`);
-    if (after.next) lines.push(`Next: **${after.next.name}** of ${after.next.region}.`);
+    if (after.next) {
+      lines.push(
+        `Next: **${milestones.title(after.next)}**` +
+          `${milestones.isEliteFour(after.next) ? '' : ` of ${after.next.region}`}.`
+      );
+    }
     else lines.push('That was the last one. `.me` to prestige.');
+  }
+
+  // Warn about anything that just reached the obedience limit or went past
+  // it. Experience keeps flowing after a milestone, so this is how players
+  // find out before a Pokemon quietly stops fighting for them.
+  const standingNow = store.trainerProgress(userId);
+  const nextFight = standingNow.next ? milestones.title(standingNow.next, true) : null;
+
+  for (const mon of applied.pokemon) {
+    if (!mon.levelledFrom) continue;
+
+    const warning = obedience.levelWarning(
+      { level: mon.level, met_level: mon.metLevel },
+      mon.levelledFrom,
+      standingNow.cap
+    );
+    if (!warning) continue;
+
+    const text = obedience.describeWarning(warning, mon.name, standingNow.cap, nextFight);
+
+    // Going over gets its own message so it can't be missed; reaching the
+    // limit is a line on the card.
+    if (warning.kind === 'over') announcements.push(`### ⚠️ ${mon.name} will stop obeying you\n${text}`);
+    else lines.push(`⚠️ ${text}`);
   }
 
   // ------------------------------------------------------------------
@@ -608,7 +719,19 @@ function settle(userId, state, setup, outcome = null) {
   if (applied.levelled && applied.levelled.becamePending) {
     const standing = store.trainerProgress(userId);
 
-    if (standing.next) {
+    if (standing.next && milestones.isEliteFour(standing.next)) {
+      const names = standing.next.members.map((m) => m.name);
+
+      announcements.push(
+        [
+          `### 🏆 Elite Four ${milestones.listNames(names)} are waiting for you.`,
+          `Your trainer bar is full - the **${milestones.title(standing.next)}** is the next ` +
+            `milestone. Beat all four, in any order, to raise your cap to **${standing.cap + 1}**.`,
+          '`.battle milestone` takes them on in order, or name one: ' +
+            `\`.battle milestone ${names[0].toLowerCase()}\`.`,
+        ].join('\n')
+      );
+    } else if (standing.next) {
       announcements.push(
         [
           `### 🏆 ${standing.next.name} is waiting for you.`,
@@ -635,7 +758,8 @@ async function run(message, args) {
     String(args[0] || '').toLowerCase()
   );
 
-  const setup = prepare(userId, wantsMilestone);
+  // `.battle milestone bruno`: an Elite Four member, by name.
+  const setup = prepare(userId, wantsMilestone, Math.random, wantsMilestone ? args[1] : null);
   if (setup.error) {
     await message.channel.send(setup.error);
     return;
@@ -921,6 +1045,11 @@ module.exports = {
         .setName('what')
         .setDescription('Leave empty for an ordinary battle.')
         .addChoices({ name: 'milestone', value: 'milestone' })
+    )
+    .addStringOption((option) =>
+      option
+        .setName('opponent')
+        .setDescription('For the Elite Four: which member to fight. Leave empty for the next in line.')
     ),
 
   async execute(interaction) {
@@ -933,7 +1062,10 @@ module.exports = {
       guildId: interaction.guildId,
     };
 
-    await run(fake, [interaction.options.getString('what') || '']);
+    await run(fake, [
+      interaction.options.getString('what') || '',
+      interaction.options.getString('opponent') || '',
+    ]);
     await interaction.deleteReply().catch(() => {});
   },
 

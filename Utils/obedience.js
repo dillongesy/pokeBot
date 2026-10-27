@@ -173,7 +173,52 @@ function ceilingFor(row, cap) {
   return cap + MAX_OVER_CAP;
 }
 
+/**
+ * Did growing from `fromLevel` to the row's level just bring this Pokemon to
+ * the edge of obeying, or past it?
+ *
+ *   'over'  it obeyed before and no longer does
+ *   'at'    it still obeys, but one more level and it will not
+ *
+ * Experience keeps flowing past the limit (only tapered, see Utils/trainer.js),
+ * so players need telling before a Pokemon quietly drops out of their team.
+ *
+ * @returns {{ kind: 'over'|'at', level: number, ceiling: number } | null}
+ */
+function levelWarning(row, fromLevel, cap) {
+  const ceiling = ceilingFor(row, cap);
+  const level = row.level;
+
+  if (fromLevel <= ceiling && level > ceiling) return { kind: 'over', level, ceiling };
+  if (fromLevel < ceiling && level === ceiling) return { kind: 'at', level, ceiling };
+  return null;
+}
+
+/**
+ * A level warning in words. `nextFight` names the milestone that would raise
+ * the cap, when there is one.
+ */
+function describeWarning(warning, name, cap, nextFight = null) {
+  const raise = nextFight ? `beat **${nextFight}** to raise your cap` : 'raise your trainer level';
+
+  if (warning.kind === 'over') {
+    const needed = warning.level - MAX_OVER_CAP;
+    return (
+      `**${name}** is now level ${warning.level}, more than ${MAX_OVER_CAP} levels over your ` +
+      `trainer cap of ${cap}, so **it will stop obeying you** and stay behind in battles. ` +
+      `It obeys again once your cap reaches ${needed}; ${raise}.`
+    );
+  }
+
+  return (
+    `**${name}** is level ${warning.level}, the highest you can command at a cap of ${cap}. ` +
+    `**One more level and it stops obeying you** until you ${raise}.`
+  );
+}
+
 module.exports = {
+  levelWarning,
+  describeWarning,
   RULE_SUMMARY,
   MAX_OVER_CAP,
   OBEYS,

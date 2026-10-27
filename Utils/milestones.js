@@ -16,9 +16,11 @@
  * milestones instead of ten. Paldea's Titans and Team Star are not gyms and
  * are skipped.
  *
- * Each Elite Four is a single six-Pokemon battle drawn from all four members'
- * teams. Comments name which member each Pokemon belongs to, and none should
- * come from the champion's team (checked at the bottom of this file).
+ * Each Elite Four is one milestone (one trainer level) made of four battles,
+ * one per member with their own team. Reaching it unlocks all four at once,
+ * to be fought in any order; the milestone is cleared by beating the last of
+ * them (see Commands/battle.js). Teams are from the games named in each
+ * region's comment.
  *
  * Levels are the real ones from the games, but they only set the shape of a
  * team (see scaleTeam()); the whole team is shifted to sit around the
@@ -56,8 +58,17 @@ const REGIONS = [
       { name: 'Sabrina', kind: GYM, type: 'psychic', team: [['kadabra', 38], ['mr-mime', 37], ['venomoth', 38], ['alakazam', 43]] },
       { name: 'Blaine', kind: GYM, type: 'fire', team: [['growlithe', 42], ['ponyta', 40], ['rapidash', 42], ['arcanine', 47]] },
       { name: 'Giovanni', kind: GYM, type: 'ground', team: [['rhyhorn', 45], ['dugtrio', 42], ['nidoqueen', 44], ['nidoking', 45], ['rhydon', 50]] },
-      // Lorelei, Bruno, Agatha, Lance.
-      { name: 'The Elite Four', kind: ELITE_FOUR, team: [['machamp', 53], ['dewgong', 54], ['gengar', 54], ['cloyster', 56], ['lapras', 56], ['dragonite', 62]] },
+      // Red and Blue.
+      {
+        name: 'Elite Four',
+        kind: ELITE_FOUR,
+        members: [
+          { name: 'Lorelei', type: 'ice', team: [['dewgong', 52], ['cloyster', 51], ['slowbro', 52], ['jynx', 54], ['lapras', 54]] },
+          { name: 'Bruno', type: 'fighting', team: [['onix', 51], ['hitmonchan', 53], ['hitmonlee', 53], ['onix', 54], ['machamp', 56]] },
+          { name: 'Agatha', type: 'ghost', team: [['gengar', 54], ['golbat', 54], ['haunter', 53], ['arbok', 56], ['gengar', 58]] },
+          { name: 'Lance', type: 'dragon', team: [['gyarados', 56], ['dragonair', 54], ['dragonair', 54], ['aerodactyl', 58], ['dragonite', 60]] },
+        ],
+      },
       { name: 'Champion Blue', kind: CHAMPION, team: [['pidgeot', 61], ['alakazam', 59], ['rhydon', 61], ['arcanine', 59], ['exeggutor', 61], ['charizard', 63]] },
     ],
   },
@@ -74,8 +85,17 @@ const REGIONS = [
       { name: 'Jasmine', kind: GYM, type: 'steel', team: [['magnemite', 30], ['magnemite', 30], ['steelix', 35]] },
       { name: 'Pryce', kind: GYM, type: 'ice', team: [['seel', 27], ['dewgong', 29], ['piloswine', 31]] },
       { name: 'Clair', kind: GYM, type: 'dragon', team: [['dragonair', 37], ['dragonair', 37], ['dragonair', 37], ['kingdra', 40]] },
-      // Will, Koga, Bruno, Karen.
-      { name: 'The Elite Four', kind: ELITE_FOUR, team: [['xatu', 42], ['exeggutor', 42], ['crobat', 44], ['umbreon', 45], ['machamp', 46], ['houndoom', 47]] },
+      // Gold and Silver.
+      {
+        name: 'Elite Four',
+        kind: ELITE_FOUR,
+        members: [
+          { name: 'Will', type: 'psychic', team: [['xatu', 40], ['jynx', 41], ['exeggutor', 41], ['slowbro', 41], ['xatu', 42]] },
+          { name: 'Koga', type: 'poison', team: [['ariados', 40], ['venomoth', 41], ['forretress', 43], ['muk', 42], ['crobat', 44]] },
+          { name: 'Bruno', type: 'fighting', team: [['hitmontop', 42], ['hitmonlee', 42], ['hitmonchan', 42], ['onix', 43], ['machamp', 46]] },
+          { name: 'Karen', type: 'dark', team: [['umbreon', 42], ['vileplume', 42], ['murkrow', 44], ['gengar', 45], ['houndoom', 47]] },
+        ],
+      },
       { name: 'Champion Lance', kind: CHAMPION, team: [['gyarados', 44], ['dragonite', 47], ['dragonite', 47], ['aerodactyl', 46], ['charizard', 46], ['dragonite', 50]] },
     ],
   },
@@ -92,8 +112,17 @@ const REGIONS = [
       { name: 'Winona', kind: GYM, type: 'flying', team: [['swablu', 29], ['tropius', 29], ['pelipper', 30], ['skarmory', 31], ['altaria', 33]] },
       { name: 'Tate and Liza', kind: GYM, type: 'psychic', team: [['claydol', 41], ['xatu', 41], ['lunatone', 42], ['solrock', 42]] },
       { name: 'Wallace', kind: GYM, type: 'water', team: [['luvdisc', 40], ['whiscash', 42], ['sealeo', 40], ['seaking', 42], ['milotic', 43]] },
-      // Sidney, Phoebe, Glacia, Drake.
-      { name: 'The Elite Four', kind: ELITE_FOUR, team: [['mightyena', 49], ['absol', 49], ['banette', 49], ['dusclops', 51], ['walrein', 53], ['salamence', 55]] },
+      // Ruby and Sapphire.
+      {
+        name: 'Elite Four',
+        kind: ELITE_FOUR,
+        members: [
+          { name: 'Sidney', type: 'dark', team: [['mightyena', 46], ['cacturne', 46], ['shiftry', 48], ['crawdaunt', 48], ['absol', 49]] },
+          { name: 'Phoebe', type: 'ghost', team: [['dusclops', 48], ['banette', 49], ['sableye', 50], ['banette', 49], ['dusclops', 51]] },
+          { name: 'Glacia', type: 'ice', team: [['sealeo', 50], ['glalie', 50], ['sealeo', 52], ['glalie', 52], ['walrein', 53]] },
+          { name: 'Drake', type: 'dragon', team: [['shelgon', 52], ['altaria', 54], ['kingdra', 53], ['flygon', 53], ['salamence', 55]] },
+        ],
+      },
       { name: 'Champion Steven', kind: CHAMPION, team: [['skarmory', 57], ['claydol', 55], ['aggron', 56], ['cradily', 56], ['armaldo', 56], ['metagross', 58]] },
     ],
   },
@@ -110,8 +139,17 @@ const REGIONS = [
       { name: 'Byron', kind: GYM, type: 'steel', team: [['magneton', 37], ['steelix', 38], ['bastiodon', 41]] },
       { name: 'Candice', kind: GYM, type: 'ice', team: [['snover', 38], ['sneasel', 38], ['medicham', 40], ['abomasnow', 42]] },
       { name: 'Volkner', kind: GYM, type: 'electric', team: [['jolteon', 46], ['raichu', 46], ['luxray', 48], ['electivire', 50]] },
-      // Aaron, Bertha, Flint, Lucian (Platinum teams).
-      { name: 'The Elite Four', kind: ELITE_FOUR, team: [['drapion', 57], ['gliscor', 59], ['rhyperior', 59], ['alakazam', 61], ['magmortar', 61], ['gallade', 63]] },
+      // Platinum.
+      {
+        name: 'Elite Four',
+        kind: ELITE_FOUR,
+        members: [
+          { name: 'Aaron', type: 'bug', team: [['dustox', 53], ['beautifly', 53], ['vespiquen', 54], ['heracross', 54], ['drapion', 57]] },
+          { name: 'Bertha', type: 'ground', team: [['whiscash', 55], ['gliscor', 56], ['golem', 56], ['hippowdon', 57], ['rhyperior', 59]] },
+          { name: 'Flint', type: 'fire', team: [['flareon', 57], ['houndoom', 58], ['rapidash', 58], ['infernape', 59], ['magmortar', 61]] },
+          { name: 'Lucian', type: 'psychic', team: [['mr-mime', 59], ['espeon', 60], ['bronzong', 61], ['alakazam', 60], ['gallade', 63]] },
+        ],
+      },
       { name: 'Champion Cynthia', kind: CHAMPION, team: [['spiritomb', 61], ['roserade', 60], ['togekiss', 60], ['lucario', 63], ['milotic', 63], ['garchomp', 66]] },
     ],
   },
@@ -128,9 +166,17 @@ const REGIONS = [
       { name: 'Skyla', kind: GYM, type: 'flying', team: [['swoobat', 33], ['unfezant', 33], ['swanna', 35]] },
       { name: 'Brycen', kind: GYM, type: 'ice', team: [['vanillish', 37], ['cryogonal', 37], ['beartic', 39]] },
       { name: 'Drayden', kind: GYM, type: 'dragon', team: [['fraxure', 41], ['druddigon', 41], ['haxorus', 43]] },
-      // Shauntal, Grimsley, Caitlin, Marshal. All four aces are level 50 in
-      // the games, so the last one listed is not the highest level.
-      { name: 'The Elite Four', kind: ELITE_FOUR, team: [['cofagrigus', 48], ['krookodile', 48], ['gothitelle', 50], ['mienshao', 50], ['bisharp', 50], ['chandelure', 50]] },
+      // Black and White.
+      {
+        name: 'Elite Four',
+        kind: ELITE_FOUR,
+        members: [
+          { name: 'Shauntal', type: 'ghost', team: [['cofagrigus', 48], ['jellicent', 48], ['golurk', 48], ['chandelure', 50]] },
+          { name: 'Grimsley', type: 'dark', team: [['scrafty', 48], ['liepard', 48], ['krookodile', 48], ['bisharp', 50]] },
+          { name: 'Caitlin', type: 'psychic', team: [['reuniclus', 48], ['musharna', 48], ['sigilyph', 48], ['gothitelle', 50]] },
+          { name: 'Marshal', type: 'fighting', team: [['throh', 48], ['sawk', 48], ['conkeldurr', 48], ['mienshao', 50]] },
+        ],
+      },
       { name: 'Champion Alder', kind: CHAMPION, team: [['accelgor', 75], ['bouffalant', 75], ['druddigon', 75], ['vanilluxe', 75], ['escavalier', 75], ['volcarona', 77]] },
     ],
   },
@@ -147,8 +193,17 @@ const REGIONS = [
       { name: 'Valerie', kind: GYM, type: 'fairy', team: [['mawile', 38], ['mr-mime', 39], ['sylveon', 42]] },
       { name: 'Olympia', kind: GYM, type: 'psychic', team: [['sigilyph', 44], ['slowking', 45], ['meowstic', 48]] },
       { name: 'Wulfric', kind: GYM, type: 'ice', team: [['abomasnow', 56], ['cryogonal', 55], ['avalugg', 59]] },
-      // Malva, Siebold, Wikstrom, Drasna.
-      { name: 'The Elite Four', kind: ELITE_FOUR, team: [['gyarados', 63], ['clawitzer', 63], ['dragalge', 63], ['talonflame', 65], ['noivern', 65], ['aegislash', 65]] },
+      // X and Y.
+      {
+        name: 'Elite Four',
+        kind: ELITE_FOUR,
+        members: [
+          { name: 'Malva', type: 'fire', team: [['pyroar', 63], ['torkoal', 63], ['chandelure', 63], ['talonflame', 65]] },
+          { name: 'Siebold', type: 'water', team: [['clawitzer', 63], ['gyarados', 63], ['starmie', 63], ['barbaracle', 65]] },
+          { name: 'Wikstrom', type: 'steel', team: [['klefki', 63], ['probopass', 63], ['scizor', 63], ['aegislash', 65]] },
+          { name: 'Drasna', type: 'dragon', team: [['dragalge', 63], ['druddigon', 63], ['altaria', 63], ['noivern', 65]] },
+        ],
+      },
       { name: 'Champion Diantha', kind: CHAMPION, team: [['hawlucha', 64], ['tyrantrum', 65], ['aurorus', 65], ['gourgeist', 65], ['goodra', 66], ['gardevoir', 68]] },
     ],
   },
@@ -186,12 +241,23 @@ const REGIONS = [
       { name: 'Ryme', kind: GYM, type: 'ghost', team: [['mimikyu', 41], ['banette', 41], ['houndstone', 41], ['toxtricity', 42]] },
       { name: 'Tulip', kind: GYM, type: 'psychic', team: [['farigiraf', 44], ['gardevoir', 44], ['espathra', 45], ['florges', 45]] },
       { name: 'Grusha', kind: GYM, type: 'ice', team: [['frosmoth', 47], ['beartic', 47], ['altaria', 47], ['cetitan', 48]] },
-      // Rika, Poppy, Larry, Hassel.
-      { name: 'The Elite Four', kind: ELITE_FOUR, team: [['donphan', 57], ['clodsire', 58], ['corviknight', 58], ['tinkaton', 59], ['flamigo', 60], ['baxcalibur', 61]] },
+      // Scarlet and Violet.
+      {
+        name: 'Elite Four',
+        kind: ELITE_FOUR,
+        members: [
+          { name: 'Rika', type: 'ground', team: [['whiscash', 57], ['camerupt', 57], ['donphan', 57], ['dugtrio', 57], ['clodsire', 58]] },
+          { name: 'Poppy', type: 'steel', team: [['copperajah', 58], ['magnezone', 58], ['bronzong', 58], ['corviknight', 58], ['tinkaton', 59]] },
+          { name: 'Larry', type: 'flying', team: [['tropius', 59], ['oricorio', 59], ['altaria', 59], ['staraptor', 59], ['flamigo', 60]] },
+          { name: 'Hassel', type: 'dragon', team: [['noivern', 60], ['haxorus', 60], ['dragalge', 60], ['flapple', 60], ['baxcalibur', 61]] },
+        ],
+      },
       { name: 'Champion Geeta', kind: CHAMPION, team: [['espathra', 61], ['avalugg', 61], ['kingambit', 61], ['veluza', 61], ['gogoat', 61], ['glimmora', 62]] },
     ],
   },
 ];
+
+const toTeam = (pairs) => pairs.map(([species, level]) => ({ species, level }));
 
 /**
  * The whole ladder, flattened and numbered.
@@ -215,7 +281,15 @@ function ladder() {
         name: fight.name,
         kind: fight.kind,
         type: fight.type || null,
-        team: fight.team.map(([species, level]) => ({ species, level })),
+        // An Elite Four has no team of its own; each member has one.
+        team: fight.team ? toTeam(fight.team) : [],
+        members: fight.members
+          ? fight.members.map((member) => ({
+            name: member.name,
+            type: member.type || null,
+            team: toTeam(member.team),
+          }))
+          : null,
         moves: fight.moves || null,
       });
     }
@@ -236,6 +310,42 @@ function next(cleared) {
 
 /** One fight by its 1-based order, for looking up something already beaten. */
 const byOrder = (order) => ladder()[order - 1] || null;
+
+const isEliteFour = (fight) => Boolean(fight && fight.kind === ELITE_FOUR && fight.members);
+
+/**
+ * One Elite Four member as a fight of its own: what the battle is built from.
+ *
+ * `name` is "Elite Four Bruno"; `member` is "Bruno".
+ */
+function memberFight(fight, member) {
+  return {
+    ...fight,
+    name: `${fight.name} ${member.name}`,
+    member: member.name,
+    // All four names, so the result can say who is left.
+    roster: fight.members.map((m) => m.name),
+    type: member.type,
+    team: member.team,
+    members: null,
+  };
+}
+
+/**
+ * How a milestone reads: "Elite Four of Kanto", or "Brock". With `article`,
+ * "the Elite Four of Kanto", for the middle of a sentence. Works on a single
+ * member's fight too, naming the whole Elite Four.
+ */
+function title(fight, article = false) {
+  if (fight.kind !== ELITE_FOUR) return fight.name;
+  return `${article ? 'the ' : ''}Elite Four of ${fight.region}`;
+}
+
+/** "Lorelei, Bruno, Agatha and Lance". */
+function listNames(list) {
+  if (list.length <= 1) return list.join('');
+  return `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
+}
 
 /**
  * A milestone's team, moved to sit at a trainer's cap.
@@ -273,6 +383,10 @@ module.exports = {
   total,
   next,
   byOrder,
+  isEliteFour,
+  memberFight,
+  listNames,
+  title,
   scaleTeam,
 };
 
@@ -287,7 +401,9 @@ module.exports = {
  */
 function checkAll() {
   const problems = [];
-  const all = ladder();
+  const all = ladder().flatMap((fight) =>
+    isEliteFour(fight) ? fight.members.map((member) => memberFight(fight, member)) : [fight]
+  );
 
   for (const fight of all) {
     if (!fight.team.length) problems.push(`${fight.name}: no team`);
@@ -310,22 +426,32 @@ function checkAll() {
     }
   }
 
-  // Flag an Elite Four team that shares three or more species with the
-  // region's champion, which suggests the wrong roster was copied. One or
-  // two shared species can be legitimate.
+  // Every Elite Four has exactly four members.
+  for (const fight of ladder()) {
+    if (fight.kind === ELITE_FOUR && (!fight.members || fight.members.length !== 4)) {
+      problems.push(`${fight.region}: the Elite Four needs four members`);
+    }
+  }
+
+  // Flag a member whose team shares three or more species with the region's
+  // champion, which suggests the wrong roster was copied. One or two shared
+  // species can be legitimate.
   for (const region of REGIONS) {
     const gauntlet = region.fights.find((f) => f.kind === ELITE_FOUR);
     const champion = region.fights.find((f) => f.kind === CHAMPION);
     if (!gauntlet || !champion) continue;
 
     const theirs = new Set(champion.team.map(([species]) => species));
-    const shared = gauntlet.team.filter(([species]) => theirs.has(species));
 
-    if (shared.length > 2) {
-      problems.push(
-        `${region.region}: the Elite Four shares ${shared.length} Pokemon with ` +
-          `${champion.name} (${shared.map(([s]) => s).join(', ')}) - is it the champion's team?`
-      );
+    for (const member of gauntlet.members || []) {
+      const shared = member.team.filter(([species]) => theirs.has(species));
+
+      if (shared.length > 2) {
+        problems.push(
+          `${region.region}: ${member.name} shares ${shared.length} Pokemon with ` +
+            `${champion.name} (${shared.map(([sp]) => sp).join(', ')}) - is it the champion's team?`
+        );
+      }
     }
   }
 
@@ -355,7 +481,7 @@ if (require.main === module) {
     if (fight.order % 10 !== 1 && fight.order !== all.length) continue;
 
     const cap = trainer.capFor(fight.order);
-    const scaled = scaleTeam(fight, cap);
+    const scaled = scaleTeam(isEliteFour(fight) ? memberFight(fight, fight.members[3]) : fight, cap);
 
     console.log(
       `  ${String(fight.order).padStart(3)}  ${fight.name.padEnd(22)} cap ${String(cap).padStart(3)}  ` +

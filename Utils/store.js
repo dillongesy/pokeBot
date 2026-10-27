@@ -686,6 +686,32 @@ function trainerProgress(userId) {
 const trainerCap = (userId) => trainerProgress(userId).cap;
 
 /**
+ * Which Elite Four members this player has beaten on a milestone, by name.
+ *
+ * @param {number} order  the milestone's 1-based ladder order
+ * @returns {Set<string>}
+ */
+function eliteFourBeaten(userId, order) {
+  const rows = db
+    .open()
+    .prepare('SELECT member FROM elite_four_wins WHERE discord_user_id = ? AND milestone = ?')
+    .all(userId, order);
+
+  return new Set(rows.map((row) => row.member));
+}
+
+/** Mark one Elite Four member as beaten. Beating them again changes nothing. */
+function recordEliteFourWin(userId, order, member) {
+  ensureUser(userId);
+  db.open()
+    .prepare(
+      `INSERT OR IGNORE INTO elite_four_wins (discord_user_id, milestone, member, beaten_at)
+       VALUES (?, ?, ?, ?)`
+    )
+    .run(userId, order, member, now());
+}
+
+/**
  * Award trainer exp for a win, and level them up if that filled the bar.
  *
  * Runs in one immediate transaction so concurrent awards aren't lost.
@@ -777,6 +803,12 @@ function clearMilestone(userId) {
     handle
       .prepare('UPDATE users SET trainer_level = ?, trainer_exp = ? WHERE discord_user_id = ?')
       .run(settled.level, settled.exp, userId);
+
+    // An Elite Four's member wins are spent once it is cleared, so a prestige
+    // starts all four again.
+    handle
+      .prepare('DELETE FROM elite_four_wins WHERE discord_user_id = ? AND milestone = ?')
+      .run(userId, row.milestones_cleared);
 
     handle.exec('COMMIT');
 
@@ -995,6 +1027,7 @@ function awardBattle(userId, payout) {
       result.pokemon.push({
         id: row.id,
         partyNumber: row.party_number,
+        metLevel: row.met_level,
         name: row.nickname || row.display_name,
         level: after.level,
         levelledFrom: after.level > before ? before : null,
@@ -2146,6 +2179,8 @@ function setNickname(userId, pokemonId, nickname) {
 
 module.exports = {
   learnMoves,
+  eliteFourBeaten,
+  recordEliteFourWin,
   ensureUser,
   getUser,
   addCoins,

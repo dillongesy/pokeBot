@@ -81,7 +81,7 @@ const GROUPS = [
     name: '⚔️ Battling',
     commands: [
       { name: 'battle', usage: '.battle', blurb: 'Fight whatever turns up, with your first six.' },
-      { name: 'battle milestone', usage: '.battle milestone', blurb: 'Take on the gym leader waiting for you.' },
+      { name: 'battle milestone', usage: '.battle milestone [name]', blurb: 'Take on your next gym leader. The Elite Four is four battles; name one to pick.' },
       { name: 'moves', usage: '.moves <id>', blurb: 'What one of yours knows, and what is next.' },
       { name: 'tm', usage: '.tm <id> [move]', blurb: 'Teach a move. TMs are reusable.' },
       { name: 'pvp-battle', usage: '.pvp @user', blurb: 'Fight another player.', soon: true },
