@@ -23,8 +23,9 @@
  *   choice locking             Choice items give their boost but don't lock
  *                              the holder into one move.
  *   copying and swapping       Trace, Imposter, Transform, Skill Swap.
- *   confusion, infatuation     Not modelled, so Own Tempo, Cute Charm and
- *                              Oblivious have nothing to block.
+ *   Cute Charm                 Infatuation exists (Attract), but Cute Charm
+ *                              doesn't cause it yet. Own Tempo and Oblivious
+ *                              are checked in Utils/conditions.js.
  *
  * Reading hooks (damage, speed, accuracy) only return numbers. Reacting hooks
  * (afterHitTaken, endOfTurn) mutate the combatant and push events, as the
@@ -318,6 +319,19 @@ const ABILITIES = {
     ignoresParalysisSpeed: true,
   },
 
+  // Priority boosts, read by the engine's turn order.
+  prankster: { priorityBonus: ({ move }) => (move && move.damageClass === 'status' ? 1 : 0) },
+  'gale-wings': {
+    priorityBonus: ({ mon, move }) => (move && lower(move.type) === 'flying' && atFullHealth(mon) ? 1 : 0),
+  },
+  // Healing and draining moves (Recover, Drain Punch, Giga Drain).
+  triage: {
+    priorityBonus: ({ move }) => {
+      const meta = (move && move.meta) || {};
+      return meta.healing > 0 || meta.drain > 0 ? 3 : 0;
+    },
+  },
+
   adaptability: { stabMultiplier: 2 },
 
   technician: {
@@ -441,6 +455,15 @@ const ABILITIES = {
   // -------------------------------------------------------------------------
   'rough-skin': contactChip(8, 'Rough Skin'),
   'iron-barbs': contactChip(8, 'Iron Barbs'),
+
+  // A third of contact hits leave the attacker infatuated, if the genders
+  // are opposite.
+  'cute-charm': {
+    onHitTaken: ({ attacker, contact, rng, events, defender }) => {
+      if (!contact || attacker.fainted || rng() >= 0.3) return;
+      infatuate(attacker, defender, events, 'Cute Charm');
+    },
+  },
 
   static: contactStatus('paralysis'),
   'flame-body': contactStatus('burn'),
@@ -649,6 +672,12 @@ const HELD_ITEMS = {
     attackMultiplier: ({ move }) => (move.damageClass === 'special' ? 1.5 : 1),
   },
   'choice-scarf': { speedMultiplier: () => 1.5 },
+
+  // Order within the same priority: Quick Claw sometimes jumps ahead; these
+  // two always go last.
+  'quick-claw': { bracketShift: ({ rng }) => (rng() < 0.2 ? 1 : 0) },
+  'lagging-tail': { bracketShift: () => -1 },
+  'full-incense': { bracketShift: () => -1 },
 
   'assault-vest': {
     defenceMultiplier: ({ move }) => (move.damageClass === 'special' ? 1.5 : 1),
@@ -896,8 +925,48 @@ function itemEffectFor(slug) {
 }
 
 /** The two definitions a combatant is carrying, ability first. */
+// Gastro Acid switches the ability off; Embargo and Magic Room the item
+// (Utils/conditions.js keeps the flags up to date).
 const definitionsOf = (mon) =>
-  [mon.abilityEffect, mon.itemEffect].filter(Boolean);
+  [mon.abilitySuppressed ? null : mon.abilityEffect, mon.itemsSuppressed ? null : mon.itemEffect].filter(Boolean);
+
+/**
+ * Make `target` fall for `source` (Attract, Cute Charm).
+ *
+ * Only between a male and a female, and not through Oblivious or Aroma Veil.
+ * A Destiny Knot held by the one falling in love makes the source fall too.
+ *
+ * @returns {boolean} whether it worked
+ */
+function infatuate(target, source, events, cause = null) {
+  const genders = [target.gender, source.gender];
+  if (!genders.every((g) => g === 'male' || g === 'female') || genders[0] === genders[1]) return false;
+
+  const v = target.volatiles || (target.volatiles = {});
+  if (v.attract) return false;
+
+  const ability = target.abilitySuppressed ? null : target.ability;
+  if (ability === 'oblivious' || ability === 'aroma-veil') return false;
+
+  v.attract = source.id;
+  events.push({ kind: 'volatile-start', name: target.name, what: 'attract', label: 'love', source: cause });
+
+  const knot = target.itemsSuppressed ? null : target.item;
+  if (knot === 'destiny-knot') infatuate(source, target, events, 'Destiny Knot');
+  return true;
+}
+
+/** Change a Pokemon's ability mid-battle (Skill Swap, Worry Seed, Entrainment...). */
+function setAbility(mon, slug) {
+  mon.ability = slug || null;
+  mon.abilityEffect = ABILITIES[slug] || null;
+}
+
+/** Change a Pokemon's held item mid-battle (Trick, Bestow, Recycle...). */
+function setItem(mon, slug) {
+  mon.item = slug || null;
+  mon.itemEffect = itemEffectFor(slug);
+}
 
 /**
  * Multiply one hook across both definitions.
@@ -952,6 +1021,23 @@ function run(mon, hook, context) {
 
 /** Speed, after Choice Scarf, Quick Feet and Iron Ball. */
 const speedMultiplier = (mon) => product(mon, 'speedMultiplier', { mon });
+
+/** Extra move priority from an ability (Prankster, Gale Wings, Triage). */
+const priorityBonus = (mon, move) => highest(mon, 'priorityBonus', { mon, move });
+
+/**
+ * Where this Pokemon sits among others of the same priority: 1 to go first
+ * (Quick Claw), -1 to go last (Lagging Tail, Full Incense), 0 otherwise.
+ */
+function bracketShift(mon, rng = Math.random) {
+  let shift = 0;
+
+  for (const definition of definitionsOf(mon)) {
+    if (typeof definition.bracketShift === 'function') shift += definition.bracketShift({ mon, rng });
+  }
+
+  return Math.max(-1, Math.min(1, shift));
+}
 
 /** Does anything stop paralysis halving this Pokemon's speed? Quick Feet does. */
 const ignoresParalysisSpeed = (mon) => flag(mon, 'ignoresParalysisSpeed', { mon });
@@ -1239,6 +1325,11 @@ const isHeldEffect = (slug) => Boolean(itemEffectFor(slug));
 const isImplementedAbility = (slug) => Boolean(ABILITIES[slug]);
 
 module.exports = {
+  priorityBonus,
+  bracketShift,
+  setAbility,
+  infatuate,
+  setItem,
   ABILITIES,
   HELD_ITEMS,
   ability,

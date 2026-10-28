@@ -371,6 +371,13 @@ const OHKO = new Set(['guillotine', 'horn-drill', 'fissure', 'sheer-cold']);
  */
 const FIRST_TURN_ONLY = new Set(['fake-out', 'first-impression', 'mat-block']);
 
+/**
+ * Moves that fail unless the target is about to attack: it chose a damaging
+ * move this turn and has not moved yet (so a faster target, a status move or
+ * a switch all make them fail).
+ */
+const NEEDS_INCOMING_ATTACK = new Set(['sucker-punch', 'thunderclap']);
+
 /** Stockpile and its related moves. */
 const STOCKPILE_MAX = 3;
 
@@ -398,6 +405,17 @@ function resolve(move, context = {}) {
   // turn a Pokemon acts.
   if (FIRST_TURN_ONLY.has(move.name) && (context.attacker || {}).turnsActive) {
     return { kind: 'fail', reason: 'not-first-turn' };
+  }
+
+  // Sucker Punch and Thunderclap only work against an attack that is still
+  // coming: the target must have chosen a damaging move and not used it yet.
+  // Only checked when the engine says what the target chose (`foeMove`), so
+  // previews and the opponent's move scoring are unaffected.
+  if (NEEDS_INCOMING_ATTACK.has(move.name) && 'foeMove' in context) {
+    const { foeMove, foeMoved } = context;
+    if (foeMoved || !foeMove || foeMove.damageClass === 'status') {
+      return { kind: 'fail', reason: 'no-attack-coming' };
+    }
   }
 
   if (move.damageClass === 'status') return { kind: 'normal' };
@@ -588,6 +606,7 @@ module.exports = {
   VARIABLE,
   OHKO,
   FIRST_TURN_ONLY,
+  NEEDS_INCOMING_ATTACK,
   MAGNITUDES,
   isVariable,
   isOhko,

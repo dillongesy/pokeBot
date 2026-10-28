@@ -183,8 +183,8 @@ module.exports = {
      *   at it                        the full award
      *   over the obedience cap       tapers to a floor at MAX_OVER_CAP
      *
-     * Without this, opponents scaling to the cap would level Pokemon far past
-     * the point where they stop obeying. Neither floor is zero.
+     * Past MAX_OVER_CAP over the cap, battling earns nothing at all: the level
+     * a Pokemon would stop obeying at is a hard stop (store.awardKnockout).
      */
     expUnderFloor: 0.15,
     expOverFloor: 0.05,

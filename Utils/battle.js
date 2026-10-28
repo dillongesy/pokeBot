@@ -24,8 +24,11 @@
  * through a fixed set of hooks (accuracy, crits, damage modifiers, absorbing,
  * surviving, reacting to hits, status, stat stages, end of turn, switching).
  *
- * Not yet implemented: terrain, screens, entry hazards, and Mega Evolution or
- * Gigantamax during battle.
+ * Lasting conditions (confusion, screens, hazards, terrain, rooms, Taunt and
+ * the rest) are in Utils/conditions.js, and status moves with an effect of
+ * their own in Utils/statusmoves.js, both following the current games.
+ *
+ * Not yet implemented: Mega Evolution or Gigantamax during battle.
  */
 
 const content = require('./content');
@@ -34,13 +37,62 @@ const damage = require('./damage');
 const effects = require('./battleeffects');
 const movepower = require('./movepower');
 const fieldRules = require('./field');
+const cond = require('./conditions');
+const statusMoves = require('./statusmoves');
 const { loadForm } = require('./pokemon');
+
+/** Confusion's self-hit: a 40-power typeless physical attack on itself. */
+const CONFUSION_HIT = {
+  name: 'confusion-self-hit',
+  displayName: 'its confusion',
+  type: '???',
+  damageClass: 'physical',
+  power: 40,
+  accuracy: null,
+  priority: 0,
+  meta: {},
+  statChanges: [],
+};
+
+/** The moves a sleeping Pokemon can still use. */
+const SLEEP_MOVES = new Set(['sleep-talk', 'snore']);
+
+/** Moves that badly poison (Toxic's damage grows each turn). */
+const BADLY_POISONS = new Set(['toxic', 'poison-fang', 'malignant-chain']);
+
+/** Attacks that switch the user out after hitting. */
+const SELF_SWITCH_ATTACKS = new Set(['u-turn', 'volt-switch', 'flip-turn']);
+
+/** Attacks that force the target out after hitting. */
+const PHAZING_ATTACKS = new Set(['dragon-tail', 'circle-throw']);
+
+/** Attacks that clear hazards from the user's own side. */
+const SPINNERS = new Set(['rapid-spin', 'mortal-spin']);
+
+/** Attacks that knock a flying target to the ground. */
+const GROUNDERS = new Set(['smack-down', 'thousand-arrows']);
+
+/** Move targets that are the user itself or the field, not the foe. */
+const NOT_AT_FOE = new Set(['user', 'user-and-allies', 'users-field', 'user-or-ally', 'entire-field', 'ally']);
+const aimedAtFoe = (move) => !NOT_AT_FOE.has(move.target);
 
 /** How many Pokemon a side may bring. The games' number. */
 const TEAM_SIZE = 6;
 
 /** Safety limit on the number of turns. */
 const MAX_TURNS = 300;
+
+/**
+ * Moves whose user faints after using them (Final Gambit is handled with its
+ * fixed damage, but ends the same way).
+ */
+const USER_FAINTS = new Set(['explosion', 'self-destruct', 'misty-explosion', 'memento']);
+
+/** The explosions, which Damp stops outright. */
+const EXPLOSIONS = new Set(['explosion', 'self-destruct', 'misty-explosion', 'mind-blown']);
+
+/** The only status move that type immunity applies to. */
+const TYPE_CHECKED_STATUS = new Set(['thunder-wave']);
 
 /** The six that take a stage, plus the two that only ever modify accuracy. */
 const STAT_KEYS = [
@@ -156,6 +208,7 @@ function combatantFrom(row, moves) {
     form: row.form_folder,
     level: row.level,
     shiny: Boolean(row.shiny),
+    gender: row.gender || null,
 
     types: String(row.types || '').split(',').map((t) => t.trim()).filter(Boolean),
 
@@ -202,6 +255,12 @@ function combatantFrom(row, moves) {
     seededBy: null,
     substitute: 0,
 
+    // Confusion, Taunt, Encore and the rest (Utils/conditions.js), the last
+    // move it chose, and Toxic's growing counter.
+    volatiles: {},
+    lastMove: null,
+    toxicCounter: 0,
+
     // Turns this Pokemon has been on the field. Zero means it hasn't acted
     // yet (see FIRST_TURN_ONLY in Utils/movepower.js).
     turnsActive: 0,
@@ -228,9 +287,17 @@ function combatantFrom(row, moves) {
  */
 function create({ player, opponent, seed = Date.now(), kind = 'wild' }) {
   const sides = [
-    { name: player.name, team: player.team.slice(0, TEAM_SIZE), active: 0, isPlayer: true },
-    { name: opponent.name, team: opponent.team.slice(0, TEAM_SIZE), active: 0, isPlayer: false },
+    { name: player.name, team: player.team.slice(0, TEAM_SIZE), active: 0, isPlayer: true, conditions: cond.freshSide() },
+    { name: opponent.name, team: opponent.team.slice(0, TEAM_SIZE), active: 0, isPlayer: false, conditions: cond.freshSide() },
   ];
+
+  // Older combatants (and tests) may lack the newer fields.
+  for (const side of sides) {
+    for (const mon of side.team) {
+      if (!mon.volatiles) mon.volatiles = {};
+      if (mon.toxicCounter === undefined) mon.toxicCounter = 0;
+    }
+  }
 
   for (const side of sides) side.team[side.active].participated = true;
 
@@ -249,8 +316,15 @@ function create({ player, opponent, seed = Date.now(), kind = 'wild' }) {
     winner: null,
     rngCalls: 0,
 
-    // Field state (weather), see Utils/field.js. Null means clear.
-    field: { weather: null, weatherTurns: 0, setBy: null },
+    // Field state: weather (Utils/field.js), and rooms, terrain and the rest
+    // (Utils/conditions.js).
+    field: { weather: null, weatherTurns: 0, setBy: null, ...cond.freshField() },
+
+    // The last move anyone used, for Copycat.
+    lastMoveUsed: null,
+
+    // Set when Roar, Whirlwind or Teleport ends a wild battle.
+    fled: false,
 
     // Events from the opening send-outs (e.g. Intimidate), for the caller to
     // show before turn one.
@@ -313,6 +387,9 @@ function clearVolatiles(mon) {
   mon.trapped = null;
   mon.seededBy = null;
   mon.substitute = 0;
+
+  // Confusion, Taunt and the rest; Toxic's counter resets.
+  cond.clearVolatiles(mon);
 }
 
 /** The Pokemon currently out for a side. */
@@ -349,6 +426,10 @@ function effectiveSpeed(mon) {
  *
  * Switching goes first, then move priority, then speed, then a coin flip
  * from the seeded generator (so replays stay identical).
+ *
+ * Priority is the move's own plus what its ability adds (Prankster, Gale
+ * Wings, Triage). Within the same priority, Quick Claw can jump ahead and
+ * Lagging Tail or Full Incense go last, whatever the speeds.
  */
 function order(state, actions, rng) {
   const entries = state.sides.map((side, index) => {
@@ -356,20 +437,29 @@ function order(state, actions, rng) {
     const mon = activeOf(side);
 
     // A switch resolves before any attack, whatever the speeds.
-    if (action.type === 'switch') return { index, priority: 6, speed: Infinity };
+    if (action.type === 'switch') return { index, priority: 6, bracket: 0, speed: Infinity };
 
     const move = mon.moves[action.slot];
     return {
       index,
-      priority: (move && move.data.priority) || 0,
-      speed: effectiveSpeed(mon),
+      priority: ((move && move.data.priority) || 0) + effects.priorityBonus(mon, move && move.data),
+      bracket: effects.bracketShift(mon, rng),
+      // Tailwind doubles speed for its side.
+      speed: effectiveSpeed(mon) * cond.speedMultiplier(state, index),
     };
   });
+
+  // Trick Room: within the same priority, the slower one goes first.
+  const direction = state.field && state.field.trickRoom ? -1 : 1;
 
   return entries
     .map((entry) => ({ ...entry, tiebreak: rng() }))
     .sort(
-      (a, b) => b.priority - a.priority || b.speed - a.speed || a.tiebreak - b.tiebreak
+      (a, b) =>
+        b.priority - a.priority ||
+        b.bracket - a.bracket ||
+        (Number.isFinite(a.speed) && Number.isFinite(b.speed) ? direction * (b.speed - a.speed) : b.speed - a.speed) ||
+        a.tiebreak - b.tiebreak
     )
     .map((entry) => entry.index);
 }
@@ -384,7 +474,7 @@ function order(state, actions, rng) {
  * Returns an event to log if it cannot. Sleep and freeze are checked when the
  * Pokemon tries to move, as in the games.
  */
-function canAct(mon, rng, events) {
+function canAct(mon, rng, events, foe = null, chosen = null) {
   if (mon.flinched) {
     mon.flinched = false;
     events.push({ kind: 'flinch', name: mon.name });
@@ -405,7 +495,9 @@ function canAct(mon, rng, events) {
 
     mon.statusTurns -= 1;
     events.push({ kind: 'asleep', name: mon.name });
-    return false;
+
+    // Sleep Talk and Snore are the moves you can use asleep.
+    return Boolean(chosen && SLEEP_MOVES.has(chosen.name));
   }
 
   if (mon.status === 'freeze') {
@@ -419,12 +511,40 @@ function canAct(mon, rng, events) {
     return false;
   }
 
+  // Confusion: a third of the time it hits itself instead.
+  if (!cond.confusionCheck(mon, events, rng, confusionDamage)) return false;
+
   if (mon.status === 'paralysis' && rng() < 0.25) {
     events.push({ kind: 'paralysed', name: mon.name });
     return false;
   }
 
+  // Attraction: half the time it is too in love to move, while the Pokemon it
+  // fell for is still out.
+  const v = mon.volatiles || {};
+  if (v.attract && foe && foe.id === v.attract && !foe.fainted) {
+    events.push({ kind: 'in-love', name: mon.name, with: foe.name });
+    if (rng() < 0.5) {
+      events.push({ kind: 'immobilized-by-love', name: mon.name });
+      return false;
+    }
+  } else if (v.attract) {
+    delete v.attract;
+  }
+
   return true;
+}
+
+/** How hard a confused Pokemon hits itself: the damage formula, at its own stats. */
+function confusionDamage(mon) {
+  return damage.calculate({
+    attacker: mon,
+    defender: mon,
+    move: CONFUSION_HIT,
+    roll: 0.5,
+    critical: false,
+    effectiveness: 1,
+  }).damage;
 }
 
 /** Burn and poison, applied at the end of a turn. */
@@ -436,7 +556,11 @@ function residualDamage(mon, events) {
   const verdict = effects.residual(mon, events);
   if (verdict !== 'normal') return;
 
-  const hurt = Math.max(1, Math.floor(mon.maxHp / 16));
+  // Bad poison (Toxic) grows by a sixteenth each turn: 1/16, 2/16, 3/16...
+  const sixteenths = mon.status === 'poison' && mon.toxicCounter ? mon.toxicCounter : 1;
+  if (mon.status === 'poison' && mon.toxicCounter) mon.toxicCounter = Math.min(15, mon.toxicCounter + 1);
+
+  const hurt = Math.max(1, Math.floor((mon.maxHp * sixteenths) / 16));
   mon.hp = Math.max(0, mon.hp - hurt);
 
   events.push({ kind: 'residual', name: mon.name, status: mon.status, damage: hurt, hp: mon.hp });
@@ -573,7 +697,12 @@ function landHit(attacker, defender, move, amount, detail, rng, events) {
   // Sturdy and Focus Sash: only checked when the hit would knock the Pokemon
   // out, and leave it at 1 HP.
   let landed = amount;
-  const saved = effects.survives(defender, landed, rng);
+
+  // Endure: anything that would knock it out leaves it at 1 HP this turn.
+  const enduring = defender.volatiles && defender.volatiles.endure && landed >= defender.hp;
+  const saved = enduring
+    ? { hp: 1, source: 'Endure' }
+    : effects.survives(defender, landed, rng);
 
   if (saved) {
     landed = defender.hp - saved.hp;
@@ -610,6 +739,25 @@ function landHit(attacker, defender, move, amount, detail, rng, events) {
     defender.faintedBy = attacker.id;
 
     events.push({ kind: 'faint', name: defender.name, by: attacker.id });
+
+    const dv = defender.volatiles || {};
+
+    // Destiny Bond takes the attacker down too.
+    if (dv.destinyBond && attacker !== defender && !attacker.fainted) {
+      events.push({ kind: 'destiny-bond', name: defender.name, target: attacker.name });
+      attacker.hp = 0;
+      attacker.fainted = true;
+      events.push({ kind: 'faint', name: attacker.name });
+    }
+
+    // Grudge empties the move that did it.
+    if (dv.grudge && attacker !== defender) {
+      const used = attacker.moves.find((m) => m.name === move.name);
+      if (used) {
+        used.pp = 0;
+        events.push({ kind: 'grudge', name: attacker.name, move: move.displayName });
+      }
+    }
   }
 
   // The defender's reaction to this hit (Rough Skin, Rocky Helmet, Static,
@@ -674,23 +822,32 @@ function oneHitKnockout(attacker, defender, move, rng, events) {
 }
 
 /**
- * One Pokemon attacks another.
+ * One Pokemon uses the move in one of its slots.
  *
- * Steps, in the games' order: PP, resolving the move's power, accuracy,
- * absorption/immunity, per-hit damage, then secondary effects (which don't
- * apply to a fainted target).
+ * Works out what is actually used (Struggle when nothing has PP, nothing if a
+ * condition forbids the move: Taunt, Disable, Torment, Heal Block, Imprison,
+ * Gravity), spends the PP, then hands over to performMove.
  *
- * Ability and item hooks are called at the matching points;
- * Utils/battleeffects.js decides what they do.
+ * `turn` carries the battle state and this side's index, and what the target
+ * chose this turn (Sucker Punch, Me First).
  */
-function useMove(attacker, defender, slot, rng, events, arena = null) {
-  const entry = attacker.moves[slot];
-  const anyPpLeft = attacker.moves.some((option) => option.pp > 0);
+function useMove(attacker, defender, slot, rng, events, arena = null, turn = null) {
+  const state = turn && turn.state;
+  const sideIndex = turn ? turn.index : 0;
 
-  // No usable moves: use Struggle.
+  const allowed = (option, i) => option.pp > 0 && !(state && cond.restriction(state, sideIndex, attacker, i));
+  const anyUsable = attacker.moves.some(allowed);
+  const entry = attacker.moves[slot];
+
+  // One-turn and until-it-moves effects wear off when it moves again.
+  const v = attacker.volatiles || (attacker.volatiles = {});
+  delete v.destinyBond;
+  delete v.grudge;
+
   let move;
 
-  if (!attacker.moves.length || !anyPpLeft) {
+  if (!attacker.moves.length || !anyUsable) {
+    // Nothing usable (no PP, or everything forbidden): Struggle.
     move = STRUGGLE;
     events.push({ kind: 'struggle', name: attacker.name });
   } else if (!entry || entry.pp <= 0) {
@@ -703,8 +860,48 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
     });
     return;
   } else {
+    const why = state && cond.restriction(state, sideIndex, attacker, slot);
+    if (why) {
+      events.push({ kind: 'restricted', name: attacker.name, move: entry.data.displayName, reason: why });
+      return;
+    }
+
     entry.pp -= 1;
     move = entry.data;
+  }
+
+  attacker.previousMove = attacker.lastMove;
+  attacker.lastMove = move.name;
+
+  performMove(attacker, defender, move, { entry: move === STRUGGLE ? null : entry, rng, events, arena, turn });
+}
+
+/**
+ * Carry out a move. Also used for moves that call other moves (Metronome,
+ * Sleep Talk, Mirror Move...) and for Magic Coat and Snatch turning a move
+ * around, none of which spend PP.
+ *
+ * Steps, in the games' order: the move's type, power and immunities;
+ * Protect and the guards; accuracy; absorption; per-hit damage; then
+ * secondary effects (which don't apply to a fainted target).
+ *
+ * Ability and item hooks are called at the matching points;
+ * Utils/battleeffects.js decides what they do. Conditions (screens, terrain,
+ * confusion and the rest) are in Utils/conditions.js, and status moves with
+ * their own effect in Utils/statusmoves.js.
+ */
+function performMove(attacker, defender, baseMove, options = {}) {
+  const { entry = null, rng, events, turn = null, called = false, powerMultiplier = 1 } = options;
+  const arena = options.arena || (turn && turn.state ? turn.state.field : null);
+  const state = turn && turn.state;
+  const sideIndex = turn ? turn.index : 0;
+  const av = attacker.volatiles || (attacker.volatiles = {});
+  const dv = defender.volatiles || (defender.volatiles = {});
+
+  // Electrify and Ion Deluge turn the move Electric.
+  let move = baseMove;
+  if (av.electrify || (arena && arena.ionDeluge && lowerType(move.type) === 'normal')) {
+    move = { ...move, type: 'electric' };
   }
 
   events.push({
@@ -715,6 +912,26 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
     damageClass: move.damageClass,
   });
 
+  if (state) state.lastMoveUsed = move.name;
+
+  // Powder: a Fire move explodes in its user's face.
+  if (av.powder && lowerType(move.type) === 'fire') {
+    const hurt = Math.max(1, Math.floor(attacker.maxHp / 4));
+    events.push({ kind: 'powder-blast', name: attacker.name });
+    effects.chip(attacker, hurt, events, 'Powder', 'condition-damage');
+    return;
+  }
+
+  // Damp stops an explosion before it goes off, so nobody faints.
+  if (EXPLOSIONS.has(move.name) && [attacker, defender].some((mon) => cond.abilityOf(mon) === 'damp')) {
+    events.push({ kind: 'failed', name: attacker.name, text: 'But Damp stopped it from going off!' });
+    return;
+  }
+
+  // The user faints once it has gone off, hit, miss or Protect (resolveTurn
+  // handles it).
+  if (USER_FAINTS.has(move.name)) attacker.selfDestructing = true;
+
   // Resolve the move's power (Utils/movepower.js handles variable-power
   // moves). Done before accuracy, since some moves fail rather than miss
   // (Fling with no item, Counter with nothing to counter). PP is still spent.
@@ -722,9 +939,12 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
     attacker,
     defender,
     rng,
-    entry: move === STRUGGLE ? null : entry,
+    entry,
     allies: attacker.allies,
     speedOf: effectiveSpeed,
+    // What the target chose this turn and whether it has already moved
+    // (Sucker Punch). Only known inside resolveTurn.
+    ...(turn && 'foeMove' in turn ? { foeMove: turn.foeMove, foeMoved: turn.foeMoved } : {}),
   });
 
   if (verdict.kind === 'fail') {
@@ -736,13 +956,46 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
     return;
   }
 
+  const atFoe = aimedAtFoe(move);
+
+  // Type and ability immunities to status moves: powder moves and Grass
+  // types, Prankster and Dark types, Soundproof.
+  if (atFoe) {
+    const immune = cond.immuneTo(attacker, defender, move);
+    if (immune) {
+      events.push(
+        immune === 'immune'
+          ? { kind: 'immune', name: defender.name, effectiveness: 0 }
+          : { kind: 'shrugged-off', name: defender.name, by: immune }
+      );
+      return;
+    }
+  }
+
+  // Snatch steals a move the user aims at itself; Magic Coat and Magic
+  // Bounce send a status move back.
+  if (!called && move.damageClass === 'status' && state) {
+    if (!atFoe && dv.snatch && !defender.fainted) {
+      delete dv.snatch;
+      events.push({ kind: 'snatched', name: defender.name, move: move.displayName });
+      performMove(defender, attacker, move, { ...options, entry: null, turn: { ...turn, index: 1 - sideIndex }, called: true });
+      return;
+    }
+
+    if (atFoe && (dv.magicCoat || cond.abilityOf(defender) === 'magic-bounce') && !options.bounced) {
+      events.push({ kind: 'bounced', name: defender.name, move: move.displayName });
+      performMove(defender, attacker, move, { ...options, entry: null, turn: { ...turn, index: 1 - sideIndex }, called: true, bounced: true });
+      return;
+    }
+  }
+
   // ------------------------------------------------------------------
   // Field moves: Protect, weather, Substitute and Leech Seed resolve here
   // (see Utils/field.js).
   // ------------------------------------------------------------------
 
   // Any other move resets the Protect chain.
-  if (!fieldRules.isProtect(move)) attacker.protectStreak = 0;
+  if (!fieldRules.isProtect(move) && move.name !== 'endure') attacker.protectStreak = 0;
 
   if (fieldRules.isProtect(move)) {
     if (fieldRules.protectSucceeds(attacker.protectStreak, rng())) {
@@ -756,6 +1009,26 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
     return;
   }
 
+  // Status moves aimed at the user, its side or the field (screens, hazards,
+  // rooms, terrains...) don't check accuracy or the target's Protect.
+  const ctx = (target) => ({
+    state,
+    sideIndex,
+    attacker,
+    defender: target,
+    move,
+    rng,
+    events,
+    turn,
+    engine: engineFor(state, rng, events, turn),
+  });
+
+  if (!atFoe && statusMoves.has(move.name) && state) {
+    statusMoves.run(ctx(defender));
+    settleEffects(events);
+    return;
+  }
+
   const weather = fieldRules.weatherFor(move);
 
   if (weather) {
@@ -766,16 +1039,7 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
       return;
     }
 
-    arena.weather = weather;
-    arena.weatherTurns = fieldRules.weatherDuration(weather, attacker);
-    arena.setBy = attacker.id;
-
-    events.push({
-      kind: 'weather-start',
-      weather,
-      text: fieldRules.WEATHER[weather].started,
-      turns: arena.weatherTurns,
-    });
+    setWeather(arena, weather, attacker, events);
     return;
   }
 
@@ -798,32 +1062,72 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
     return;
   }
 
-  const aim = effects.accuracy(attacker, defender, move);
+  // Moves aimed at itself with only stat changes or healing (Swords Dance,
+  // Recover) skip accuracy and the target's Protect too.
+  if (atFoe) {
+    const aim = effects.accuracy(attacker, defender, move);
+    const extra = state ? cond.accuracyModifiers(state, attacker, defender) : { multiplier: 1, sure: false, ignoreEvasion: false };
+    const evasion = extra.ignoreEvasion ? Math.min(0, defender.stages.evasion || 0) : defender.stages.evasion;
 
-  // One-hit KO moves use their own accuracy rule.
-  if (
-    verdict.kind !== 'ohko' &&
-    !aim.never &&
-    !damage.hits(move, rng(), attacker.stages.accuracy, defender.stages.evasion, aim.multiplier)
-  ) {
-    events.push({ kind: 'miss', name: defender.name });
-    return;
+    // A Poison type's Toxic never misses, nor does a move Magic Coat sent
+    // back.
+    const sure = extra.sure || options.bounced ||
+      (move.name === 'toxic' && (attacker.types || []).some((t) => lowerType(t) === 'poison'));
+
+    // One-hit KO moves use their own accuracy rule.
+    if (
+      verdict.kind !== 'ohko' &&
+      !aim.never &&
+      !sure &&
+      !damage.hits(move, rng(), attacker.stages.accuracy, evasion, aim.multiplier * extra.multiplier)
+    ) {
+      events.push({ kind: 'miss', name: defender.name });
+      return;
+    }
+
+    // Protect blocks everything below. Checked after accuracy, so a miss is
+    // reported as a miss.
+    if (defender.protectedNow && !fieldRules.piercesProtect(move)) {
+      events.push({ kind: 'protected', name: defender.name });
+      return;
+    }
+
+    // Quick Guard, Wide Guard, Crafty Shield, Mat Block and Psychic Terrain.
+    if (state) {
+      const priority = (move.priority || 0) + effects.priorityBonus(attacker, move);
+      const guard = cond.guardBlocks(state, sideIndex, defender, move, priority);
+      if (guard) {
+        events.push({ kind: 'guarded', name: defender.name, by: guard });
+        return;
+      }
+    }
+
+    // A Substitute stops status moves aimed at the foe (not sound moves).
+    if (defender.substitute > 0 && cond.blockedBySubstitute(move)) {
+      events.push({ kind: 'failed', name: attacker.name, text: 'But it failed!' });
+      return;
+    }
   }
 
-  // Protect blocks everything below. Checked after accuracy, so a miss is
-  // reported as a miss.
-  if (defender.protectedNow && !fieldRules.piercesProtect(move)) {
-    events.push({ kind: 'protected', name: defender.name });
+  // Status moves aimed at the foe with an effect of their own (Taunt,
+  // Encore, Roar, Trick...).
+  if (atFoe && statusMoves.has(move.name) && state) {
+    statusMoves.run(ctx(defender));
+    settleEffects(events);
     return;
   }
 
   // Natural Gift takes the berry's type, which everything below must use.
   const movedType = verdict.type || move.type;
-  const effectiveness = typechart.effectiveness(movedType, defender.types);
+  const effectiveness = state
+    ? cond.effectiveness(movedType, defender, arena)
+    : typechart.effectiveness(movedType, defender.types);
 
   // Absorbing abilities and items (Levitate, Volt Absorb, Flash Fire, Wonder
-  // Guard, Air Balloon) stop the move entirely.
-  const absorb = effects.absorbs(defender, { ...move, type: movedType }, effectiveness);
+  // Guard, Air Balloon) stop the move entirely. A grounded target (Gravity,
+  // Smack Down) can't float over a Ground move.
+  const groundedHit = lowerType(movedType) === 'ground' && state && cond.grounded(defender, arena);
+  const absorb = groundedHit ? null : effects.absorbs(defender, { ...move, type: movedType }, effectiveness);
 
   if (absorb) {
     effects.applyAbsorb(defender, absorb, move, events);
@@ -861,6 +1165,9 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
 
   const meta = move.meta || {};
 
+  // Brick Break shatters screens before it lands.
+  if (state && move.damageClass !== 'status') cond.breakScreens(state, sideIndex, move, events);
+
   // Magnitude announces the magnitude it rolled.
   if (verdict.magnitude) {
     events.push({ kind: 'magnitude', number: verdict.magnitude });
@@ -879,12 +1186,8 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
 
     // Final Gambit: the user faints regardless, and the opponent isn't
     // credited with the knockout.
-    if (verdict.selfFaint && !attacker.fainted) {
-      attacker.hp = 0;
-      attacker.fainted = true;
-      events.push({ kind: 'faint', name: attacker.name });
-    }
-  } else {
+    if (verdict.selfFaint) attacker.selfDestructing = true;
+  } else if (move.damageClass !== 'status') {
     // ---- the ordinary damage formula ----
 
     // Beat Up has one hit per conscious team member; other moves roll their
@@ -899,16 +1202,24 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
     }
 
     const critsAllowed = effects.critAllowed(defender);
-    const critBonus = effects.critStage(attacker, move);
+    const critBonus = effects.critStage(attacker, move) + cond.critStageBonus(attacker);
+    const critForced = state ? cond.critOverride(state, sideIndex, attacker) : null;
+
+    // Wonder Room swaps Defense and Special Defense for the hit.
+    const target = arena && arena.wonderRoom
+      ? { ...defender, stats: { ...defender.stats, defense: defender.stats.specialDefense, specialDefense: defender.stats.defense } }
+      : defender;
 
     // Effectiveness is announced once per move, not per hit.
     let saidEffectiveness = false;
 
     for (let hit = 0; hit < hitCount && !defender.fainted; hit += 1) {
-      const critical = critsAllowed && damage.crits(move, rng(), critBonus);
+      const critical = critsAllowed && critForced !== false &&
+        (critForced === true || damage.crits(move, rng(), critBonus));
 
       // Ability and item modifiers, grouped for Utils/damage.js.
-      const thisPower = powers ? powers[hit] : verdict.power || move.power;
+      const basePower = powers ? powers[hit] : verdict.power || move.power;
+      const thisPower = powerMultiplier !== 1 ? Math.floor(basePower * powerMultiplier) : basePower;
       const parts = effects.damageParts(attacker, defender, move, effectiveness, thisPower);
 
       // Weather: rain boosts Water and weakens Fire, sun the reverse;
@@ -919,14 +1230,20 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
       if (weatherOut !== 1) parts.extraModifiers.push(weatherOut);
       if (weatherIn !== 1) parts.defenceModifiers.push(weatherIn);
 
+      // Screens, terrain, the Sports and Charge.
+      if (state) {
+        parts.extraModifiers.push(...cond.damageModifiers(state, sideIndex, attacker, defender, move, movedType, critical));
+      }
+
       const result = damage.calculate({
         attacker,
-        defender,
+        defender: target,
         move,
         roll: rng(),
         critical,
         power: thisPower,
-        type: verdict.type || null,
+        type: verdict.type || (move.type !== baseMove.type ? move.type : null),
+        effectiveness,
         attackModifiers: parts.attackModifiers,
         defenceModifiers: parts.defenceModifiers,
         extraModifiers: parts.extraModifiers,
@@ -972,6 +1289,9 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
     if (hitCount > 1 && hitsLanded > 0) {
       events.push({ kind: 'multi-hit', name: attacker.name, hits: hitsLanded });
     }
+
+    // Charge powers up one Electric move; Laser Focus one hit.
+    if (lowerType(movedType) === 'electric') delete av.charged;
   }
 
   // Natural Gift and Fling consume the held item, and Spit Up empties the
@@ -1009,7 +1329,7 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
   }
 
   // Drain and recoil share one signed field: positive heals the attacker,
-  // negative hurts them.
+  // negative hurts them. Heal Block stops the healing.
   //
   // Struggle's recoil is a quarter of the user's max HP rather than based on
   // damage dealt.
@@ -1020,8 +1340,10 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
         : Math.max(1, Math.floor((dealt * Math.abs(meta.drain)) / 100));
 
     if (meta.drain > 0) {
-      attacker.hp = Math.min(attacker.maxHp, attacker.hp + change);
-      events.push({ kind: 'drain', name: attacker.name, amount: change, hp: attacker.hp });
+      if (!av.healBlock) {
+        attacker.hp = Math.min(attacker.maxHp, attacker.hp + change);
+        events.push({ kind: 'drain', name: attacker.name, amount: change, hp: attacker.hp });
+      }
     } else if (move === STRUGGLE || effects.recoilAllowed(attacker)) {
       // Rock Head does not prevent Struggle recoil, as in the games.
       attacker.hp = Math.max(0, attacker.hp - change);
@@ -1038,8 +1360,9 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
   // A straight heal, as a percentage of the user's maximum.
   //
   // Swallow heals based on the stockpile count (a quarter for one, full for
-  // three) and empties it.
+  // three) and empties it. Heal Pulse and Floral Healing heal the target.
   if (meta.healing > 0) {
+    const patient = atFoe && move.damageClass === 'status' ? defender : attacker;
     let percent = meta.healing;
 
     if (move.name === 'swallow') {
@@ -1056,16 +1379,73 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
       attacker.stockpile = 0;
     }
 
-    const healed = Math.max(1, Math.floor((attacker.maxHp * percent) / 100));
-    const before = attacker.hp;
-    attacker.hp = Math.min(attacker.maxHp, attacker.hp + healed);
-    if (attacker.hp !== before) {
-      events.push({ kind: 'heal', name: attacker.name, amount: attacker.hp - before, hp: attacker.hp });
+    const healed = Math.max(1, Math.floor((patient.maxHp * percent) / 100));
+    const before = patient.hp;
+    if (!(patient.volatiles && patient.volatiles.healBlock)) {
+      patient.hp = Math.min(patient.maxHp, patient.hp + healed);
     }
+    if (patient.hp !== before) {
+      events.push({ kind: 'heal', name: patient.name, amount: patient.hp - before, hp: patient.hp });
+    } else if (move.damageClass === 'status') {
+      // Recover at full health.
+      events.push({ kind: 'failed', name: attacker.name, text: 'But it failed!' });
+    }
+  }
+
+  // Rest: full health, any status cured, then two turns asleep. Fails at full
+  // health, or for a Pokemon that can't fall asleep (Insomnia, Vital Spirit,
+  // Electric Terrain).
+  if (move.name === 'rest') {
+    const terrainBlocks = state && cond.sideBlocksStatus(state, sideIndex, attacker, 'sleep') === 'Electric Terrain';
+    if (attacker.hp >= attacker.maxHp || !effects.statusAllowed(attacker, 'sleep') || terrainBlocks) {
+      events.push({ kind: 'failed', name: attacker.name, text: 'But it failed!' });
+      return;
+    }
+
+    const before = attacker.hp;
+    attacker.hp = attacker.maxHp;
+    events.push({ kind: 'heal', name: attacker.name, amount: attacker.hp - before, hp: attacker.hp });
+
+    // Two turns asleep: canAct counts statusTurns down and wakes it at 0.
+    attacker.status = 'sleep';
+    attacker.statusTurns = 2;
+    attacker.toxicCounter = 0;
+    events.push({ kind: 'status', name: attacker.name, status: 'sleep' });
+    return;
+  }
+
+  // The user's own side: Rapid Spin and Mortal Spin clear hazards, Leech Seed
+  // and traps.
+  if (state && SPINNERS.has(move.name) && dealt > 0 && !attacker.fainted) {
+    const c = state.sides[sideIndex].conditions || {};
+    const had = c.spikes || c.toxicSpikes || c.stealthRock || c.stickyWeb || attacker.seededBy || attacker.trapped;
+    delete c.spikes; delete c.toxicSpikes; delete c.stealthRock; delete c.stickyWeb;
+    attacker.seededBy = null;
+    attacker.trapped = null;
+    if (had) events.push({ kind: 'spun-free', name: attacker.name });
+  }
+
+  // U-turn, Volt Switch and Flip Turn: out once they've hit.
+  if (state && SELF_SWITCH_ATTACKS.has(move.name) && dealt > 0 && !attacker.fainted) {
+    const side = state.sides[sideIndex];
+    if (benchOf(side).length && !wipedOut(state.sides[1 - sideIndex])) side.pendingSwitch = {};
   }
 
   // Everything below only lands on something still standing.
   if (defender.fainted || attacker.fainted) return;
+
+  // Dragon Tail and Circle Throw drag the target out.
+  if (state && PHAZING_ATTACKS.has(move.name) && dealt > 0) {
+    if (!dv.ingrain && cond.abilityOf(defender) !== 'suction-cups') phaze(state, 1 - sideIndex, events, rng);
+    return;
+  }
+
+  // Smack Down and Thousand Arrows bring a flying target to the ground.
+  if (GROUNDERS.has(move.name) && dealt > 0) {
+    dv.smackedDown = true;
+    delete dv.magnetRise;
+    delete dv.telekinesis;
+  }
 
   // Trapping moves (Wrap, Fire Spin, etc.) deal damage each turn for several
   // turns. The set comes from PokeAPI's `ailment: trap`.
@@ -1097,22 +1477,57 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
     return;
   }
 
+  // Status moves ignore type immunity, except Thunder Wave, which can't touch
+  // a Ground type.
+  if (TYPE_CHECKED_STATUS.has(move.name) && effectiveness === 0) {
+    events.push({ kind: 'immune', name: defender.name, effectiveness: 0 });
+    return;
+  }
+
   // Sheer Force removes secondary effects (ailment, flinch and stat changes).
   const suppressed = effects.suppressesSecondaries(attacker, move);
+  const ailment = normaliseAilment(meta.ailment);
 
-  if (
-    !suppressed &&
-    meta.ailment &&
-    meta.ailment !== 'none' &&
-    STATUSES.includes(normaliseAilment(meta.ailment))
-  ) {
+  if (!suppressed && meta.ailment && meta.ailment !== 'none' && (STATUSES.includes(ailment) || ailment === 'confusion')) {
     // A status move with no listed chance always works; a damaging move with a
     // secondary ailment rolls for it. Serene Grace doubles the roll.
     const base = meta.ailmentChance || (move.damageClass === 'status' ? 100 : 0);
     const chance = move.damageClass === 'status' ? base : effects.secondaryChance(attacker, base);
 
     if (chance > 0 && rng() * 100 < chance) {
-      applyStatus(defender, normaliseAilment(meta.ailment), events, rng);
+      if (ailment === 'confusion') {
+        if (state) {
+          cond.confuse(state, 1 - sideIndex, defender, events, rng, {
+            attacker,
+            viaStatusMove: move.damageClass === 'status',
+          });
+        }
+      } else {
+        // Safeguard, Misty Terrain and Electric Terrain (sleep) protect the
+        // target's side.
+        const blocked = state && cond.sideBlocksStatus(state, 1 - sideIndex, defender, ailment, attacker);
+
+        const before = events.length;
+
+        if (blocked) {
+          if (move.damageClass === 'status') events.push({ kind: 'protected-by', name: defender.name, by: blocked });
+        } else if (applyStatus(defender, ailment, events, rng)) {
+          if (ailment === 'poison' && BADLY_POISONS.has(move.name)) {
+            defender.toxicCounter = 1;
+            // Say "badly poisoned".
+            const said = events.slice(before).find((e) => e.kind === 'status' && e.name === defender.name);
+            if (said) said.status = 'badly poison';
+          }
+        } else if (move.damageClass === 'status' && events.length === before) {
+          // Nothing said why: already statused, or immune by type (Toxic on
+          // a Steel type, Will-O-Wisp on a Fire type).
+          events.push(
+            defender.status
+              ? { kind: 'failed', name: attacker.name, text: 'But it failed!' }
+              : { kind: 'immune', name: defender.name, effectiveness: 0 }
+          );
+        }
+      }
     }
   }
 
@@ -1129,6 +1544,8 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
     if (effects.flinchAllowed(defender)) defender.flinched = true;
   }
 
+  const mist = state && (state.sides[1 - sideIndex].conditions || {}).mist;
+
   for (const change of move.statChanges || []) {
     // For damaging moves the stat change is a secondary effect (removed by
     // Sheer Force); for status moves it is the move itself. Uses the resolved
@@ -1140,15 +1557,193 @@ function useMove(attacker, defender, slot, rng, events, arena = null) {
 
     if (chance > 0 && rng() * 100 >= chance) continue;
 
-    // Negative changes target the defender, positive ones the user.
-    const target = change.change < 0 ? defender : attacker;
+    const target = statChangeTarget(move, change) === 'user' ? attacker : defender;
+
+    // Mist protects a side from the foe lowering its stats.
+    if (target === defender && change.change < 0 && mist && cond.abilityOf(attacker) !== 'infiltrator') {
+      events.push({ kind: 'protected-by', name: defender.name, by: 'Mist' });
+      continue;
+    }
+
     applyStage(target, change.stat, change.change, events, target === defender);
   }
 
   settleEffects(events);
 }
 
+/** A type name in lower case. */
+const lowerType = (type) => String(type || '').toLowerCase();
+
+/** Start a weather: duration (Damp Rock and friends) and the announcement. */
+function setWeather(arena, weather, setter, events) {
+  arena.weather = weather;
+  arena.weatherTurns = fieldRules.weatherDuration(weather, setter);
+  arena.setBy = setter.id;
+
+  events.push({
+    kind: 'weather-start',
+    weather,
+    text: fieldRules.WEATHER[weather].started,
+    turns: arena.weatherTurns,
+  });
+}
+
+/**
+ * What Utils/statusmoves.js may ask of the engine, bound to this battle and
+ * turn.
+ */
+function engineFor(state, rng, events, turn) {
+  return {
+    applyStage: (target, stat, delta, evts = events, fromFoe = false, attackerSide = null) => {
+      // Mist protects from the foe's stat drops.
+      if (fromFoe && delta < 0 && state && attackerSide !== null) {
+        const mist = (state.sides[1 - attackerSide].conditions || {}).mist;
+        if (mist) {
+          evts.push({ kind: 'protected-by', name: target.name, by: 'Mist' });
+          return;
+        }
+      }
+      applyStage(target, stat, delta, evts, fromFoe);
+    },
+    applyStatus: (target, status, evts = events, r = rng, attackerSide = null) => {
+      if (state && attackerSide !== null && cond.sideBlocksStatus(state, 1 - attackerSide, target, status)) return false;
+      return applyStatus(target, status, evts, r);
+    },
+    performMove: (attacker, defender, move, extra = {}) => {
+      const index = state.sides[0].team[state.sides[0].active] === attacker ? 0 : 1;
+      performMove(attacker, defender, move, { rng, events, turn: { ...turn, index }, ...extra });
+    },
+    pendingSwitch: (sideIndex, options) => {
+      state.sides[sideIndex].pendingSwitch = options;
+    },
+    phaze: (sideIndex) => phaze(state, sideIndex, events, rng),
+    flee: (sideIndex, mon) => flee(state, sideIndex, mon, events),
+    setWeather: (weather, setter) => {
+      if (state.field.weather === weather) return;
+      setWeather(state.field, weather, setter, events);
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Switching
+// ---------------------------------------------------------------------------
+
+/**
+ * Bring in a Pokemon for a side. Handles the one leaving (if it is still
+ * standing), Baton Pass and Shed Tail, the switch-in abilities and the
+ * hazards on arrival.
+ *
+ * @param {object} [pass]  { pass: true } for Baton Pass; { shedTail: hp } for Shed Tail
+ */
+function swapIn(state, sideIndex, teamIndex, events, pass = null) {
+  const side = state.sides[sideIndex];
+  const other = state.sides[1 - sideIndex];
+  const leaving = activeOf(side);
+  const target = side.team[teamIndex];
+
+  if (!target || target.fainted || teamIndex === side.active) return false;
+
+  if (leaving && !leaving.fainted) {
+    events.push({ kind: 'withdraw', name: leaving.name, side: side.name });
+
+    // Switch-out effects (Natural Cure, Regenerator).
+    effects.onWithdraw(leaving, events);
+  }
+
+  if (pass && pass.pass && leaving) cond.batonPass(leaving, target);
+
+  if (leaving) {
+    // Stat stages reset on switching; status does not.
+    leaving.stages = freshStages();
+
+    // Volatiles (Leech Seed, Substitute, Protect chain, confusion...) are
+    // cleared too.
+    clearVolatiles(leaving);
+
+    // Whatever it was holding the foe with lets go.
+    const foe = activeOf(other);
+    if (foe && foe.volatiles) {
+      if (foe.volatiles.meanLook && foe.volatiles.meanLook.by === leaving.id) delete foe.volatiles.meanLook;
+      if (foe.volatiles.octolock === leaving.id) delete foe.volatiles.octolock;
+      if (foe.volatiles.attract === leaving.id) delete foe.volatiles.attract;
+    }
+  }
+
+  side.active = teamIndex;
+  target.participated = true;
+
+  // Reset the first-turn counter. The incoming Pokemon first acts next turn.
+  target.turnsActive = 0;
+  if (!(pass && pass.pass)) {
+    target.protectedNow = false;
+    target.protectStreak = 0;
+  }
+
+  // Shed Tail leaves a Substitute for the one coming in.
+  if (pass && pass.shedTail) target.substitute = pass.shedTail;
+
+  events.push({ kind: 'send-out', name: target.name, side: side.name });
+
+  // Intimidate on the way in, then hazards and Healing Wish.
+  effects.onSendOut(target, activeOf(other), events);
+  cond.onArrive(state, sideIndex, target, events);
+  cond.refreshSuppression(state);
+  settleEffects(events);
+  return true;
+}
+
+/**
+ * Roar, Whirlwind, Dragon Tail: force the target out. In a wild battle that
+ * ends the battle; otherwise a random healthy teammate comes in.
+ */
+function phaze(state, sideIndex, events, rng) {
+  if (state.kind === 'wild') return flee(state, sideIndex, activeOf(state.sides[sideIndex]), events, true);
+
+  const options = benchOf(state.sides[sideIndex]);
+  if (!options.length) return false;
+
+  const pick = options[Math.floor(rng() * options.length)];
+  events.push({ kind: 'dragged-out', name: activeOf(state.sides[sideIndex]).name });
+  return swapIn(state, sideIndex, pick.index, events);
+}
+
+/** End a wild battle with someone leaving (Teleport, or being blown away). */
+function flee(state, sideIndex, mon, events, blownAway = false) {
+  state.finished = true;
+  state.fled = true;
+  state.winner = null;
+  events.push({ kind: blownAway ? 'blown-away' : 'teleported', name: mon.name, side: state.sides[sideIndex].name });
+  events.push({ kind: 'end', winner: null, fled: true });
+  return true;
+}
+
 /** PokeAPI spells a couple of these differently from the rest of the bot. */
+/** Move targets that mean the user itself. */
+const SELF_TARGETS = new Set(['user', 'user-and-allies', 'users-field', 'user-or-ally']);
+
+/**
+ * Who a move's stat change applies to: 'user' or 'target'.
+ *
+ * Attacks say so in PokeAPI's category: `damage-raise` changes the user
+ * (Flame Charge's speed, but also Overheat's and Close Combat's drops),
+ * `damage-lower` the target (Psychic, Crunch). Status moves go to whoever
+ * they target: Swords Dance and Shell Smash the user, Growl, Memento and
+ * Swagger the target. Anything unlabelled falls back to the sign.
+ */
+function statChangeTarget(move, change) {
+  const category = move.meta && move.meta.category;
+
+  if (move.damageClass !== 'status') {
+    if (category === 'damage-raise') return 'user';
+    if (category === 'damage-lower') return 'target';
+    return change.change < 0 ? 'target' : 'user';
+  }
+
+  if (move.target) return SELF_TARGETS.has(move.target) ? 'user' : 'target';
+  return change.change < 0 ? 'target' : 'user';
+}
+
 function normaliseAilment(ailment) {
   const map = { paralysis: 'paralysis', 'bad-poison': 'poison', poison: 'poison' };
   return map[ailment] || ailment;
@@ -1164,13 +1759,16 @@ function normaliseAilment(ailment) {
  * `actions` is one per side: `{type:'move', slot}` or `{type:'switch', index}`.
  * Returns the events produced; the state is mutated in place.
  */
-function resolveTurn(state, actions) {
+function resolveTurn(state, actions, options = {}) {
   if (state.finished) return [];
 
   const rng = rngFrom(`${state.seed}:${state.turn}`);
   const events = [];
 
   state.turn += 1;
+
+  // Which side used Explosion and the like this turn (see checkFinished).
+  state.selfFaintedSide = null;
   events.push({ kind: 'turn', turn: state.turn });
 
   // Roll the damage-taken window forward. Counter, Mirror Coat, Metal Burst
@@ -1188,10 +1786,104 @@ function resolveTurn(state, actions) {
   // next turn.
   const wereOut = state.sides.map((side) => activeOf(side));
 
-  for (const index of order(state, actions, rng)) {
+  // Encore: a Pokemon under it has to repeat its move, whatever was chosen.
+  actions = actions.map((action, index) => {
+    if (action.type !== 'move') return action;
+    const forced = cond.encoreSlot(activeOf(state.sides[index]));
+    return forced != null ? { ...action, slot: forced } : action;
+  });
+
+  cond.refreshSuppression(state);
+
+  // What each side chose, and who has had their go, for Sucker Punch.
+  const plans = state.sides.map((side, index) => {
+    const action = actions[index];
+    if (action.type !== 'move') return null;
+    const entry = activeOf(side).moves[action.slot];
+    return entry ? entry.data : null;
+  });
+  const moved = [false, false];
+
+  // Kept on the state so a turn can pause mid-way (a player choosing who
+  // comes in after their U-turn) and pick up again in continueTurn.
+  state.turnContext = {
+    rng,
+    actions,
+    plans,
+    moved,
+    wereOut,
+    queue: order(state, actions, rng),
+    choose: options.choose || null,
+    waitingFor: null,
+  };
+
+  return runActions(state, events);
+}
+
+/**
+ * Pick a paused turn back up once the player has chosen who comes in after
+ * their U-turn, Baton Pass, Teleport or the like.
+ *
+ * @returns {object[]} the events from the switch to the end of the turn
+ */
+function continueTurn(state, teamIndex) {
+  const t = state.turnContext;
+  if (!t || t.waitingFor == null) return [];
+
+  const sideIndex = t.waitingFor;
+  t.waitingFor = null;
+  state.awaitingSwitch = null;
+
+  const events = [];
+  sendOut(state, sideIndex, teamIndex, events);
+  return runActions(state, events);
+}
+
+/**
+ * Whoever used U-turn, Baton Pass, Teleport and the like goes out straight
+ * away, before the other side's move: so the foe's chosen attack lands on
+ * whatever came in, as in the games.
+ *
+ * @returns {boolean} true when the turn must pause for the player to choose
+ */
+function midTurnSwitch(state, index, events) {
+  const side = state.sides[index];
+  if (!side.pendingSwitch) return false;
+
+  if (activeOf(side).fainted || !benchOf(side).length || wipedOut(state.sides[1 - index])) {
+    side.pendingSwitch = null;
+    return false;
+  }
+
+  const t = state.turnContext;
+  const pick = t.choose ? t.choose(state, index) : benchOf(side)[0].index;
+
+  if (pick == null) {
+    t.waitingFor = index;
+    state.awaitingSwitch = index;
+    events.push({ kind: 'choose-switch', side: side.name, isPlayer: side.isPlayer });
+    return true;
+  }
+
+  sendOut(state, index, pick, events);
+  return false;
+}
+
+/** Work through the queued actions; stop early if a switch needs choosing. */
+function runActions(state, events) {
+  const t = state.turnContext;
+  const { rng, actions, plans, moved } = t;
+
+  while (t.queue.length) {
+    const index = t.queue.shift();
     const side = state.sides[index];
     const other = state.sides[1 - index];
     const action = actions[index];
+
+    // Whatever happens below (a switch, a flinch, a move), this side has now
+    // had its turn.
+    const foeMoved = moved[1 - index];
+    moved[index] = true;
 
     // A side that has been wiped out mid-turn does not get to act.
     if (wipedOut(side) || wipedOut(other)) break;
@@ -1203,40 +1895,20 @@ function resolveTurn(state, actions) {
       const leaving = activeOf(side);
 
       // A trapped Pokemon can't switch out (replacing a fainted one is still
-      // allowed).
-      if (leaving.trapped && !leaving.fainted) {
-        events.push({
-          kind: 'cannot-flee',
-          name: leaving.name,
-          source: leaving.trapped.move,
-        });
+      // allowed): Wrap and friends, Mean Look, Ingrain, Fairy Lock. Ghosts
+      // always can.
+      let blocker = null;
+      if (!leaving.fainted && !(leaving.types || []).some((t) => String(t).toLowerCase() === 'ghost')) {
+        const held = leaving.trapped ? leaving.trapped.move : cond.switchBlocked(state, leaving);
+        blocker = held && typeof held === 'object' ? held.source : held;
+      }
+
+      if (blocker) {
+        events.push({ kind: 'cannot-flee', name: leaving.name, source: blocker });
         continue;
       }
 
-      events.push({ kind: 'withdraw', name: leaving.name, side: side.name });
-
-      // Switch-out effects (Natural Cure, Regenerator), skipped for a fainted
-      // Pokemon.
-      if (!leaving.fainted) effects.onWithdraw(leaving, events);
-
-      // Stat stages reset on switching; status does not.
-      leaving.stages = freshStages();
-
-      // Volatiles (Leech Seed, Substitute, Protect chain) are cleared too.
-      clearVolatiles(leaving);
-
-      side.active = action.index;
-      target.participated = true;
-
-      // Reset the first-turn counter. The incoming Pokemon first acts next
-      // turn.
-      target.turnsActive = 0;
-
-      events.push({ kind: 'send-out', name: target.name, side: side.name });
-
-      // Intimidate, on the way in.
-      effects.onSendOut(target, activeOf(other), events);
-      settleEffects(events);
+      swapIn(state, index, action.index, events);
       continue;
     }
 
@@ -1244,10 +1916,47 @@ function resolveTurn(state, actions) {
     const defender = activeOf(other);
 
     if (attacker.fainted) continue;
-    if (!canAct(attacker, rng, events)) continue;
+    if (!canAct(attacker, rng, events, defender, plans[index])) continue;
 
-    useMove(attacker, defender, action.slot, rng, events, state.field);
+    useMove(attacker, defender, action.slot, rng, events, state.field, {
+      state,
+      index,
+      foeMove: plans[1 - index],
+      foeMoved,
+    });
+
+    // Roar or Teleport ended a wild battle.
+    if (state.fled) break;
+
+    // Explosion, Self-Destruct, Misty Explosion, Memento and Final Gambit: the
+    // user faints once the move has gone off, whether it hit, missed or was
+    // blocked. useMove sets the flag only when one of them was actually used
+    // (not Struggle, and not stopped by Damp).
+    if (attacker.selfDestructing) {
+      attacker.selfDestructing = false;
+      state.selfFaintedSide = index;
+
+      if (!attacker.fainted) {
+        attacker.hp = 0;
+        attacker.fainted = true;
+        events.push({ kind: 'faint', name: attacker.name });
+      }
+    }
+
+    // U-turn, Baton Pass and the rest: out now, before the foe moves.
+    if (midTurnSwitch(state, index, events)) return events;
   }
+
+  return endTurn(state, events);
+}
+
+/** Everything after both sides have acted: end-of-turn effects, then the result. */
+function endTurn(state, events) {
+  const { rng, wereOut } = state.turnContext;
+  state.turnContext = null;
+
+  // A wild battle ended by Roar, Whirlwind or Teleport: nothing else happens.
+  if (state.fled) return events;
 
   // A flinch only stops a Pokemon that has not moved yet this turn. One from
   // a slower attacker lands after its target has already acted, so it must
@@ -1320,6 +2029,14 @@ function resolveTurn(state, actions) {
     }
   }
 
+  // Conditions: Wish, Aqua Ring, Ingrain, Grassy Terrain, Nightmare, Curse,
+  // Yawn, Perish Song, then every timer (Utils/conditions.js).
+  cond.endOfTurn(state, events, rng, {
+    applyStatus: (target, status, evts, r) => applyStatus(target, status, evts, r),
+    chip: effects.chip,
+  });
+  settleEffects(events);
+
   // Count the weather down last, reporting turns remaining.
   if (state.field.weather) {
     state.field.weatherTurns -= 1;
@@ -1351,10 +2068,16 @@ function resolveTurn(state, actions) {
     if (mon) mon.turnsActive = (mon.turnsActive || 0) + 1;
   }
 
-  // Report fainted Pokemon that need replacing; the caller handles it.
+  // Report fainted Pokemon that need replacing, and Baton Pass, U-turn and
+  // the like that are waiting to switch out; the caller picks who comes in
+  // and calls sendOut.
   for (const side of state.sides) {
     if (activeOf(side).fainted && !wipedOut(side)) {
       events.push({ kind: 'must-switch', side: side.name, isPlayer: side.isPlayer });
+    } else if (side.pendingSwitch && benchOf(side).length) {
+      events.push({ kind: 'must-switch', side: side.name, isPlayer: side.isPlayer, voluntary: true });
+    } else {
+      side.pendingSwitch = null;
     }
   }
 
@@ -1374,25 +2097,29 @@ function sendOut(state, sideIndex, teamIndex, extra = []) {
 
   if (!target || target.fainted) return null;
 
-  side.active = teamIndex;
-  target.participated = true;
+  // A pending Baton Pass, Shed Tail or U-turn decides what carries over.
+  const pending = side.pendingSwitch || null;
+  side.pendingSwitch = null;
 
-  // Reset the first-turn counter and volatiles for the replacement.
-  target.turnsActive = 0;
-  clearVolatiles(target);
-
-  effects.onSendOut(target, activeOf(state.sides[1 - sideIndex]), extra);
-  settleEffects(extra);
-
-  return { kind: 'send-out', name: target.name, side: side.name };
+  // Everything (the withdrawal, the send-out, hazards, Intimidate) goes into
+  // `extra`, in order. The return value is only a marker that it happened.
+  if (!swapIn(state, sideIndex, teamIndex, extra, activeOf(side).fainted ? null : pending)) return null;
+  return { kind: 'switched', name: target.name, side: side.name };
 }
 
 function checkFinished(state, events) {
   const [player, opponent] = state.sides;
 
+  // Already over: Roar or Teleport ended a wild battle.
+  if (state.fled) return;
+
   if (wipedOut(player) || wipedOut(opponent)) {
     state.finished = true;
     state.winner = wipedOut(player) ? (wipedOut(opponent) ? null : 1) : 0;
+
+    // Both out, and one of them blew itself up to do it: that side loses,
+    // as in the games.
+    if (state.winner === null && state.selfFaintedSide != null) state.winner = 1 - state.selfFaintedSide;
 
     events.push({
       kind: 'end',
@@ -1509,5 +2236,9 @@ module.exports = {
   useMove,
   resolveTurn,
   sendOut,
+  swapIn,
+  checkFinished,
+  continueTurn,
+  performMove,
   chooseMove,
 };

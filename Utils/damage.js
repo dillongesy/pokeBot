@@ -131,13 +131,18 @@ function calculate({
   critMultiplier = 1,
   power = null,
   type = null,
+  effectiveness: effectivenessOverride = null,
 }) {
   // Some damaging moves have no power in the data (Seismic Toss, Low Kick,
   // Flail, Gyro Ball). Utils/movepower.js calculates it and passes it in.
   const usedPower = power || move.power;
   const usedType = type || move.type;
 
-  const effectiveness = typechart.effectiveness(usedType, defender.types);
+  // The caller can pass effectiveness worked out with battle conditions
+  // (Foresight, Miracle Eye, Gravity; see Utils/conditions.js).
+  const effectiveness = effectivenessOverride != null
+    ? effectivenessOverride
+    : typechart.effectiveness(usedType, defender.types);
 
   // Status moves and immunities do nothing. Return early so the formula's +2
   // can't turn an immunity into damage.

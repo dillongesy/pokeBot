@@ -918,11 +918,16 @@ function suggestedTeam(userId, limit = 12) {
  * Evolutions and new moves are not handled here; they are worked out once at
  * the end of the battle (see awardBattle).
  *
+ * Experience stops at the obedience limit (cap + MAX_OVER_CAP): battling can
+ * take a Pokemon to the edge of it and no further. `exp` in the result is
+ * what was actually added, so a Pokemon at the limit reports 0.
+ *
  * @param {string} userId
  * @param {Array<{id, exp, evs}>} entries  from rewards.forKnockout
+ * @param {number|null} cap  the trainer's obedience cap; null means no limit
  * @returns {Array} one row per Pokemon that actually gained something
  */
-function awardKnockout(userId, entries) {
+function awardKnockout(userId, entries, cap = null) {
   const handle = db.open();
   const paid = [];
 
@@ -934,8 +939,10 @@ function awardKnockout(userId, entries) {
       // Skip opponents (negative ids) and missing rows.
       if (!row || row.id < 0) continue;
 
+      const ceiling = cap == null ? null : obedience.ceilingFor(row, cap);
+
       const changes = {
-        ...rewards.expChanges(row, entry.exp),
+        ...rewards.expChanges(row, entry.exp, ceiling),
         ...rewards.evChanges(row, entry.evs),
       };
 
@@ -947,7 +954,8 @@ function awardKnockout(userId, entries) {
       paid.push({
         id: row.id,
         name: row.nickname || row.display_name,
-        exp: entry.exp,
+        exp: Math.max(0, (after.exp || 0) - (row.exp || 0)),
+        atLimit: ceiling != null && after.level >= ceiling,
         level: after.level,
         levelledFrom: after.level > before ? before : null,
       });

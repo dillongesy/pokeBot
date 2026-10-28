@@ -3,15 +3,17 @@
 /**
  * .help - what the bot does and how to ask it.
  *
- * One group of commands per page. Each line shows the command, a short
- * description and its shortest aliases. `.help <command>` shows one command
- * with all of its aliases.
+ * An overview, then a menu with one entry per group of commands
+ * (Utils/menu.js). Each line shows the command, a short description and its
+ * shortest aliases. `.help <command>` shows one command with all of its
+ * aliases.
  */
 
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const rates = require('../Utils/rates');
 const pager = require('../Utils/pager');
+const menu = require('../Utils/menu');
 const { loadCommands } = require('../Utils/commands');
 const admin = require('../Utils/admin');
 
@@ -203,10 +205,8 @@ function buildPaged(userId) {
             'used to be there.',
         })
         .addFields({
-          name: 'What is on the other pages',
-          value: GROUPS.map(
-            (group, i) => `\`${i + 1}\`  ${group.name} - ${group.commands.length} commands`
-          ).join('\n'),
+          name: 'Pick a group from the menu below',
+          value: groups.map((group) => `${group.name} - ${group.commands.length} commands`).join('\n'),
         });
     } else {
       const group = groups[index - 1];
@@ -217,15 +217,43 @@ function buildPaged(userId) {
     }
 
     embed.setFooter({
-      text:
-        `Page ${index + 1}/${pages}. Everything works as a slash command too, ` +
-        'and .help <command> shows one in detail.',
+      text: 'Everything works as a slash command too, and .help <command> shows one in detail.',
     });
 
     return embed;
   };
 
   return { pages, page: 0, render };
+}
+
+/**
+ * Help as a menu (Utils/menu.js): the overview first, then a dropdown with
+ * one entry per command group.
+ */
+function buildMenu(userId) {
+  const groups = groupsFor(userId);
+  const { render } = buildPaged(userId);
+
+  return {
+    home: { label: 'Overview', emoji: '📖', description: 'How the bot works.', render: () => render(0) },
+    sections: groups.map((group, i) => {
+      // Group names start with their emoji: "🎯 Catching".
+      const [emoji, ...words] = group.name.split(' ');
+      const commands = [...new Set(
+        group.commands.map((c) => c.usage.split(' ')[0]).filter((usage) => usage.startsWith('.'))
+      )].join(' ');
+
+      return {
+        id: `group-${i}`,
+        label: words.join(' '),
+        emoji,
+        description: commands,
+        pages: 1,
+        render: () => render(i + 1),
+      };
+    }),
+    placeholder: 'Pick a group of commands',
+  };
 }
 
 /** The full help as a single embed. */
@@ -285,13 +313,10 @@ module.exports = {
       return;
     }
 
-    const built = buildPaged(interaction.user.id);
-    await pager.sendPaged({
+    await menu.sendMenu({
       send: pager.interactionSender(interaction),
-      pages: built.pages,
-      page: built.page,
-      render: built.render,
       userId: interaction.user.id,
+      ...buildMenu(interaction.user.id),
     });
   },
 
@@ -301,18 +326,16 @@ module.exports = {
       return;
     }
 
-    const built = buildPaged(message.author.id);
-    await pager.sendPaged({
+    await menu.sendMenu({
       send: (payload) => message.channel.send(payload),
-      pages: built.pages,
-      page: built.page,
-      render: built.render,
       userId: message.author.id,
+      ...buildMenu(message.author.id),
     });
   },
 
   buildHelp,
   buildPaged,
+  buildMenu,
   buildCommandHelp,
   commandLine,
   aliasesFor,

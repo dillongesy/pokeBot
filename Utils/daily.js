@@ -148,18 +148,18 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 'es'}`;
 function giveBattleReward(handle, userId) {
   if (Math.random() < rates.daily.rareCandyChance) {
     giveItem(handle, userId, RARE_CANDY);
-    return `a **${nameOf(RARE_CANDY)}**`;
+    return `a ${nameOf(RARE_CANDY)}`;
   }
 
   const tms = machines.all({ teachableOnly: true }).filter((tm) => content.item(tm.slug));
   if (!tms.length) {
     giveItem(handle, userId, RARE_CANDY);
-    return `a **${nameOf(RARE_CANDY)}**`;
+    return `a ${nameOf(RARE_CANDY)}`;
   }
 
   const tm = tms[Math.floor(Math.random() * tms.length)];
   giveItem(handle, userId, tm.slug);
-  return `**${tm.displayName}**`;
+  return `${tm.displayName}`;
 }
 
 /** The bonus, if this completion made it three of three. */
@@ -176,7 +176,7 @@ function maybeBonus(handle, userId, row) {
   const n = rates.daily.bonusLootboxes;
   giveItem(handle, userId, lootbox.LOOTBOX, n);
 
-  return `🎉 **${needsVote ? 'All three' : 'Both'} daily quests done!** You got **${plural(n, 'Lootbox')}**.`;
+  return `🎉 **${needsVote ? 'All three' : 'Both'} daily quests done!** You got ${plural(n, 'Lootbox')}.`;
 }
 
 /**
@@ -233,7 +233,7 @@ function recordCatch(userId, at = Date.now()) {
     if (!done) return null;
 
     giveCoins(handle, userId, rates.daily.catchCoins);
-    return `✅ **Daily quest done:** caught ${row.catch_target}. You got **${rates.daily.catchCoins}** coins.`;
+    return `✅ **Daily quest done!** You caught ${row.catch_target} Pokemon and got ${rates.daily.catchCoins} coins.`;
   }, at);
 }
 
@@ -252,7 +252,7 @@ function recordWin(userId, at = Date.now()) {
     if (!done) return null;
 
     const prize = giveBattleReward(handle, userId);
-    return `✅ **Daily quest done:** won ${row.battle_target} battles. You got ${prize}.`;
+    return `✅ **Daily quest done!** You won ${row.battle_target} battles and got ${prize}.`;
   }, at);
 }
 
@@ -287,7 +287,7 @@ function recordVote(userId, votedAt, at = Date.now()) {
 
     const n = rates.daily.voteLootboxes;
     giveItem(handle, userId, lootbox.LOOTBOX, n);
-    return `✅ **Daily quest done:** thanks for voting! You got **${plural(n, 'Lootbox')}**.`;
+    return `✅ **Daily quest done!** Thanks for voting. You got ${plural(n, 'Lootbox')}.`;
   }, at);
 }
 

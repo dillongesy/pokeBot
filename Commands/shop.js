@@ -6,10 +6,13 @@
  * Two shops share this command. The coin shop sells items from Data/Items; the
  * gold shop sells buffs, paid for with gold earned from quests.
  *
- *   .shop                  the coin shop, one section per page
- *   .shop gold             the gold shop
- *   .shop <section>        opens on that section's page (e.g. .shop mega)
+ *   .shop                  an overview, with a menu of every section
+ *   .shop gold             opens on the gold shop
+ *   .shop <section>        opens on that section (e.g. .shop mega)
  *   .shop <pokemonName>    everything that does something to that species
+ *
+ * The menu (Utils/menu.js) has a dropdown to jump between sections and page
+ * buttons within one.
  *
  * The species view is derived from the evolution and Mega data, so it stays in
  * sync with the shop automatically.
@@ -20,6 +23,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const store = require('../Utils/store');
 const content = require('../Utils/content');
 const pager = require('../Utils/pager');
+const menu = require('../Utils/menu');
 const { describeItem } = require('./examine');
 const names = require('../Utils/names');
 const evolution = require('../Utils/evolution');
@@ -33,6 +37,19 @@ const duration = (hours) => (hours == null ? 'permanent' : `${hours}h`);
 
 /** Maximum length of an item's effect line. */
 const EFFECT_CHARS = 96;
+
+/**
+ * Shorten text that may contain `code`, never leaving a code span open.
+ *
+ * A cut inside "`.take`" leaves a stray backtick that swallows the formatting
+ * of everything after it on the page, so cut before the half-open span.
+ */
+function clipMarkdown(text, limit) {
+  const cut = clip(text, limit);
+  if ((cut.match(/`/g) || []).length % 2 === 0) return cut;
+
+  return `${cut.slice(0, cut.lastIndexOf('`')).trimEnd()}…`;
+}
 
 /**
  * One shop item. The price is right-aligned in a code span so prices line up,
@@ -57,7 +74,7 @@ function itemLine(entry, width, coins) {
   // Use PokeAPI's short effect where available; otherwise fall back to the
   // .examine description (Mega Stones have no PokeAPI text).
   const blurb = (item && item.shortEffect) || describeItem(entry.item);
-  const effect = blurb ? clip(blurb, EFFECT_CHARS) : null;
+  const effect = blurb ? clipMarkdown(blurb, EFFECT_CHARS) : null;
 
   return (
     `${shown} ${affordable ? '**' + name + '**' : name}\n` +
@@ -69,69 +86,159 @@ function itemLine(entry, width, coins) {
  * How many items fit on one page.
  *
  * Discord allows 4,096 characters in a description and an item takes about
- * 110, so twelve leaves headroom. Long sections are split across pages too.
+ * 110. Ten keeps a page short enough to scan.
  */
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 10;
+
+/** A picture for each section in the dropdown. Sections not listed get none. */
+const SECTION_EMOJI = {
+  'Mega Stones': '💎',
+  'Repels & Incenses': '🌿',
+  'Form Change': '🔄',
+  'Evolution Items': '🌟',
+  'Special Evolution': '✨',
+  'Held Gear': '🪨',
+  'Trade Items': '🤝',
+  Training: '💪',
+  'Held Items': '🎒',
+  'Type Boosters': '🔥',
+  Berries: '🍓',
+  TMs: '💿',
+};
+
+const GOLD = 'gold';
+
+/** The most TMs of one type on a page; Normal and Psychic run over. */
+const TMS_PER_PAGE = 25;
 
 /**
- * The coin shop, paged.
+ * A section split into pages: `{ items, label }` each.
  *
- * A page never spans two sections. Returns the pager's shape, like .party,
- * .bag and .help.
+ * TMs get a page per type (split where a type is too long), labelled so the
+ * menu can offer a jump-to-type dropdown. Everything else is cut into
+ * PAGE_SIZE pieces with no labels.
  */
-function buildShop(user) {
-  const sections = (content.shop().sections || []).filter((s) => (s.items || []).length);
-  const balance = store.getUser(user.id);
-  const coins = balance ? balance.coins : 0;
+function pagesOf(section) {
+  const items = section.items || [];
 
-  // Flatten to pages up front, so the pager only ever deals in page numbers.
-  const pageList = [];
+  if (section.name !== 'TMs') {
+    const pages = [];
+    for (let i = 0; i < Math.max(1, items.length); i += PAGE_SIZE) {
+      pages.push({ items: items.slice(i, i + PAGE_SIZE), label: null });
+    }
+    return pages;
+  }
 
-  for (const section of sections) {
-    const items = section.items || [];
-    const of = Math.ceil(items.length / PAGE_SIZE);
+  const byType = new Map();
+  for (const entry of items) {
+    const move = content.move(entry.item.replace(/^tm-/, ''));
+    const type = move ? titleCase(move.type) : 'Other';
+    if (!byType.has(type)) byType.set(type, []);
+    byType.get(type).push(entry);
+  }
 
-    for (let i = 0; i < of; i += 1) {
-      pageList.push({
-        section,
-        items: items.slice(i * PAGE_SIZE, (i + 1) * PAGE_SIZE),
-        part: i + 1,
-        of,
+  const pages = [];
+  for (const [type, list] of [...byType].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const parts = Math.ceil(list.length / TMS_PER_PAGE);
+    for (let i = 0; i < parts; i += 1) {
+      pages.push({
+        items: list.slice(i * TMS_PER_PAGE, (i + 1) * TMS_PER_PAGE),
+        label: parts > 1 ? `${type} (${i + 1}/${parts})` : type,
       });
     }
   }
+  return pages;
+}
 
-  const pages = Math.max(1, pageList.length);
+/** Section ids for the menu: the name, lowercased and dashed. */
+const sectionId = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
-  const render = (index) => {
-    const page = pageList[Math.min(index, pageList.length - 1)];
-    const { section, items } = page;
+/** A section description as plain text for the dropdown (no markdown). */
+const plain = (text) => String(text || '').replace(/[`*_]/g, '');
 
-    // Size the price column per page.
-    const width = Math.max(...items.map((e) => money(e.price).length));
+/**
+ * The coin shop and gold shop as a menu: an overview, a dropdown of sections
+ * and page buttons within each (see Utils/menu.js).
+ *
+ * @param {string|null} startSection  a coin shop section name, or 'gold'
+ */
+function buildShop(user, startSection = null) {
+  const shopSections = (content.shop().sections || []).filter((s) => (s.items || []).length);
+  const balance = store.getUser(user.id);
+  const coins = balance ? balance.coins : 0;
 
-    const whole = section.items || [];
-    const affordable = whole.filter((e) => coins >= e.price).length;
+  const sections = shopSections.map((section) => {
+    const items = section.items || [];
+    const chunks = pagesOf(section);
+    const affordable = items.filter((e) => coins >= e.price).length;
 
-    return new EmbedBuilder()
-      .setTitle(page.of > 1 ? `${section.name}  (${page.part}/${page.of})` : section.name)
-      .setColor(0xf7d02c)
-      .setDescription(
-        // Show the section blurb on its first page only.
-        (section.description && page.part === 1 ? `*${section.description}*\n\n` : '') +
-          items.map((entry) => itemLine(entry, width, coins)).join('\n\n')
-      )
-      .setFooter({
-        text:
-          `${money(coins)} coins, ${affordable} of ${whole.length} affordable in ` +
-          `${section.name}. Page ${index + 1}/${pages}`,
-      });
+    return {
+      id: sectionId(section.name),
+      label: section.name,
+      emoji: SECTION_EMOJI[section.name],
+      description: `${items.length} item${items.length === 1 ? '' : 's'}` +
+        (section.description ? `. ${plain(section.description)}` : ''),
+      pages: chunks.length,
+      pageLabels: chunks.every((c) => c.label) ? chunks.map((c) => c.label) : null,
+      render: (page) => {
+        const { items: slice, label } = chunks[page];
+
+        // Size the price column per page.
+        const width = Math.max(...slice.map((e) => money(e.price).length));
+
+        return new EmbedBuilder()
+          .setTitle(
+            `${SECTION_EMOJI[section.name] ? `${SECTION_EMOJI[section.name]} ` : ''}${section.name}` +
+              (label ? `: ${label}` : '')
+          )
+          .setColor(0xf7d02c)
+          .setDescription(
+            // The section blurb on its first page only.
+            (section.description && page === 0 ? `*${section.description}*\n\n` : '') +
+              slice.map((entry) => itemLine(entry, width, coins)).join('\n\n')
+          )
+          .setFooter({
+            text: `You have ${money(coins)} coins. ${affordable} of ${items.length} here are affordable.`,
+          });
+      },
+    };
+  });
+
+  sections.push({
+    id: GOLD,
+    label: 'Gold Shop',
+    emoji: '🪙',
+    description: 'Permanent buffs, bought with gold from quests.',
+    pages: 1,
+    render: () => buildGoldShop(user).embeds[0],
+  });
+
+  const home = {
+    label: 'Overview',
+    emoji: '🏪',
+    description: 'Your coins and every section.',
+    render: () =>
+      new EmbedBuilder()
+        .setTitle('🏪 Shop')
+        .setColor(0xf7d02c)
+        .setDescription(
+          `You have **${money(coins)}** coins and **${money(balance ? balance.gold : 0)}** gold.\n\n` +
+            'Pick a section from the menu below. Buy with `.buy <item>`, and use ' +
+            '`.shop <pokemon>` to see everything that works on one species.'
+        )
+        .addFields({
+          name: 'Sections',
+          value: fitLines(
+            shopSections.map(
+              (s) => `${SECTION_EMOJI[s.name] || '•'} **${s.name}** - ${s.items.length} item${s.items.length === 1 ? '' : 's'}`
+            ).concat('🪙 **Gold Shop** - buffs for quest gold')
+          ),
+        }),
   };
 
-  /** The page a section starts on, for ".shop mega". */
-  const startOf = (name) => Math.max(0, pageList.findIndex((p) => p.section.name === name));
+  const start = startSection === GOLD ? GOLD : startSection ? sectionId(startSection) : null;
 
-  return { pages, page: 0, render, sections, startOf };
+  return { menu: { sections, home, start, placeholder: 'Browse a section' } };
 }
 
 /** The gold shop. Each buff gets its own line, since they need explaining. */
@@ -173,14 +280,13 @@ function findSection(query) {
 }
 
 /**
- * The coin shop, opened on a named section's first page.
+ * The shop menu, opened on a named section.
  */
 function buildSection(user, query) {
   const section = findSection(query);
   if (!section) return null;
 
-  const built = buildShop(user);
-  return { ...built, page: built.startOf(section.name) };
+  return buildShop(user, section.name);
 }
 
 // ---------------------------------------------------------------------------
@@ -320,19 +426,13 @@ function buildForSpecies(user, species) {
 }
 
 /**
- * Post whatever render() returned. The coin shop is paged; everything else is
- * a single embed.
+ * Post whatever render() returned. The shop is a menu; a species view or an
+ * error is a single message.
  */
 async function post(send, userId, built) {
   if (built.content || built.embeds) return send(built);
 
-  return pager.sendPaged({
-    send,
-    pages: built.pages,
-    page: built.page,
-    render: built.render,
-    userId,
-  });
+  return menu.sendMenu({ send, userId, ...built.menu });
 }
 
 /**
@@ -344,7 +444,7 @@ function render(user, args) {
   const first = (args[0] || '').toLowerCase();
 
   if (!query) return buildShop(user);
-  if (first === 'gold' || first === 'goldshop') return buildGoldShop(user);
+  if (first === 'gold' || first === 'goldshop') return buildShop(user, GOLD);
 
   const section = buildSection(user, query);
   if (section) return section;

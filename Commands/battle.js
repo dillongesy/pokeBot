@@ -49,6 +49,8 @@ const partylock = require('../Utils/partylock');
 const moveprompt = require('../Utils/moveprompt');
 const livebuttons = require('../Utils/livebuttons');
 const daily = require('../Utils/daily');
+const ai = require('../Utils/ai');
+const cond = require('../Utils/conditions');
 const obedience = require('../Utils/obedience');
 const drop = require('./drop');
 
@@ -135,6 +137,184 @@ function moveLabel(entry, attacker, defender) {
 
   // Discord limits button labels to 80 characters.
   return `${entry.data.displayName}${power ? ` (${power})` : ''} ${pp} PP`.slice(0, 80);
+}
+
+/** What starting each condition says, in the games' words. */
+const VOLATILE_START = {
+  taunt: (n) => `${n} fell for the taunt!`,
+  torment: (n) => `${n} was subjected to torment!`,
+  embargo: (n) => `${n} can't use items anymore!`,
+  healBlock: (n) => `${n} was prevented from healing!`,
+  gastroAcid: (n) => `${n}'s Ability was suppressed!`,
+  foresight: (n) => `${n} was identified!`,
+  miracleEye: (n) => `${n} was identified!`,
+  telekinesis: (n) => `${n} was hurled into the air!`,
+  nightmare: (n) => `${n} began having a nightmare!`,
+  yawn: (n) => `${n} grew drowsy!`,
+  octolock: (n) => `${n} can't escape the Octolock!`,
+  attract: (n) => `💕 ${n} fell in love!`,
+  encore: (n) => `${n} must do an encore!`,
+  powder: (n) => `${n} is covered in powder!`,
+  electrify: (n) => `${n}'s moves have been electrified!`,
+  focusEnergy: (n) => `${n} is getting pumped!`,
+  laserFocus: (n) => `${n} concentrated intensely!`,
+  magnetRise: (n) => `${n} levitated with electromagnetism!`,
+  imprison: (n) => `${n} sealed any moves its target shares with it!`,
+  magicCoat: (n) => `${n} shrouded itself with Magic Coat!`,
+  snatch: (n) => `${n} waits for a target to make a move!`,
+  charge: (n) => `${n} began charging power!`,
+  destinyBond: (n) => `${n} is hoping to take its attacker down with it!`,
+  grudge: (n) => `${n} wants its target to bear a grudge!`,
+  endure: (n) => `${n} braced itself!`,
+  aquaRing: (n) => `${n} surrounded itself with a veil of water!`,
+  ingrain: (n) => `${n} planted its roots!`,
+};
+
+const VOLATILE_END = {
+  taunt: (n) => `${n} shook off the taunt!`,
+  encore: (n) => `${n}'s encore ended!`,
+  disable: (n) => `${n}'s move is no longer disabled!`,
+  magnetRise: (n) => `${n}'s electromagnetism wore off!`,
+  telekinesis: (n) => `${n} was freed from the telekinesis!`,
+  embargo: (n) => `${n} can use items again!`,
+  healBlock: (n) => `${n}'s Heal Block wore off!`,
+};
+
+const SIDE_START = {
+  reflect: (s) => `🛡️ Reflect made ${s}'s team stronger against physical moves!`,
+  lightScreen: (s) => `🛡️ Light Screen made ${s}'s team stronger against special moves!`,
+  auroraVeil: (s) => `🛡️ Aurora Veil made ${s}'s team stronger against physical and special moves!`,
+  safeguard: (s) => `${s}'s team cloaked itself in a mystical veil!`,
+  mist: (s) => `${s}'s team became shrouded in mist!`,
+  tailwind: (s) => `💨 The Tailwind blew from behind ${s}'s team!`,
+  luckyChant: (s) => `Lucky Chant shielded ${s}'s team from critical hits!`,
+};
+
+const SIDE_END = {
+  reflect: 'Reflect', lightScreen: 'Light Screen', auroraVeil: 'Aurora Veil', safeguard: 'Safeguard',
+  mist: 'mist', tailwind: 'Tailwind', luckyChant: 'Lucky Chant',
+};
+
+const FIELD_START = {
+  trickRoom: 'twisted the dimensions!',
+  magicRoom: 'created a bizarre area in which held items lose their effects!',
+  wonderRoom: 'created a bizarre area in which Defense and Sp. Def stats are swapped!',
+  gravity: 'Gravity intensified!',
+  mudSport: "Electricity's power was weakened!",
+  waterSport: "Fire's power was weakened!",
+  fairyLock: 'No one will be able to run away during the next turn!',
+  ionDeluge: 'A deluge of ions showers the battlefield!',
+};
+
+const FIELD_END = {
+  trickRoom: 'The twisted dimensions returned to normal!',
+  magicRoom: 'Magic Room wore off, and held items regained their effects!',
+  wonderRoom: 'Wonder Room wore off, and Defense and Sp. Def returned to normal!',
+  gravity: 'Gravity returned to normal!',
+  mudSport: 'The effects of Mud Sport have faded.',
+  waterSport: 'The effects of Water Sport have faded.',
+};
+
+const RESTRICTED = {
+  taunt: (n, m) => `${n} can't use ${m} after the taunt!`,
+  disable: (n, m) => `${n}'s ${m} is disabled!`,
+  torment: (n) => `${n} can't use the same move twice in a row due to the torment!`,
+  'heal-block': (n, m) => `${n} can't use ${m} because of Heal Block!`,
+  gravity: (n, m) => `${n} can't use ${m} because of gravity!`,
+  imprison: (n, m) => `${n} can't use its sealed ${m}!`,
+};
+
+/** The log line for a condition or status-move event, or null. */
+function conditionLine(event) {
+  const n = event.name;
+  switch (event.kind) {
+    case 'confused': return `😵 **${n}** became confused!`;
+    case 'confusion-turn': return `${n} is confused!`;
+    case 'confusion-hit': return `It hurt itself in its confusion! **-${event.damage}**`;
+    case 'confusion-end': return `${n} snapped out of its confusion!`;
+    case 'confusion-cured': return `${n}'s ${event.source} snapped it out of its confusion!`;
+    case 'already': return `${n} is already ${event.what}!`;
+    case 'protected-by': return `${n} is protected by ${event.by}!`;
+    case 'in-love': return `${n} is in love with ${event.with}!`;
+    case 'immobilized-by-love': return `${n} is immobilized by love!`;
+    case 'restricted': return (RESTRICTED[event.reason] || ((x, m) => `${x} can't use ${m}!`))(n, event.move);
+    case 'volatile-start':
+      return (VOLATILE_START[event.what] || ((x) => `${x} is under ${event.label}!`))(n) +
+        (event.source ? ` (${event.source})` : '');
+    case 'choose-switch': return event.isPlayer ? '**Who will you send in?**' : null;
+    case 'condition-end': return VOLATILE_END[event.what] ? VOLATILE_END[event.what](n) : null;
+    case 'side-start': return (SIDE_START[event.what] || ((s) => `${event.label} took effect for ${s}'s team!`))(event.side);
+    case 'side-end': return `${event.side}'s ${SIDE_END[event.what] || event.what} wore off!`;
+    case 'guard-up': return `${event.label} protected ${n}'s team!`;
+    case 'guarded': return `${n} was protected by ${event.by}!`;
+    case 'hazard-set':
+      return {
+        Spikes: `Spikes were scattered around ${event.side}'s feet!`,
+        'Toxic Spikes': `Poison spikes were scattered around ${event.side}'s feet!`,
+        'pointed stones': `🪨 Pointed stones float in the air around ${event.side}'s team!`,
+        'a sticky web': `A sticky web has been laid out beneath ${event.side}'s team!`,
+      }[event.what] || `${event.what} surround ${event.side}'s team!`;
+    case 'hazard-damage':
+      return event.source === 'Stealth Rock'
+        ? `Pointed stones dug into ${n}! **-${event.amount}**`
+        : `${n} was hurt by the spikes! **-${event.amount}**`;
+    case 'hazard-cleared': return `${n} absorbed the ${event.what}!`;
+    case 'sticky-web': return `${n} was caught in a sticky web!`;
+    case 'court-change': return `${n} swapped the battle effects affecting each side of the field!`;
+    case 'field-start':
+      return event.what === 'trickRoom' || event.what === 'magicRoom' || event.what === 'wonderRoom'
+        ? `${n} ${FIELD_START[event.what]}`
+        : FIELD_START[event.what] || `${event.label} took effect!`;
+    case 'field-end': return FIELD_END[event.what] || null;
+    case 'terrain-start': return `🌱 **${event.text}**`;
+    case 'terrain-end': return event.text;
+    case 'wish-made': return `🌠 ${n} made a wish!`;
+    case 'wish': return `${event.from}'s wish came true! ${n} restored health. **+${event.amount}**`;
+    case 'healing-wish': return `The ${event.lunar ? 'lunar dance' : 'healing wish'} came true for ${n}!`;
+    case 'revived': return `${n} was revived and is ready to fight again!`;
+    case 'condition-heal': return `${n} restored health with ${event.source}. **+${event.amount}**`;
+    case 'condition-damage': return `${n} is afflicted by the ${event.source}! **-${event.amount}**`;
+    case 'disabled': return `${n}'s ${event.move} was disabled!`;
+    case 'spite': return `It reduced the PP of ${n}'s ${event.move} by ${event.amount}!`;
+    case 'perish-song': return '🎵 All Pokemon that hear the song will faint in three turns!';
+    case 'perish': return `${n}'s perish count fell to ${event.count}.`;
+    case 'cursed': return `${event.by} cut its own HP and put a curse on ${n}! **-${event.cost}**`;
+    case 'destiny-bond': return `${n} took its attacker down with it!`;
+    case 'grudge': return `${n}'s ${event.move} lost all its PP due to the grudge!`;
+    case 'lock-on': return `${n} took aim at ${event.target}!`;
+    case 'haze': return 'All stat changes were eliminated!';
+    case 'psych-up': return `${n} copied ${event.target}'s stat changes!`;
+    case 'swapped': return `${n} switched its ${event.what} with ${event.target}!`;
+    case 'split': return `${n} shared its ${event.what} with ${event.target}!`;
+    case 'power-trick': return `${n} switched its stats around!`;
+    case 'topsy-turvy': return `All stat changes on ${n} were inverted!`;
+    case 'belly-drum': return `${n} cut its own HP and maximized its Attack! **-${event.cost}**`;
+    case 'pain-split': return 'The battlers shared their pain!';
+    case 'retyped': return `${n} transformed into the ${event.types.map((t) => titleCase(t)).join('/')} type!`;
+    case 'ability-changed': return `${n} acquired ${event.ability}!`;
+    case 'skill-swap': return `${n} swapped Abilities with its target!`;
+    case 'transformed': return `${n} transformed into ${event.target}!`;
+    case 'item-swap': return `${n} switched items with its target!`;
+    case 'item-given': return `${event.target} received ${event.item} from ${n}!`;
+    case 'item-recycled': return `${n} found one ${event.item}!`;
+    case 'item-lost': return `${n}'s ${event.item} was corroded away!`;
+    case 'shed-tail': return `${n} shed its tail to create a decoy! **-${event.cost}**`;
+    case 'dragged-out': return `${n} was dragged out!`;
+    case 'blown-away': return `💨 ${n} was blown away!`;
+    case 'teleported': return `${n} teleported away!`;
+    case 'learned-move': return `${n} learned ${event.move}!`;
+    case 'after-you': return `${n} took the kind offer!`;
+    case 'quash': return `${n}'s move was postponed!`;
+    case 'defog': return `${n} blew away the hazards and screens!`;
+    case 'tidy-up': return 'Tidying up complete!';
+    case 'spun-free': return `${n} blew away the hazards around it!`;
+    case 'snatched': return `${n} snatched ${event.move}!`;
+    case 'bounced': return `${n} bounced the ${event.move} back!`;
+    case 'powder-blast': return `When the flame touched the powder on ${n}, it exploded!`;
+    case 'screens-broken': return `${event.side}'s screens shattered!`;
+    case 'cant-escape': return `${n} can no longer escape!`;
+    default: return null;
+  }
 }
 
 /** Turn the engine's events into something readable, dropping the noise. */
@@ -246,7 +426,12 @@ function narrate(events) {
         lines.push(`${event.name}'s ${event.by} kept it from being ${event.status}ed.`);
         break;
 
-      default: break;
+      // Conditions and status moves (Utils/conditions.js, Utils/statusmoves.js).
+      default: {
+        const line = conditionLine(event);
+        if (line) lines.push(line);
+        break;
+      }
     }
   }
 
@@ -308,10 +493,18 @@ function buildControls(state) {
 
   const rows = [];
 
-  const anyPp = mine.moves.some((entry) => entry.pp > 0);
+  // A move can't be picked with no PP, when a condition forbids it (Taunt,
+  // Disable, Torment, Heal Block, Gravity, Imprison), or when Encore forces
+  // another.
+  const encored = cond.encoreSlot(mine);
+  const blocked = (entry, index) =>
+    entry.pp <= 0 ||
+    Boolean(cond.restriction(state, 0, mine, index)) ||
+    (encored != null && index !== encored);
+  const anyPp = mine.moves.some((entry, index) => !blocked(entry, index));
 
   if (!anyPp) {
-    // Any slot works: the engine uses Struggle when no move has PP.
+    // Any slot works: the engine uses Struggle when nothing is usable.
     rows.push(
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -330,7 +523,7 @@ function buildControls(state) {
             .setStyle(
               entry.data.damageClass === 'status' ? ButtonStyle.Secondary : ButtonStyle.Primary
             )
-            .setDisabled(entry.pp <= 0)
+            .setDisabled(blocked(entry, index))
         )
       )
     );
@@ -554,14 +747,19 @@ function prepare(userId, wantsMilestone, rng = Math.random, memberName = null) {
  * @param {string} outcome  'fled' when they walked away or ran out of time
  */
 function settle(userId, state, setup, outcome = null) {
-  // `lines` is the summary for the battle card. Everything else is posted as
-  // separate messages, in this order (assembled at the bottom):
+  // `lines` is the battle card's result: who won, coins and trainer exp.
+  // Everything else is posted as separate one-line messages below the card,
+  // in this order (assembled at the bottom):
   //
-  //   level-ups -> obedience warnings -> evolutions -> Lootbox -> milestone unlock
+  //   level-ups -> obedience warnings -> evolutions -> Shedinja -> daily quests
+  //   -> Elite Four progress / milestone cleared -> Lootbox -> milestone unlock
   const evolutions = [];
   const offers = [];
   const levelUps = [];
   const stopsObeying = [];
+  const extras = [];
+  const dailyNotices = [];
+  const progress = [];
   let lootboxMessage = null;
   const unlocks = [];
 
@@ -605,7 +803,7 @@ function settle(userId, state, setup, outcome = null) {
 
     // Daily quest progress. Only says anything when it completes one.
     try {
-      lines.push(...daily.recordWin(userId));
+      dailyNotices.push(...daily.recordWin(userId));
     } catch (err) {
       console.error('Daily quest update failed after a battle:', err);
     }
@@ -625,14 +823,14 @@ function settle(userId, state, setup, outcome = null) {
     if (mon.levelledFrom) {
       const grew = mon.level - mon.levelledFrom;
       levelUps.push(
-        `**${mon.name}** grew to **level ${mon.level}**!` +
-          (grew > 1 ? ` (up ${grew} from ${mon.levelledFrom})` : '')
+        `${mon.name} grew to level ${mon.level}` +
+          (grew > 1 ? ` (up ${grew} from ${mon.levelledFrom}).` : '.')
       );
     }
 
     // Moves learned into a free slot.
     if ((mon.learned || []).length) {
-      levelUps.push(`${mon.name} learned **${mon.learned.join('**, **')}**!`);
+      levelUps.push(`${mon.name} learned ${mon.learned.join(', ')}.`);
     }
 
     // Moves that need a slot freed get their own prompt instead (see conclude).
@@ -644,7 +842,7 @@ function settle(userId, state, setup, outcome = null) {
 
   // Mention the extra Shedinja from Nincada's evolution.
   for (const born of applied.spawned || []) {
-    lines.push(`A **${born.display_name}** was left behind - it is #${born.party_number}.`);
+    extras.push(`🐛 **A ${born.display_name} was left behind!** It is #${born.party_number}.`);
   }
 
   // Note which Pokemon fainted and so earned nothing.
@@ -665,13 +863,11 @@ function settle(userId, state, setup, outcome = null) {
       const beaten = store.eliteFourBeaten(userId, member.order);
       const left = member.roster.filter((name) => !beaten.has(name));
 
-      lines.push('');
-      lines.push(
-        `**${member.member} is beaten!** That is ${beaten.size} of the Elite Four. ` +
-          `Still to go: **${milestones.listNames(left)}**.`
+      progress.push(
+        `🏆 **${member.member} is beaten!** That is ${beaten.size} of the Elite Four. ` +
+          `Still to go: ${milestones.listNames(left)}. \`.battle milestone\` takes on the next, ` +
+          `or name one: \`.battle milestone ${left[0].toLowerCase()}\`.`
       );
-      lines.push('`.battle milestone` takes on the next, or name one: `.battle milestone ' +
-        `${left[0].toLowerCase()}\`.`);
     }
   }
 
@@ -679,29 +875,28 @@ function settle(userId, state, setup, outcome = null) {
     const cleared = store.clearMilestone(userId);
     const after = store.trainerProgress(userId);
 
-    lines.push('');
-    lines.push(`**${member ? `The ${milestones.title(member)}` : setup.fight.name} is behind you.**`);
-    lines.push(`Trainer level **${cleared.level}** - you now command Pokemon up to **level ${cleared.cap}**.`);
+    const next = after.next
+      ? `Next: ${milestones.title(after.next)}` +
+        `${milestones.isEliteFour(after.next) ? '' : ` of ${after.next.region}`}.`
+      : 'That was the last one. `.me` to prestige.';
+
+    progress.push(
+      `🏅 **${member ? `The ${milestones.title(member)}` : setup.fight.name} is behind you!** ` +
+        `Trainer level ${cleared.level}: you now command Pokemon up to level ${cleared.cap}. ${next}`
+    );
+
     if (cleared.lootboxes) {
       const boxes = cleared.lootboxes === 1 ? 'a Lootbox' : `${cleared.lootboxes} Lootboxes`;
-      lootboxMessage = [
-        `### 🎁 You received ${boxes}!`,
-        `For beating **${member ? `the ${milestones.title(member)}` : setup.fight.name}**. ` +
-          `Open ${cleared.lootboxes === 1 ? 'it' : 'them'} with \`.use lootbox\`.`,
-      ].join('\n');
+      lootboxMessage =
+        `🎁 **You received ${boxes}!** ` +
+        `For beating ${member ? `the ${milestones.title(member)}` : setup.fight.name}. ` +
+        `Open ${cleared.lootboxes === 1 ? 'it' : 'them'} with \`.use lootbox\`.`;
     }
-    if (after.next) {
-      lines.push(
-        `Next: **${milestones.title(after.next)}**` +
-          `${milestones.isEliteFour(after.next) ? '' : ` of ${after.next.region}`}.`
-      );
-    }
-    else lines.push('That was the last one. `.me` to prestige.');
   }
 
-  // Warn about anything that just reached the obedience limit or went past
-  // it. Experience keeps flowing after a milestone, so this is how players
-  // find out before a Pokemon quietly stops fighting for them.
+  // Say when something reaches the obedience limit, where battle experience
+  // stops until the cap rises. ('over' only comes from a Rare Candy now, but
+  // is handled the same way.)
   const standingNow = store.trainerProgress(userId);
   const nextFight = standingNow.next ? milestones.title(standingNow.next, true) : null;
 
@@ -717,58 +912,57 @@ function settle(userId, state, setup, outcome = null) {
 
     const text = obedience.describeWarning(warning, mon.name, standingNow.cap, nextFight);
 
-    // Going over gets its own message so it can't be missed; reaching the
-    // limit goes with the level-ups.
-    if (warning.kind === 'over') stopsObeying.push(`### ⚠️ ${mon.name} will stop obeying you\n${text}`);
-    else levelUps.push(`⚠️ ${text}`);
-  }
-
-  // ------------------------------------------------------------------
-  // What gets its own message.
-  // ------------------------------------------------------------------
-
-  const evolving = [];
-  for (const step of evolutions) {
-    evolving.push(
-      [
-        `### ✨ What? ${step.from} is evolving!`,
-        `**${step.from}** evolved into **${step.into}**!`,
-      ].join('\n')
+    // Each warning is its own message, so neither can be missed.
+    stopsObeying.push(
+      warning.kind === 'over'
+        ? `⚠️ **${mon.name} will stop obeying you.** ${text}`
+        : `⚠️ **${mon.name} is at your limit.** ${text}`
     );
   }
 
+  // ------------------------------------------------------------------
+  // What gets its own message. Each is one line: an emoji, a bold title,
+  // then plain text.
+  // ------------------------------------------------------------------
+
+  const evolving = evolutions.map(
+    (step) => `✨ **What? ${step.from} is evolving!** It evolved into ${step.into}.`
+  );
+
   // Announce a milestone battle as soon as it unlocks.
-  if (applied.levelled && applied.levelled.becamePending) {
+  // Also when clearing one leaves enough banked trainer exp that the next is
+  // ready straight away.
+  const unlockedNow = (applied.levelled && applied.levelled.becamePending) ||
+    (payout.clearsMilestone && store.trainerProgress(userId).pending);
+
+  if (unlockedNow) {
     const standing = store.trainerProgress(userId);
 
     if (standing.next && milestones.isEliteFour(standing.next)) {
       const names = standing.next.members.map((m) => m.name);
 
       unlocks.push(
-        [
-          `### 🏆 Elite Four ${milestones.listNames(names)} are waiting for you.`,
-          `Your trainer bar is full - the **${milestones.title(standing.next)}** is the next ` +
-            `milestone. Beat all four, in any order, to raise your cap to **${standing.cap + 1}**.`,
+        `🏆 **Elite Four ${milestones.listNames(names)} are waiting for you.** ` +
+          `Beat all four, in any order, to raise your cap to ${standing.cap + 1}. ` +
           '`.battle milestone` takes them on in order, or name one: ' +
-            `\`.battle milestone ${names[0].toLowerCase()}\`.`,
-        ].join('\n')
+          `\`.battle milestone ${names[0].toLowerCase()}\`.`
       );
     } else if (standing.next) {
       unlocks.push(
-        [
-          `### 🏆 ${standing.next.name} is waiting for you.`,
-          `Your trainer bar is full - **${standing.next.name}** of ${standing.next.region} is ` +
-            `the next milestone, and beating them raises your cap to **${standing.cap + 1}**.`,
-          'Take them on with `.battle milestone` when you are ready.',
-        ].join('\n')
+        `🏆 **${standing.next.name} is waiting for you.** ` +
+          `Your trainer bar is full. Beating ${standing.next.name} of ${standing.next.region} ` +
+          `raises your cap to ${standing.cap + 1}. Start it with \`.battle milestone\`.`
       );
     }
   }
 
   const announcements = [
-    ...(levelUps.length ? [`### 📈 Level up!\n${levelUps.join('\n')}`] : []),
+    ...(levelUps.length ? [`⬆️ **Level up!** ${levelUps.join(' ')}`] : []),
     ...stopsObeying,
     ...evolving,
+    ...extras,
+    ...dailyNotices,
+    ...progress,
     ...(lootboxMessage ? [lootboxMessage] : []),
     ...unlocks,
   ];
@@ -869,8 +1063,11 @@ async function loop({ userId, state, setup, card, log }) {
   setup.paid = paid;
   setup.startedAt = startedAt;
 
+  // 'midturn' is a switch the player must pick in the middle of a turn
+  // (after their U-turn, Baton Pass or Teleport); like 'replace', there is no
+  // going back.
   const componentsFor = () =>
-    mode === 'moves' ? buildControls(state) : buildSwitchRow(state, mode === 'replace');
+    mode === 'moves' ? buildControls(state) : buildSwitchRow(state, mode === 'replace' || mode === 'midturn');
 
   while (!state.finished) {
     let choice;
@@ -918,49 +1115,97 @@ async function loop({ userId, state, setup, card, log }) {
       }
 
       log.push(...narrate([sent, ...arriving]));
-      mode = 'moves';
+
+      // Hazards can knock out the one that just came in, and even end it.
+      const after = [];
+      battle.checkFinished(state, after);
+      if (state.finished) {
+        await conclude({ userId, state, setup, card, log, edit: choice });
+        return;
+      }
+
+      const me = state.sides[0];
+      mode = battle.activeOf(me).fainted ? 'replace' : 'moves';
 
       await choice.update({ embeds: [buildCard(state, log)], components: componentsFor() });
       continue;
     }
 
-    const action =
-      verb === 'send'
-        ? { type: 'switch', index: Number(value) }
-        : { type: 'move', slot: Number(value) };
-
-    // The opponent chooses from the same pre-turn state as the player.
     const foe = state.sides[1];
-    const foeAction = {
-      type: 'move',
-      slot: battle.chooseMove(battle.activeOf(foe), battle.activeOf(state.sides[0])),
-    };
+    let events;
 
-    const events = battle.resolveTurn(state, [action, foeAction]);
+    if (mode === 'midturn' && verb === 'send') {
+      // The player picked who comes in after their U-turn or Baton Pass; the
+      // rest of the turn (including the foe's chosen move) carries on.
+      const target = state.sides[0].team[Number(value)];
+      if (!target || target.fainted || Number(value) === state.sides[0].active) {
+        await choice.update({ components: componentsFor() });
+        continue;
+      }
+      events = battle.continueTurn(state, Number(value));
+    } else {
+      const action =
+        verb === 'send'
+          ? { type: 'switch', index: Number(value) }
+          : { type: 'move', slot: Number(value) };
+
+      // The opponent chooses from the same pre-turn state as the player
+      // (Utils/ai.js: attacks, status, boosts, healing and, for trainers, the
+      // occasional switch).
+      const foeAction = ai.chooseAction(state, 1);
+
+      // A switch out mid-turn (U-turn, Baton Pass...) happens straight away,
+      // before the other side's move: the AI picks at once, and the turn
+      // pauses for the player to pick.
+      events = battle.resolveTurn(state, [action, foeAction], {
+        choose: (s, sideIndex) => (sideIndex === 1 ? ai.chooseReplacement(s, 1) : null),
+      });
+    }
+
     log.push(...narrate(events));
 
     // Pay out experience for knockouts this turn.
     log.push(...payKnockouts({ userId, state, cap: setup.cap, paid }));
 
-    // Fainted opponents are replaced immediately; the player chooses their own
-    // replacement via `mode` below.
-    if (battle.activeOf(foe).fainted && !battle.wipedOut(foe)) {
-      const free = battle.benchOf(foe);
-      if (free.length) {
-        // `arriving` holds events triggered by the replacement's entry.
-        const arriving = [];
-        const sent = battle.sendOut(state, 1, free[0].index, arriving);
-        if (sent) log.push(...narrate([sent, ...arriving]));
-      }
+    // Paused for the player to pick who comes in.
+    if (state.awaitingSwitch === 0) {
+      mode = 'midturn';
+      await choice.update({ embeds: [buildCard(state, log)], components: componentsFor() });
+      continue;
     }
 
+    // Fainted opponents are replaced immediately, as are ones switching out
+    // through Baton Pass, U-turn and the like. Looped because hazards can
+    // knock out the replacement too. The player chooses their own
+    // replacement via `mode` below.
+    for (let guard = 0; guard < battle.TEAM_SIZE && !state.finished; guard += 1) {
+      const needs = battle.activeOf(foe).fainted || foe.pendingSwitch;
+      const free = battle.benchOf(foe);
+      if (!needs || battle.wipedOut(foe) || !free.length) break;
+
+      // Whatever matches up best against the player's active Pokemon.
+      const pick = ai.chooseReplacement(state, 1);
+
+      // `arriving` holds the switch and anything triggered by it.
+      const arriving = [];
+      const sent = battle.sendOut(state, 1, pick != null ? pick : free[0].index, arriving);
+      if (!sent) break;
+      log.push(...narrate([sent, ...arriving]));
+    }
+    foe.pendingSwitch = null;
+    battle.checkFinished(state, []);
+
     if (state.finished) {
-      await conclude({ userId, state, setup, card, log, edit: choice });
+      // Roar, Whirlwind or Teleport ending a wild battle counts as getting away.
+      await conclude({ userId, state, setup, card, log, edit: choice, outcome: state.fled ? 'fled' : null });
       return;
     }
 
+    // The player picks a replacement after a faint, or after their own Baton
+    // Pass, U-turn or Teleport.
     const mine = state.sides[0];
-    mode = battle.activeOf(mine).fainted && !battle.wipedOut(mine) ? 'replace' : 'moves';
+    const mustSwitch = battle.activeOf(mine).fainted || (mine.pendingSwitch && battle.benchOf(mine).length);
+    mode = mustSwitch && !battle.wipedOut(mine) ? 'replace' : 'moves';
 
     await choice.update({ embeds: [buildCard(state, log)], components: componentsFor() });
   }
@@ -996,7 +1241,7 @@ function payKnockouts({ userId, state, cap, paid }) {
 
     let applied;
     try {
-      applied = store.awardKnockout(userId, earned);
+      applied = store.awardKnockout(userId, earned, cap);
     } catch (err) {
       // Log payout errors without ending the battle.
       console.error('A knockout could not be paid for:', err);
@@ -1004,7 +1249,9 @@ function payKnockouts({ userId, state, cap, paid }) {
     }
 
     for (const mon of applied) {
-      lines.push(`${mon.name} gained **${mon.exp.toLocaleString()}** exp.`);
+      // A Pokemon at the obedience limit earns nothing (it may still have
+      // gained EVs), so only real experience is logged.
+      if (mon.exp > 0) lines.push(`${mon.name} gained **${mon.exp.toLocaleString()}** exp.`);
 
       // Grow it in the fight too, so its new level and stats count from now.
       if (mon.levelledFrom) {

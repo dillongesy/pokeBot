@@ -163,19 +163,29 @@ function evChanges(row, evs) {
  * catches.
  *
  * A Pokemon at MAX_LEVEL earns nothing.
+ *
+ * `ceiling` is the highest level battling may take it to: the obedience
+ * limit (obedience.ceilingFor). Experience stops one point short of the next
+ * level, so it reaches the limit and no further. A Pokemon already at or past
+ * it (a Rare Candy ignores the limit) earns nothing.
  */
-function expChanges(row, gained) {
+function expChanges(row, gained, ceiling = null) {
   const { experienceForLevel, MAX_LEVEL, loadSpecies } = require('./pokemon');
 
-  if (row.level >= MAX_LEVEL) return {};
+  const top = Math.min(MAX_LEVEL, ceiling == null ? MAX_LEVEL : ceiling);
+  if (row.level >= top) return {};
 
   const species = loadSpecies(row.species_id);
   const growth = (species && species.breeding && species.breeding.growthRate) || 'medium';
 
-  const total = (row.exp || 0) + Math.max(0, Math.round(gained));
+  let total = (row.exp || 0) + Math.max(0, Math.round(gained));
+
+  // Stop at the edge of the level above the ceiling.
+  if (top < MAX_LEVEL) total = Math.min(total, experienceForLevel(growth, top + 1) - 1);
+  if (total <= (row.exp || 0)) return {};
 
   let level = row.level;
-  while (level < MAX_LEVEL && total >= experienceForLevel(growth, level + 1)) level += 1;
+  while (level < top && total >= experienceForLevel(growth, level + 1)) level += 1;
 
   return level === row.level ? { exp: total } : { exp: total, level };
 }
