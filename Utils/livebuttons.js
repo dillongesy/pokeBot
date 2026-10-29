@@ -19,14 +19,19 @@ const { MessageFlags } = require('discord.js');
 /** Message id -> the Discord id of the only person who may press. */
 const live = new Map();
 
+/** Track with this instead of an id when anyone may press (a finished battle's log). */
+const ANYONE = '*';
+
 /** Start answering presses on this message for `ownerId`. */
 function track(message, ownerId) {
   if (message && message.id) live.set(message.id, ownerId);
 }
 
-/** Stop: the collector has ended. */
-function release(message) {
-  if (message && message.id) live.delete(message.id);
+/** Stop: the collector has ended. With `ownerId`, only if it is still theirs. */
+function release(message, ownerId) {
+  if (!message || !message.id) return;
+  if (ownerId !== undefined && live.get(message.id) !== ownerId) return;
+  live.delete(message.id);
 }
 
 /**
@@ -36,7 +41,7 @@ function release(message) {
  */
 async function answerStray(interaction) {
   const owner = interaction.message ? live.get(interaction.message.id) : undefined;
-  if (owner === interaction.user.id) return;
+  if (owner === interaction.user.id || owner === ANYONE) return;
 
   const content =
     owner === undefined
@@ -46,4 +51,4 @@ async function answerStray(interaction) {
   await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
 }
 
-module.exports = { track, release, answerStray };
+module.exports = { ANYONE, track, release, answerStray };

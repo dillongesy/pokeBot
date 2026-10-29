@@ -51,6 +51,7 @@ const field = require('./field');
 const movepower = require('./movepower');
 const cond = require('./conditions');
 const statusMoves = require('./statusmoves');
+const rules = require('./moverules');
 
 const BASE_SCORE = 100;
 
@@ -136,6 +137,7 @@ function averageHits(attacker, move) {
  */
 function expectedDamage(attacker, defender, move) {
   if (!move || !isDamaging(move)) return 0;
+  if (move.name === 'hidden-power' && attacker.hiddenPowerType) move = { ...move, type: attacker.hiddenPowerType };
 
   const eff = typechart.effectiveness(move.type, defender.types);
   if (eff === 0 || effects.absorbs(defender, move, eff)) return 0;
@@ -234,6 +236,14 @@ function checkBadMove({ user, target, move, userAlone, targetAlone, state, sideI
   if (isDamaging(move)) {
     const eff = effectiveness(move, target);
     if (eff === 0 || effects.absorbs(target, move, eff)) return -10;
+
+    // Dream Eater on something awake, Last Resort too early, Burn Up without
+    // its type... The ones that depend on this turn's moves (Focus Punch,
+    // Shell Trap, Upper Hand) can't be known in advance.
+    if (!['focus-punch', 'shell-trap', 'upper-hand'].includes(move.name) &&
+        rules.failReason({ attacker: user, defender: target, move, state, sideIndex, turn: turn || {} })) {
+      return -10;
+    }
   }
 
   if (FIRST_TURN_ONLY.has(move.name) && user.turnsActive) return -10;
@@ -584,7 +594,12 @@ function chooseAction(state, sideIndex, rng = Math.random) {
   const theirs = state.sides[1 - sideIndex].team[state.sides[1 - sideIndex].active];
   const kind = state.kind === 'wild' ? 'wild' : state.kind === 'milestone' ? 'milestone' : 'trainer';
 
-  if (kind !== 'wild') {
+  // Locked into Outrage, the second turn of Dig, a recharge: the engine
+  // decides, so any choice will do.
+  if (rules.lockedAction(mine)) return { type: 'move', slot: 0 };
+
+  // Held by Sky Drop, or otherwise trapped: no switching.
+  if (kind !== 'wild' && !cond.switchBlocked(state, mine)) {
     const index = switchTarget(state, sideIndex, rng);
     if (index != null) {
       side.team[index].lastSwitchTurn = state.turn;

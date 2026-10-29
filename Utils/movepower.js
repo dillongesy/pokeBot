@@ -243,15 +243,11 @@ const retaliate = (field, multiplier) => (attacker) => {
 };
 
 /**
- * Bide, simplified. The engine has no multi-turn moves, so instead of
- * charging for two turns it immediately deals double the damage taken over
- * the last two turns.
+ * Bide's release: twice the damage it stored over its two turns of waiting
+ * (Utils/moverules.js handles the waiting).
  */
 function bide(attacker) {
-  const now = (attacker.damageTakenThisTurn || {}).total || 0;
-  const before = (attacker.damageTakenLastTurn || {}).total || 0;
-  const stored = now + before;
-
+  const stored = (attacker.volatiles || {}).bideRelease || 0;
   if (stored <= 0) return { kind: 'fail', reason: 'nothing-to-answer' };
   return { kind: 'fixed', damage: atLeastOne(stored * 2) };
 }

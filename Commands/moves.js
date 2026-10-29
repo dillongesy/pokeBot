@@ -21,6 +21,7 @@ const store = require('../Utils/store');
 const learnset = require('../Utils/learnset');
 const versiongroups = require('../Utils/versiongroups');
 const moveinfo = require('../Utils/moveinfo');
+const pokemon = require('../Utils/pokemon');
 const moveprompt = require('../Utils/moveprompt');
 const pager = require('../Utils/pager');
 const { displayName, colorFor, titleCase, clip, LIMITS } = require('../Utils/display');
@@ -28,11 +29,16 @@ const { displayName, colorFor, titleCase, clip, LIMITS } = require('../Utils/dis
 /** Learnable moves per page after the first. Each is a three-line field. */
 const PER_PAGE = 6;
 
-/** One known move as an embed field. */
-function knownField(entry) {
+/**
+ * One known move as an embed field. Hidden Power shows the type this
+ * Pokemon's IVs give it.
+ */
+function knownField(entry, row = null) {
+  const hidden = entry.move === 'hidden-power' && entry.data ? pokemon.hiddenPowerType(row) : null;
+  const data = hidden ? { ...entry.data, type: hidden } : entry.data;
   return {
-    name: `${entry.slot}. ${entry.data ? entry.data.displayName : titleCase(entry.move)}`,
-    value: clip(moveinfo.details(entry.data, entry.ppUp), LIMITS.fieldValue),
+    name: `${entry.slot}. ${data ? data.displayName : titleCase(entry.move)}`,
+    value: clip(moveinfo.details(data, entry.ppUp), LIMITS.fieldValue),
   };
 }
 
@@ -94,7 +100,7 @@ function show(userId, rawPokemonId) {
           'It does not know any moves, which should not be possible. Please report this to the bot owner.'
         );
       } else {
-        embed.addFields(known.map(knownField));
+        embed.addFields(known.map((entry) => knownField(entry, row)));
       }
 
       embed.addFields({

@@ -188,7 +188,7 @@ function protectSucceeds(streak, roll) {
  * Moves that go through Protect (e.g. Feint). Listed by hand because PokeAPI
  * has no "bypasses protect" flag (see Utils/battleeffects.js).
  */
-const BYPASSES_PROTECT = new Set(['feint', 'shadow-force', 'phantom-force', 'hyperspace-hole', 'hyperspace-fury']);
+const BYPASSES_PROTECT = new Set(['feint', 'shadow-force', 'phantom-force', 'hyperspace-hole', 'hyperspace-fury', 'mighty-cleave', 'hyper-drill']);
 
 const piercesProtect = (move) => Boolean(move && BYPASSES_PROTECT.has(move.name));
 

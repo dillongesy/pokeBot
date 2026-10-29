@@ -34,6 +34,8 @@ const {
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
+  MessageFlags,
+  AttachmentBuilder,
 } = require('discord.js');
 
 const store = require('../Utils/store');
@@ -51,6 +53,7 @@ const livebuttons = require('../Utils/livebuttons');
 const daily = require('../Utils/daily');
 const ai = require('../Utils/ai');
 const cond = require('../Utils/conditions');
+const rules = require('../Utils/moverules');
 const obedience = require('../Utils/obedience');
 const drop = require('./drop');
 
@@ -58,6 +61,16 @@ const POKEMON_DIR = path.join(__dirname, '..', 'Data', 'Pokemon');
 
 /** How long a player has to choose, per turn. */
 const TURN_MS = 90_000;
+
+/** The pause between turns that play out on their own (Dig, Outrage, a recharge). */
+const AUTO_TURN_MS = 1_500;
+
+/** How much of the log the card shows: the latest lines, up to this many. */
+const CARD_LOG_LINES = 18;
+const CARD_LOG_CHARS = 3_500;
+
+/** How long the finished card's log button keeps working. */
+const LOG_KEPT_MS = 15 * 60_000;
 
 /** One battle per person at a time. Keyed by Discord id. */
 const active = new Map();
@@ -135,9 +148,39 @@ function moveLabel(entry, attacker, defender) {
 
   const pp = `${entry.pp}/${entry.maxPp}`;
 
+  // Hidden Power shows the type the user's IVs give it.
+  const name = entry.name === 'hidden-power' && attacker.hiddenPowerType
+    ? `${entry.data.displayName} ${capitalize(attacker.hiddenPowerType)}`
+    : entry.data.displayName;
+
   // Discord limits button labels to 80 characters.
-  return `${entry.data.displayName}${power ? ` (${power})` : ''} ${pp} PP`.slice(0, 80);
+  return `${name}${power ? ` (${power})` : ''} ${pp} PP`.slice(0, 80);
 }
+
+/** Being given a status, in the games' words. */
+const STATUS_GIVEN = {
+  paralysis: (n) => `${n} is **paralyzed**! It may be unable to move!`,
+  burn: (n) => `${n} was **burned**!`,
+  poison: (n) => `${n} was **poisoned**!`,
+  'badly poison': (n) => `${n} was **badly poisoned**!`,
+  sleep: (n) => `${n} **fell asleep**!`,
+  freeze: (n) => `${n} was **frozen solid**!`,
+};
+
+/** Getting over one: on its own, or with `source` (Lum Berry, Shed Skin...). */
+const STATUS_CURED = {
+  paralysis: [(n) => `${n} was cured of paralysis!`, 'cured its paralysis'],
+  burn: [(n) => `${n}'s burn was healed!`, 'healed its burn'],
+  poison: [(n) => `${n} was cured of its poisoning!`, 'cured its poison'],
+  sleep: [(n) => `${n} woke up!`, 'woke it up'],
+  freeze: [(n) => `${n} thawed out!`, 'defrosted it'],
+};
+
+/** "kept it from being ___", for a status an ability blocks. */
+const STATUS_PAST = {
+  paralysis: 'paralyzed', burn: 'burned', poison: 'poisoned', 'badly poison': 'badly poisoned',
+  sleep: 'put to sleep', freeze: 'frozen', confus: 'confused',
+};
 
 /** What starting each condition says, in the games' words. */
 const VOLATILE_START = {
@@ -178,6 +221,7 @@ const VOLATILE_END = {
   telekinesis: (n) => `${n} was freed from the telekinesis!`,
   embargo: (n) => `${n} can use items again!`,
   healBlock: (n) => `${n}'s Heal Block wore off!`,
+  throatChop: (n) => `${n} can use sound-based moves again!`,
 };
 
 const SIDE_START = {
@@ -222,6 +266,8 @@ const RESTRICTED = {
   'heal-block': (n, m) => `${n} can't use ${m} because of Heal Block!`,
   gravity: (n, m) => `${n} can't use ${m} because of gravity!`,
   imprison: (n, m) => `${n} can't use its sealed ${m}!`,
+  'throat-chop': (n, m) => `${n} can't use ${m} because of Throat Chop!`,
+  repeat: (n, m) => `${n} can't use ${m} twice in a row!`,
 };
 
 /** The log line for a condition or status-move event, or null. */
@@ -339,14 +385,26 @@ function narrate(events) {
       // Variable-power moves that need an explanation (e.g. a move that
       // failed rather than missed).
       case 'failed': lines.push(event.text || 'But it failed!'); break;
+
+      // Lines the engine words itself (charging, recharging, Knock Off...).
+      case 'note': lines.push(event.text); break;
+      case 'hurt': lines.push(`${event.source} **-${event.amount}**`); break;
       case 'one-hit-ko': lines.push(`**${event.name}** went down in one hit!`); break;
       case 'magnitude': lines.push(`Magnitude ${event.number}!`); break;
       case 'stockpile': lines.push(`${event.name} stockpiled ${event.count}.`); break;
       case 'present-heal': lines.push(`${event.name} unwrapped it and felt better!`); break;
       case 'multi-hit': lines.push(`Hit ${event.hits} times!`); break;
       case 'faint': lines.push(`**${event.name}** fainted!`); break;
-      case 'status': lines.push(`${event.name} was **${event.status}ed**!`); break;
-      case 'cured': lines.push(`${event.name} shook off its ${event.status}.`); break;
+      case 'status': {
+        const say = STATUS_GIVEN[event.status];
+        lines.push(say ? say(event.name) : `${event.name} was afflicted with ${event.status}!`);
+        break;
+      }
+      case 'cured': {
+        const [plain, by] = STATUS_CURED[event.status] || [(n) => `${n} recovered.`, 'cured it'];
+        lines.push(event.source ? `${event.name}'s ${event.source} ${by}!` : plain(event.name));
+        break;
+      }
       case 'residual':
         lines.push(`${event.name} was hurt by its ${event.status}. **-${event.damage}**`);
         break;
@@ -369,7 +427,7 @@ function narrate(events) {
       case 'flinch': lines.push(`${event.name} flinched!`); break;
       case 'asleep': lines.push(`${event.name} is fast asleep.`); break;
       case 'frozen': lines.push(`${event.name} is frozen solid!`); break;
-      case 'paralysed': lines.push(`${event.name} is paralysed and can't move!`); break;
+      case 'paralysed': lines.push(`${event.name} is paralyzed! It can't move!`); break;
       case 'withdraw': lines.push(`${event.side} withdrew ${event.name}.`); break;
       case 'send-out': lines.push(`${event.side} sent out **${event.name}**!`); break;
       case 'no-pp': lines.push(`${event.name} has no PP left for that.`); break;
@@ -423,7 +481,7 @@ function narrate(events) {
       case 'item-used': lines.push(`${event.name} used up its ${event.item}.`); break;
       case 'shrugged-off': lines.push(`${event.name}'s ${event.by} shrugged it off.`); break;
       case 'status-blocked':
-        lines.push(`${event.name}'s ${event.by} kept it from being ${event.status}ed.`);
+        lines.push(`${event.name}'s ${event.by} kept it from being ${STATUS_PAST[event.status] || event.status}.`);
         break;
 
       // Conditions and status moves (Utils/conditions.js, Utils/statusmoves.js).
@@ -437,6 +495,42 @@ function narrate(events) {
 
   return lines;
 }
+
+/** The latest lines of the log that fit on the card. */
+function recentLines(log) {
+  const lines = [];
+  let length = 0;
+  for (let i = log.length - 1; i >= 0 && lines.length < CARD_LOG_LINES; i -= 1) {
+    length += log[i].length + 1;
+    if (length > CARD_LOG_CHARS) break;
+    lines.unshift(log[i]);
+  }
+  return lines;
+}
+
+/**
+ * The whole log, for the Battle log button, seen only by whoever pressed it.
+ * Long battles come as a text file.
+ */
+function fullLog(log) {
+  const text = log.join('\n');
+  if (text.length <= 4000) {
+    return {
+      embeds: [new EmbedBuilder().setTitle('Battle log').setColor(0x4287f5).setDescription(text || 'Nothing has happened yet.')],
+      flags: MessageFlags.Ephemeral,
+    };
+  }
+  const plain = log.map((line) => line.replace(/\*/g, '')).join('\n');
+  return {
+    content: `The whole battle, ${log.length} lines:`,
+    files: [new AttachmentBuilder(Buffer.from(plain, 'utf8'), { name: 'battle-log.txt' })],
+    flags: MessageFlags.Ephemeral,
+  };
+}
+
+/** The button that shows the whole log. */
+const logButton = () =>
+  new ButtonBuilder().setCustomId('bt:log').setLabel('Battle log').setStyle(ButtonStyle.Secondary);
 
 /** The card. Rebuilt from scratch each turn rather than edited in place. */
 function buildCard(state, log) {
@@ -469,7 +563,7 @@ function buildCard(state, log) {
   if (myPicture) embed.setImage(myPicture);
   if (theirPicture) embed.setThumbnail(theirPicture);
 
-  const recent = log.slice(-9);
+  const recent = recentLines(log);
   if (recent.length) embed.setDescription(recent.join('\n'));
 
   embed.setFooter({ text: `Turn ${state.turn + 1}, ${TURN_MS / 1000}s to choose` });
@@ -486,6 +580,10 @@ function buildCard(state, log) {
 function buildControls(state) {
   const side = state.sides[0];
   const mine = battle.activeOf(side);
+
+  // Locked in (the second turn of Dig, Outrage, a recharge...): there is
+  // nothing to choose, and the turn plays out on its own (see loop()).
+  if (rules.lockedAction(mine)) return [];
 
   // Labels depend on the target. Without one, fall back to the move's own
   // numbers.
@@ -532,7 +630,8 @@ function buildControls(state) {
   const bench = battle.benchOf(side);
   const extra = new ActionRowBuilder();
 
-  if (bench.length) {
+  // Held in the sky by Sky Drop: no switching out.
+  if (bench.length && !(mine.volatiles && mine.volatiles.skyDropped)) {
     extra.addComponents(
       new ButtonBuilder()
         .setCustomId('bt:switch')
@@ -542,6 +641,7 @@ function buildControls(state) {
   }
 
   extra.addComponents(
+    logButton(),
     new ButtonBuilder()
       .setCustomId('bt:forfeit')
       .setLabel(state.kind === 'wild' ? 'Run' : 'Forfeit')
@@ -1035,9 +1135,10 @@ async function run(message, args) {
     console.error('Battle failed:', err);
     await card.edit({ content: 'The battle broke. Nothing was lost.', components: [] }).catch(() => {});
   } finally {
-    // Always release the battle, its buttons and the party lock.
+    // Always release the battle, its buttons and the party lock. (A finished
+    // card's log button has been handed over to everyone by then.)
     active.delete(userId);
-    livebuttons.release(card);
+    livebuttons.release(card, userId);
     partylock.release(userId);
   }
 }
@@ -1069,13 +1170,76 @@ async function loop({ userId, state, setup, card, log }) {
   const componentsFor = () =>
     mode === 'moves' ? buildControls(state) : buildSwitchRow(state, mode === 'replace' || mode === 'midturn');
 
+  // Answer the button press when there is one; turns that play out on their
+  // own edit the card directly.
+  const show = (choice, payload) => (choice ? choice.update(payload) : card.edit(payload));
+
+  /**
+   * Everything after a turn resolves: the log, experience, replacements and
+   * the result. Returns true once the battle is over.
+   */
+  const finishTurn = async (events, choice) => {
+    log.push(...narrate(events));
+
+    // Pay out experience for knockouts this turn.
+    log.push(...payKnockouts({ userId, state, cap: setup.cap, paid }));
+
+    // Paused for the player to pick who comes in.
+    if (state.awaitingSwitch === 0) {
+      mode = 'midturn';
+      await show(choice, { embeds: [buildCard(state, log)], components: componentsFor() });
+      return false;
+    }
+
+    // Fainted opponents are replaced immediately, as are ones switching out
+    // through Baton Pass, U-turn and the like. Looped because hazards can
+    // knock out the replacement too. The player chooses their own
+    // replacement via `mode` below.
+    const foe = state.sides[1];
+    for (let guard = 0; guard < battle.TEAM_SIZE && !state.finished; guard += 1) {
+      const needs = battle.activeOf(foe).fainted || foe.pendingSwitch;
+      const free = battle.benchOf(foe);
+      if (!needs || battle.wipedOut(foe) || !free.length) break;
+
+      // Whatever matches up best against the player's active Pokemon.
+      const pick = ai.chooseReplacement(state, 1);
+
+      // `arriving` holds the switch and anything triggered by it.
+      const arriving = [];
+      const sent = battle.sendOut(state, 1, pick != null ? pick : free[0].index, arriving);
+      if (!sent) break;
+      log.push(...narrate([sent, ...arriving]));
+    }
+    foe.pendingSwitch = null;
+    battle.checkFinished(state, []);
+
+    if (state.finished) {
+      // Roar, Whirlwind or Teleport ending a wild battle counts as getting away.
+      await conclude({ userId, state, setup, card, log, edit: choice, outcome: state.fled ? 'fled' : null });
+      return true;
+    }
+
+    // The player picks a replacement after a faint, or after their own Baton
+    // Pass, U-turn or Teleport.
+    const mine = state.sides[0];
+    const mustSwitch = battle.activeOf(mine).fainted || (mine.pendingSwitch && battle.benchOf(mine).length);
+    mode = mustSwitch && !battle.wipedOut(mine) ? 'replace' : 'moves';
+
+    await show(choice, { embeds: [buildCard(state, log)], components: componentsFor() });
+    return false;
+  };
+
+  // When this choice runs out. Looking at the log doesn't restart the clock.
+  let deadline = null;
+
   while (!state.finished) {
     let choice;
+    if (deadline == null) deadline = Date.now() + TURN_MS;
 
     try {
       choice = await card.awaitMessageComponent({
         componentType: ComponentType.Button,
-        time: TURN_MS,
+        time: Math.max(1_000, deadline - Date.now()),
         filter: (button) => button.user.id === userId,
       });
     } catch {
@@ -1085,6 +1249,12 @@ async function loop({ userId, state, setup, card, log }) {
     }
 
     const [, verb, value] = choice.customId.split(':');
+
+    if (verb === 'log') {
+      await choice.reply(fullLog(log)).catch(() => {});
+      continue;
+    }
+    deadline = null;
 
     if (verb === 'switch') {
       mode = 'switch';
@@ -1131,7 +1301,6 @@ async function loop({ userId, state, setup, card, log }) {
       continue;
     }
 
-    const foe = state.sides[1];
     let events;
 
     if (mode === 'midturn' && verb === 'send') {
@@ -1162,52 +1331,17 @@ async function loop({ userId, state, setup, card, log }) {
       });
     }
 
-    log.push(...narrate(events));
+    if (await finishTurn(events, choice)) return;
 
-    // Pay out experience for knockouts this turn.
-    log.push(...payKnockouts({ userId, state, cap: setup.cap, paid }));
-
-    // Paused for the player to pick who comes in.
-    if (state.awaitingSwitch === 0) {
-      mode = 'midturn';
-      await choice.update({ embeds: [buildCard(state, log)], components: componentsFor() });
-      continue;
+    // Locked in (the second turn of Dig, the rest of Outrage, Hyper Beam's
+    // recharge): those turns play out on their own, as in the games.
+    while (mode === 'moves' && !state.finished && rules.lockedAction(battle.activeOf(state.sides[0]))) {
+      await new Promise((resolve) => setTimeout(resolve, AUTO_TURN_MS));
+      const more = battle.resolveTurn(state, [{ type: 'move', slot: 0 }, ai.chooseAction(state, 1)], {
+        choose: (s, sideIndex) => (sideIndex === 1 ? ai.chooseReplacement(s, 1) : null),
+      });
+      if (await finishTurn(more, null)) return;
     }
-
-    // Fainted opponents are replaced immediately, as are ones switching out
-    // through Baton Pass, U-turn and the like. Looped because hazards can
-    // knock out the replacement too. The player chooses their own
-    // replacement via `mode` below.
-    for (let guard = 0; guard < battle.TEAM_SIZE && !state.finished; guard += 1) {
-      const needs = battle.activeOf(foe).fainted || foe.pendingSwitch;
-      const free = battle.benchOf(foe);
-      if (!needs || battle.wipedOut(foe) || !free.length) break;
-
-      // Whatever matches up best against the player's active Pokemon.
-      const pick = ai.chooseReplacement(state, 1);
-
-      // `arriving` holds the switch and anything triggered by it.
-      const arriving = [];
-      const sent = battle.sendOut(state, 1, pick != null ? pick : free[0].index, arriving);
-      if (!sent) break;
-      log.push(...narrate([sent, ...arriving]));
-    }
-    foe.pendingSwitch = null;
-    battle.checkFinished(state, []);
-
-    if (state.finished) {
-      // Roar, Whirlwind or Teleport ending a wild battle counts as getting away.
-      await conclude({ userId, state, setup, card, log, edit: choice, outcome: state.fled ? 'fled' : null });
-      return;
-    }
-
-    // The player picks a replacement after a faint, or after their own Baton
-    // Pass, U-turn or Teleport.
-    const mine = state.sides[0];
-    const mustSwitch = battle.activeOf(mine).fainted || (mine.pendingSwitch && battle.benchOf(mine).length);
-    mode = mustSwitch && !battle.wipedOut(mine) ? 'replace' : 'moves';
-
-    await choice.update({ embeds: [buildCard(state, log)], components: componentsFor() });
   }
 
   await conclude({ userId, state, setup, card, log, edit: null });
@@ -1265,6 +1399,23 @@ function payKnockouts({ userId, state, cap, paid }) {
 }
 
 /**
+ * Answer the finished card's log button for LOG_KEPT_MS, then take it away.
+ * Runs in the background; the battle itself is already over.
+ */
+function keepLogOpen(card, log) {
+  livebuttons.track(card, livebuttons.ANYONE);
+
+  const collector = card.createMessageComponentCollector({ componentType: ComponentType.Button, time: LOG_KEPT_MS });
+  collector.on('collect', (press) => {
+    if (press.customId === 'bt:log') press.reply(fullLog(log)).catch(() => {});
+  });
+  collector.on('end', () => {
+    livebuttons.release(card);
+    card.edit({ components: [] }).catch(() => {});
+  });
+}
+
+/**
  * End it, pay it out and post the final card.
  *
  * Every exit (win, loss, flee, timeout) comes through here, so rewards are
@@ -1289,10 +1440,17 @@ async function conclude({ userId, state, setup, card, log, outcome = null, edit 
     .setFooter({ text: `${state.turn} turn${state.turn === 1 ? '' : 's'}` })
     .addFields({ name: heading, value: lines.join('\n') || '-' });
 
-  const payload = { embeds: [finished], components: [] };
+  // The log stays readable for a while after the battle, by anyone.
+  const keepLog = Boolean(card && typeof card.createMessageComponentCollector === 'function');
+  const payload = {
+    embeds: [finished],
+    components: keepLog ? [new ActionRowBuilder().addComponents(logButton())] : [],
+  };
 
   if (edit) await edit.update(payload).catch(() => {});
   else await card.edit(payload).catch(() => {});
+
+  if (keepLog) keepLogOpen(card, log);
 
   // Post level-ups, warnings, evolutions, the Lootbox and milestone unlocks as
   // separate messages, in that order (see settle()). Best-effort: rewards are

@@ -10,6 +10,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const movepatches = require('./movepatches');
 
 const DATA = path.join(__dirname, '..', 'Data');
 
@@ -180,7 +181,7 @@ function readIndexed(map, name) {
 const moves = () => indexed('Moves', 'moves');
 
 /** One move's full record - power, accuracy, PP, type, damage class - or null. */
-const move = (name) => readIndexed(moves(), name);
+const move = (name) => movepatches.apply(readIndexed(moves(), name));
 
 /** Every type, as stubs. `type(name)` reads the full record. */
 const types = () => indexed('Types', 'types');

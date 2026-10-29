@@ -172,6 +172,13 @@ function wildCombatant(speciesId, level, { formFolder = null, rng = Math.random 
     stat_special_attack: mon.stats.specialAttack,
     stat_special_defense: mon.stats.specialDefense,
     stat_speed: mon.stats.speed,
+    // Only Hidden Power's type reads these.
+    iv_hp: mon.ivs.hp,
+    iv_attack: mon.ivs.attack,
+    iv_defense: mon.ivs.defense,
+    iv_special_attack: mon.ivs.specialAttack,
+    iv_special_defense: mon.ivs.specialDefense,
+    iv_speed: mon.ivs.speed,
     ability: mon.ability ? mon.ability.name : null,
     shiny: 0,
   };

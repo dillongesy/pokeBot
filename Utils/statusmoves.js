@@ -27,6 +27,7 @@ const typechart = require('./typechart');
 const effects = require('./battleeffects');
 const fieldRules = require('./field');
 const cond = require('./conditions');
+const rules = require('./moverules');
 
 const { vol, abilityOf, itemOf } = cond;
 
@@ -115,11 +116,13 @@ function fieldCondition(key, label, { toggle = false } = {}) {
       }
       f[key] = cond.DURATION[key] || 5;
       if (key === 'gravity') {
-        // Gravity brings everything down.
+        // Gravity brings everything down, including anything mid-Fly or
+        // Sky Drop.
         for (const side of ctx.state.sides) {
           const mon = side.team[side.active];
           delete vol(mon).magnetRise;
           delete vol(mon).telekinesis;
+          rules.bringDown(mon, ctx.state, ctx.events);
         }
       }
       cond.refreshSuppression(ctx.state);
@@ -523,6 +526,16 @@ const MOVES = {
       ctx.attacker.hp -= cost;
       ctx.attacker.stages.attack = 6;
       say(ctx, 'belly-drum', { cost, hp: ctx.attacker.hp });
+    },
+  },
+  'fillet-away': {
+    fails: (ctx) => (ctx.attacker.hp <= Math.floor(ctx.attacker.maxHp / 2) ||
+      ['attack', 'specialAttack', 'speed'].every((k) => (ctx.attacker.stages[k] || 0) >= 6) ? FAIL : null),
+    run: (ctx) => {
+      const cost = Math.floor(ctx.attacker.maxHp / 2);
+      ctx.attacker.hp -= cost;
+      ctx.events.push({ kind: 'note', text: `${ctx.attacker.name} cut away some of its own body! **-${cost}**` });
+      for (const stat of ['attack', 'specialAttack', 'speed']) ctx.engine.applyStage(ctx.attacker, stat, 2, ctx.events);
     },
   },
   curse: {

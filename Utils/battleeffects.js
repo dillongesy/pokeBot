@@ -104,6 +104,8 @@ function consumeItem(mon, events) {
   mon.item = null;
   mon.itemEffect = null;
   mon.consumedItem = used;
+  // Belch needs a berry eaten first.
+  if (/-berry$/.test(used || '')) mon.ateBerry = true;
   events.push({ kind: 'item-used', name: mon.name, item: displayItem(used) });
 }
 

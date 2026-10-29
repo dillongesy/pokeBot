@@ -352,8 +352,13 @@ function restriction(state, sideIndex, mon, slot) {
   if (v.healBlock && isHealingMove(move)) return 'heal-block';
   if (state.field.gravity && GRAVITY_BANNED.has(move.name)) return 'gravity';
   if (foe && !foe.fainted && vol(foe).imprison && foe.moves.some((m) => m.name === move.name)) return 'imprison';
+  if (v.throatChop && SOUND.has(move.name)) return 'throat-chop';
+  // Gigaton Hammer and Blood Moon can't be used twice in a row.
+  if (NO_REPEAT.has(move.name) && mon.lastMove === move.name) return 'repeat';
   return null;
 }
+
+const NO_REPEAT = new Set(['gigaton-hammer', 'blood-moon']);
 
 /** The move slot an Encore forces, or null. */
 function encoreSlot(mon) {
@@ -365,6 +370,8 @@ function encoreSlot(mon) {
 
 /** Can this Pokemon switch out? Ingrain, Mean Look and Fairy Lock stop it; Ghosts always can. */
 function switchBlocked(state, mon) {
+  // Held in the sky by Sky Drop: nothing gets out of that.
+  if (vol(mon).skyDropped) return 'Sky Drop';
   if (hasType(mon, 'ghost') || itemOf(mon) === 'shed-shell') return null;
   const v = vol(mon);
   if (v.ingrain) return 'Ingrain';
@@ -647,7 +654,7 @@ function endOfTurn(state, events, rng, engine) {
   // Timers.
   for (const mon of active) {
     const v = vol(mon);
-    for (const key of ['taunt', 'magnetRise', 'telekinesis', 'embargo', 'healBlock']) {
+    for (const key of ['taunt', 'magnetRise', 'telekinesis', 'embargo', 'healBlock', 'throatChop']) {
       if (v[key]) {
         v[key] -= 1;
         if (v[key] <= 0) {

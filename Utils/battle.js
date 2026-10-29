@@ -39,7 +39,10 @@ const movepower = require('./movepower');
 const fieldRules = require('./field');
 const cond = require('./conditions');
 const statusMoves = require('./statusmoves');
-const { loadForm } = require('./pokemon');
+const rules = require('./moverules');
+const pokemon = require('./pokemon');
+
+const { loadForm } = pokemon;
 
 /** Confusion's self-hit: a 40-power typeless physical attack on itself. */
 const CONFUSION_HIT = {
@@ -239,6 +242,7 @@ function combatantFrom(row, moves) {
     // Inputs for variable-power moves. Weight in kg, friendship 0-255, and
     // baseAttack is the species' base stat (used by Beat Up).
     weight: (form && form.physical && form.physical.weightKilograms) || 1,
+    hiddenPowerType: pokemon.hiddenPowerType(row),
     baseAttack: (form && form.stats && form.stats.base && form.stats.base.attack) || 50,
     happiness: row.happiness != null ? row.happiness : movepower.DEFAULT_HAPPINESS,
 
@@ -439,10 +443,13 @@ function order(state, actions, rng) {
     // A switch resolves before any attack, whatever the speeds.
     if (action.type === 'switch') return { index, priority: 6, bracket: 0, speed: Infinity };
 
-    const move = mon.moves[action.slot];
+    // A locked-in move (the second turn of Dig, Outrage...) keeps its own
+    // priority; a recharge has none.
+    const move = action.locked ? { data: action.locked.move } : mon.moves[action.slot];
+    const data = move && move.data;
     return {
       index,
-      priority: ((move && move.data.priority) || 0) + effects.priorityBonus(mon, move && move.data),
+      priority: ((data && data.priority) || 0) + effects.priorityBonus(mon, data),
       bracket: effects.bracketShift(mon, rng),
       // Tailwind doubles speed for its side.
       speed: effectiveSpeed(mon) * cond.speedMultiplier(state, index),
@@ -501,8 +508,9 @@ function canAct(mon, rng, events, foe = null, chosen = null) {
   }
 
   if (mon.status === 'freeze') {
-    // 20% to thaw each turn, as in the games.
-    if (rng() < 0.2) {
+    // 20% to thaw each turn, as in the games. Flame Wheel, Scald and the
+    // like thaw the user out to be used.
+    if ((chosen && rules.THAWS_USER.has(chosen.name)) || rng() < 0.2) {
       mon.status = null;
       events.push({ kind: 'cured', name: mon.name, status: 'freeze' });
       return true;
@@ -586,6 +594,12 @@ function applyStatus(target, status, events, rng = null) {
   // A Substitute blocks status.
   if (fieldRules.behindSubstitute(target)) return false;
 
+  // Nobody falls asleep during an uproar.
+  if (status === 'sleep' && target.uproarNearby) {
+    events.push({ kind: 'note', text: `But ${target.name} can't sleep in an uproar!` });
+    return false;
+  }
+
   const immune = {
     burn: ['fire'],
     freeze: ['ice'],
@@ -661,6 +675,10 @@ function applyStage(target, stat, delta, events, fromFoe = false) {
   target.stages[key] = after;
   events.push({ kind: 'stat', name: target.name, stat: key, delta: after - before, to: after });
 
+  // For Burning Jealousy, Alluring Voice and Lash Out.
+  if (after > before) target.statsRoseThisTurn = true;
+  else target.statsDroppedThisTurn = true;
+
   if (after < before) effects.afterStatLowered(target, key, fromFoe, events);
 }
 
@@ -729,6 +747,16 @@ function landHit(attacker, defender, move, amount, detail, rng, events) {
     critical,
     effectiveness,
   });
+
+  // Rage Fist counts every hit taken; Bide stores the damage; Rage gets
+  // angrier; Beak Blast burns whoever touches the heated beak.
+  const hv = defender.volatiles || {};
+  if (landed > 0 && attacker !== defender) {
+    defender.timesHit = (defender.timesHit || 0) + 1;
+    if (hv.locked && hv.locked.kind === 'bide') hv.locked.stored += landed;
+    if (hv.rage && defender.hp > 0) effects.requestStage(defender, 'attack', 1, events, 'Rage');
+    if (hv.beakBlast && effects.makesContact(move) && !attacker.fainted) applyStatus(attacker, 'burn', events);
+  }
 
   if (saved && saved.consume) effects.consumeItem(defender, events);
 
@@ -843,6 +871,7 @@ function useMove(attacker, defender, slot, rng, events, arena = null, turn = nul
   const v = attacker.volatiles || (attacker.volatiles = {});
   delete v.destinyBond;
   delete v.grudge;
+  delete v.glaiveRush;
 
   let move;
 
@@ -891,7 +920,32 @@ function useMove(attacker, defender, slot, rng, events, arena = null, turn = nul
  * their own effect in Utils/statusmoves.js.
  */
 function performMove(attacker, defender, baseMove, options = {}) {
+  const { rng, events, turn = null } = options;
+  const state = turn && turn.state;
+  const start = events.length;
+  const outcome = { started: false, hits: 0, charging: false, continuing: Boolean(options.continuing) };
+
+  executeMove(attacker, defender, baseMove, { ...options, outcome });
+
+  // Crash damage, Steel Beam's cost, the recharge, the rampage and the
+  // consecutive-use counters (Utils/moverules.js).
+  rules.afterMove({
+    state,
+    sideIndex: turn ? turn.index : 0,
+    attacker,
+    defender,
+    move: baseMove,
+    rng,
+    events,
+    engine: state ? engineFor(state, rng, events, turn) : null,
+  }, outcome, start);
+  settleEffects(events);
+}
+
+/** The move itself; performMove wraps it. Records what happened in `options.outcome`. */
+function executeMove(attacker, defender, baseMove, options = {}) {
   const { entry = null, rng, events, turn = null, called = false, powerMultiplier = 1 } = options;
+  const outcome = options.outcome || {};
   const arena = options.arena || (turn && turn.state ? turn.state.field : null);
   const state = turn && turn.state;
   const sideIndex = turn ? turn.index : 0;
@@ -902,6 +956,34 @@ function performMove(attacker, defender, baseMove, options = {}) {
   let move = baseMove;
   if (av.electrify || (arena && arena.ionDeluge && lowerType(move.type) === 'normal')) {
     move = { ...move, type: 'electric' };
+  }
+
+  // Weather Ball, Terrain Pulse, Judgment and the rest take a type from the
+  // battle.
+  const ruleCtx = {
+    state, sideIndex, attacker, defender, move, rng, events, turn,
+    engine: state ? engineFor(state, rng, events, turn) : null,
+  };
+  const retyped = rules.typeFor(ruleCtx);
+  if (retyped) {
+    move = { ...move, type: retyped };
+    ruleCtx.move = move;
+  }
+
+  // The first turn of a two-turn move only charges (Dig, Fly, Solar Beam),
+  // and Bide starts storing energy.
+  if (!options.continuing && state) {
+    if (move.name === 'bide') {
+      events.push({ kind: 'move', name: attacker.name, move: move.displayName, type: move.type, damageClass: move.damageClass });
+      rules.startBide(ruleCtx);
+      outcome.charging = true;
+      return;
+    }
+    // Sky Drop has to connect first, so it starts further down.
+    if (rules.CHARGE[move.name] && move.name !== 'sky-drop' && rules.startCharge(ruleCtx)) {
+      outcome.charging = true;
+      return;
+    }
   }
 
   events.push({
@@ -931,6 +1013,7 @@ function performMove(attacker, defender, baseMove, options = {}) {
   // The user faints once it has gone off, hit, miss or Protect (resolveTurn
   // handles it).
   if (USER_FAINTS.has(move.name)) attacker.selfDestructing = true;
+  outcome.started = true;
 
   // Resolve the move's power (Utils/movepower.js handles variable-power
   // moves). Done before accuracy, since some moves fail rather than miss
@@ -953,6 +1036,21 @@ function performMove(attacker, defender, baseMove, options = {}) {
       name: attacker.name,
       text: movepower.reasonText(verdict.reason, attacker.name),
     });
+    return;
+  }
+
+  // Dream Eater on someone awake, Snore while awake, Last Resort too early...
+  if (move.damageClass !== 'status') {
+    const why = rules.failReason(ruleCtx);
+    if (why) {
+      events.push({ kind: 'failed', name: attacker.name, text: why });
+      return;
+    }
+  }
+
+  // Future Sight and Doom Desire land two turns later, on whoever is out.
+  if (rules.FUTURE.has(move.name) && state) {
+    rules.startFutureSight(ruleCtx);
     return;
   }
 
@@ -1070,16 +1168,26 @@ function performMove(attacker, defender, baseMove, options = {}) {
     const evasion = extra.ignoreEvasion ? Math.min(0, defender.stages.evasion || 0) : defender.stages.evasion;
 
     // A Poison type's Toxic never misses, nor does a move Magic Coat sent
-    // back.
-    const sure = extra.sure || options.bounced ||
+    // back, nor one aimed at a Minimized target or a Glaive Rush user.
+    const weatherAim = rules.weatherAccuracy(ruleCtx);
+    const sure = extra.sure || options.bounced || weatherAim === Infinity || rules.sureHit(ruleCtx) ||
       (move.name === 'toxic' && (attacker.types || []).some((t) => lowerType(t) === 'poison'));
 
-    // One-hit KO moves use their own accuracy rule.
+    // Underground, underwater, in the sky or vanished: only a few moves reach
+    // it (Earthquake a digger, Thunder a flier), unless it can't miss.
+    if (!rules.canReach(move, defender) && !aim.never && !extra.sure) {
+      events.push({ kind: 'miss', name: defender.name });
+      return;
+    }
+
+    // One-hit KO moves use their own accuracy rule. Thunder and Hurricane are
+    // only 50% accurate in sun.
+    const aimed = weatherAim && weatherAim !== Infinity ? { ...move, accuracy: weatherAim } : move;
     if (
       verdict.kind !== 'ohko' &&
       !aim.never &&
       !sure &&
-      !damage.hits(move, rng(), attacker.stages.accuracy, evasion, aim.multiplier * extra.multiplier)
+      !damage.hits(aimed, rng(), attacker.stages.accuracy, evasion, aim.multiplier * extra.multiplier)
     ) {
       events.push({ kind: 'miss', name: defender.name });
       return;
@@ -1109,6 +1217,14 @@ function performMove(attacker, defender, baseMove, options = {}) {
     }
   }
 
+  // Sky Drop's first turn: having got past accuracy and Protect, it carries
+  // the target up. Both are out of reach until it comes down next turn.
+  if (move.name === 'sky-drop' && !options.continuing && state) {
+    rules.startCharge(ruleCtx);
+    outcome.charging = true;
+    return;
+  }
+
   // Status moves aimed at the foe with an effect of their own (Taunt,
   // Encore, Roar, Trick...).
   if (atFoe && statusMoves.has(move.name) && state) {
@@ -1119,14 +1235,21 @@ function performMove(attacker, defender, baseMove, options = {}) {
 
   // Natural Gift takes the berry's type, which everything below must use.
   const movedType = verdict.type || move.type;
-  const effectiveness = state
-    ? cond.effectiveness(movedType, defender, arena)
-    : typechart.effectiveness(movedType, defender.types);
+  const typeAgainst = (type) => (state
+    ? cond.effectiveness(type, defender, arena)
+    : typechart.effectiveness(type, defender.types));
+
+  // Freeze-Dry, Flying Press and Thousand Arrows bend the type chart.
+  const effectiveness = rules.adjustEffectiveness(ruleCtx, typeAgainst(movedType), typeAgainst);
+  ruleCtx.effectiveness = effectiveness;
+  ruleCtx.movedType = movedType;
 
   // Absorbing abilities and items (Levitate, Volt Absorb, Flash Fire, Wonder
   // Guard, Air Balloon) stop the move entirely. A grounded target (Gravity,
-  // Smack Down) can't float over a Ground move.
-  const groundedHit = lowerType(movedType) === 'ground' && state && cond.grounded(defender, arena);
+  // Smack Down) can't float over a Ground move, and Thousand Arrows reaches
+  // anything.
+  const groundedHit = lowerType(movedType) === 'ground' && state &&
+    (cond.grounded(defender, arena) || move.name === 'thousand-arrows');
   const absorb = groundedHit ? null : effects.absorbs(defender, { ...move, type: movedType }, effectiveness);
 
   if (absorb) {
@@ -1181,8 +1304,9 @@ function performMove(attacker, defender, baseMove, options = {}) {
   //
   // No STAB, crits, damage roll or effectiveness multiplier.
   if (verdict.kind === 'fixed') {
-    dealt = landHit(attacker, defender, move, verdict.damage, { effectiveness: 1 }, rng, events);
+    dealt = landHit(attacker, defender, move, rules.capDamage(ruleCtx, verdict.damage), { effectiveness: 1 }, rng, events);
     hitsLanded = 1;
+    outcome.hits = 1;
 
     // Final Gambit: the user faints regardless, and the opponent isn't
     // credited with the knockout.
@@ -1213,12 +1337,24 @@ function performMove(attacker, defender, baseMove, options = {}) {
     // Effectiveness is announced once per move, not per hit.
     let saidEffectiveness = false;
 
+    // Spectral Thief steals boosts first; Fickle Beam rolls for its power.
+    rules.beforeHit(ruleCtx);
+    rules.rollBeforeHits(ruleCtx);
+
     for (let hit = 0; hit < hitCount && !defender.fainted; hit += 1) {
+      // Triple Kick, Triple Axel and Population Bomb check accuracy for
+      // every hit after the first, and stop at the first miss.
+      if (hit > 0 && rules.EACH_HIT_CHECKS_ACCURACY.has(move.name) && !effects.accuracy(attacker, defender, move).never &&
+          !damage.hits(move, rng(), attacker.stages.accuracy, defender.stages.evasion)) {
+        break;
+      }
+
       const critical = critsAllowed && critForced !== false &&
         (critForced === true || damage.crits(move, rng(), critBonus));
 
-      // Ability and item modifiers, grouped for Utils/damage.js.
-      const basePower = powers ? powers[hit] : verdict.power || move.power;
+      // Ability and item modifiers, grouped for Utils/damage.js. Power that
+      // depends on the battle (Hex, Brine, Rollout...) is worked out first.
+      const basePower = rules.powerFor(ruleCtx, powers ? powers[hit] : verdict.power || move.power, hit);
       const thisPower = powerMultiplier !== 1 ? Math.floor(basePower * powerMultiplier) : basePower;
       const parts = effects.damageParts(attacker, defender, move, effectiveness, thisPower);
 
@@ -1235,10 +1371,14 @@ function performMove(attacker, defender, baseMove, options = {}) {
         parts.extraModifiers.push(...cond.damageModifiers(state, sideIndex, attacker, defender, move, movedType, critical));
       }
 
+      // Psyshock hits Defense, Foul Play uses the target's Attack, Body Press
+      // the user's Defense, Sacred Sword ignores the target's stat changes.
+      const src = rules.statSources(ruleCtx, attacker, target, move);
+
       const result = damage.calculate({
-        attacker,
-        defender: target,
-        move,
+        attacker: src.attacker,
+        defender: src.defender,
+        move: src.move,
         roll: rng(),
         critical,
         power: thisPower,
@@ -1277,7 +1417,7 @@ function performMove(attacker, defender, baseMove, options = {}) {
         attacker,
         defender,
         move,
-        result.damage,
+        rules.capDamage(ruleCtx, result.damage),
         { critical, effectiveness: result.effectiveness },
         rng,
         events
@@ -1289,6 +1429,7 @@ function performMove(attacker, defender, baseMove, options = {}) {
     if (hitCount > 1 && hitsLanded > 0) {
       events.push({ kind: 'multi-hit', name: attacker.name, hits: hitsLanded });
     }
+    outcome.hits = hitsLanded;
 
     // Charge powers up one Electric move; Laser Focus one hit.
     if (lowerType(movedType) === 'electric') delete av.charged;
@@ -1397,7 +1538,7 @@ function performMove(attacker, defender, baseMove, options = {}) {
   // Electric Terrain).
   if (move.name === 'rest') {
     const terrainBlocks = state && cond.sideBlocksStatus(state, sideIndex, attacker, 'sleep') === 'Electric Terrain';
-    if (attacker.hp >= attacker.maxHp || !effects.statusAllowed(attacker, 'sleep') || terrainBlocks) {
+    if (attacker.hp >= attacker.maxHp || !effects.statusAllowed(attacker, 'sleep') || terrainBlocks || attacker.uproarNearby) {
       events.push({ kind: 'failed', name: attacker.name, text: 'But it failed!' });
       return;
     }
@@ -1431,6 +1572,13 @@ function performMove(attacker, defender, baseMove, options = {}) {
     if (benchOf(side).length && !wipedOut(state.sides[1 - sideIndex])) side.pendingSwitch = {};
   }
 
+  // Knock Off, Thief, Clear Smog, the trapping moves, Fell Stinger and the
+  // rest (Utils/moverules.js).
+  if (hitsLanded > 0 && move.damageClass !== 'status' && state) {
+    rules.afterHit(ruleCtx, { dealt, standing: !defender.fainted });
+    settleEffects(events);
+  }
+
   // Everything below only lands on something still standing.
   if (defender.fainted || attacker.fainted) return;
 
@@ -1442,6 +1590,7 @@ function performMove(attacker, defender, baseMove, options = {}) {
 
   // Smack Down and Thousand Arrows bring a flying target to the ground.
   if (GROUNDERS.has(move.name) && dealt > 0) {
+    rules.bringDown(defender, state, events);
     dv.smackedDown = true;
     delete dv.magnetRise;
     delete dv.telekinesis;
@@ -1786,6 +1935,28 @@ function resolveTurn(state, actions, options = {}) {
   // next turn.
   const wereOut = state.sides.map((side) => activeOf(side));
 
+  // Per-turn records: stat changes (Burning Jealousy, Lash Out), the moves
+  // used (Fusion Flare), and whether a teammate fainted last turn (Retaliate).
+  state.movesThisTurn = [];
+  for (const side of state.sides) {
+    for (const mon of side.team) {
+      mon.statsRoseThisTurn = false;
+      mon.statsDroppedThisTurn = false;
+    }
+    const fainted = side.team.filter((mon) => mon.fainted).length;
+    side.faintedLastTurn = side.faintCount != null && fainted > side.faintCount;
+    side.faintCount = fainted;
+  }
+
+  // Locked in: the second turn of Dig or Solar Beam, Outrage, Rollout,
+  // Uproar, Bide, or Hyper Beam's recharge. Whatever was chosen, that is
+  // what happens (no switching either).
+  actions = actions.map((action, index) => {
+    const lock = rules.lockedAction(activeOf(state.sides[index]));
+    return lock ? { type: 'move', slot: -1, locked: lock } : action;
+  });
+  rules.refreshUproar(state);
+
   // Encore: a Pokemon under it has to repeat its move, whatever was chosen.
   actions = actions.map((action, index) => {
     if (action.type !== 'move') return action;
@@ -1799,10 +1970,25 @@ function resolveTurn(state, actions, options = {}) {
   const plans = state.sides.map((side, index) => {
     const action = actions[index];
     if (action.type !== 'move') return null;
+    if (action.locked) return action.locked.move;
     const entry = activeOf(side).moves[action.slot];
     return entry ? entry.data : null;
   });
   const moved = [false, false];
+
+  // Focus Punch, Shell Trap and Beak Blast announce themselves before anyone
+  // moves.
+  plans.forEach((plan, index) => {
+    if (!plan || actions[index].locked || !rules.FIRES_BEFORE.has(plan.name)) return;
+    const mon = activeOf(state.sides[index]);
+    if (mon.fainted) return;
+    if (plan.name === 'focus-punch') events.push({ kind: 'note', text: `${mon.name} is tightening its focus!` });
+    if (plan.name === 'shell-trap') events.push({ kind: 'note', text: `${mon.name} set a shell trap!` });
+    if (plan.name === 'beak-blast') {
+      mon.volatiles.beakBlast = true;
+      events.push({ kind: 'note', text: `${mon.name} started heating up its beak!` });
+    }
+  });
 
   // Kept on the state so a turn can pause mid-way (a player choosing who
   // comes in after their U-turn) and pick up again in continueTurn.
@@ -1869,6 +2055,36 @@ function midTurnSwitch(state, index, events) {
   return false;
 }
 
+/**
+ * The turns after the first of a locked-in move: the attack after Dig or
+ * Solar Beam's charge, the rest of Outrage and Rollout, Uproar, Bide. No PP
+ * is spent.
+ */
+function continueLocked(state, attacker, defender, lock, rng, events, turn) {
+  const v = attacker.volatiles;
+  attacker.previousMove = attacker.lastMove;
+
+  if (lock.kind === 'charge') {
+    delete v.locked;
+    // Sky Drop lets go of its target as it drops it.
+    if (lock.move.name === 'sky-drop' && defender.volatiles) delete defender.volatiles.skyDropped;
+  }
+
+  if (lock.kind === 'bide') {
+    v.locked.turns -= 1;
+    if (v.locked.turns > 0) {
+      events.push({ kind: 'note', text: `${attacker.name} is storing energy!` });
+      return;
+    }
+    v.bideRelease = v.locked.stored;
+    delete v.locked;
+    events.push({ kind: 'note', text: `${attacker.name} unleashed its energy!` });
+  }
+
+  performMove(attacker, defender, lock.move, { entry: null, rng, events, turn, continuing: true });
+  delete v.bideRelease;
+}
+
 /** Work through the queued actions; stop early if a switch needs choosing. */
 function runActions(state, events) {
   const t = state.turnContext;
@@ -1908,6 +2124,22 @@ function runActions(state, events) {
         continue;
       }
 
+      // Pursuit catches a Pokemon on its way out, at double power.
+      const chaser = 1 - index;
+      const chase = actions[chaser];
+      if (!moved[chaser] && chase.type === 'move' && !chase.locked && plans[chaser] && plans[chaser].name === 'pursuit' &&
+          !leaving.fainted) {
+        const hunter = activeOf(state.sides[chaser]);
+        moved[chaser] = true;
+        t.queue = t.queue.filter((i) => i !== chaser);
+        if (!hunter.fainted && canAct(hunter, rng, events, leaving, plans[chaser])) {
+          useMove(hunter, leaving, chase.slot, rng, events, state.field, {
+            state, index: chaser, foeMove: null, foeMoved: false, pursuing: true,
+          });
+        }
+        if (wipedOut(side)) break;
+      }
+
       swapIn(state, index, action.index, events);
       continue;
     }
@@ -1916,14 +2148,40 @@ function runActions(state, events) {
     const defender = activeOf(other);
 
     if (attacker.fainted) continue;
-    if (!canAct(attacker, rng, events, defender, plans[index])) continue;
 
-    useMove(attacker, defender, action.slot, rng, events, state.field, {
-      state,
-      index,
-      foeMove: plans[1 - index],
-      foeMoved,
-    });
+    const turnInfo = { state, index, foeMove: plans[1 - index], foeMoved };
+
+    if (action.locked) {
+      // The lock may have ended since the turn began (knocked out of the
+      // sky, dragged out by Roar): then it simply loses the turn.
+      const lock = rules.lockedAction(attacker);
+      if (!lock) continue;
+
+      if (lock.kind === 'recharge') {
+        delete attacker.volatiles.mustRecharge;
+        events.push({ kind: 'note', text: `${attacker.name} must recharge!` });
+        continue;
+      }
+
+      if (!canAct(attacker, rng, events, defender, lock.move)) {
+        rules.interrupt(attacker, state);
+        continue;
+      }
+
+      continueLocked(state, attacker, defender, lock, rng, events, turnInfo);
+    } else {
+      // Carried into the sky by a faster Sky Drop this turn.
+      if (attacker.volatiles && attacker.volatiles.skyDropped) continue;
+
+      if (!canAct(attacker, rng, events, defender, plans[index])) {
+        rules.interrupt(attacker, state);
+        continue;
+      }
+
+      useMove(attacker, defender, action.slot, rng, events, state.field, turnInfo);
+    }
+
+    delete attacker.volatiles.beakBlast;
 
     // Roar or Teleport ended a wild battle.
     if (state.fled) break;
@@ -1948,6 +2206,62 @@ function runActions(state, events) {
   }
 
   return endTurn(state, events);
+}
+
+/**
+ * End-of-turn effects from moves: Future Sight and Doom Desire landing, Salt
+ * Cure, Syrup Bomb, and letting go of a Sky Drop target whose carrier is gone.
+ */
+function delayedEffects(state, events, rng) {
+  state.sides.forEach((side, index) => {
+    const c = side.conditions || {};
+    const mon = activeOf(side);
+
+    if (c.futureSight) {
+      c.futureSight.turns -= 1;
+      if (c.futureSight.turns <= 0) {
+        const { attacker, move } = c.futureSight;
+        delete c.futureSight;
+        if (!mon.fainted) {
+          events.push({ kind: 'note', text: `${mon.name} took the ${move.displayName} attack!` });
+          const effectiveness = cond.effectiveness(move.type, mon, state.field);
+          if (effectiveness === 0) {
+            events.push({ kind: 'immune', name: mon.name, effectiveness: 0 });
+          } else {
+            const result = damage.calculate({ attacker, defender: mon, move, roll: rng(), effectiveness });
+            if (effectiveness !== 1) {
+              const line = typechart.describe(effectiveness);
+              if (line) events.push({ kind: 'effectiveness', text: line, effectiveness });
+            }
+            landHit(attacker, mon, move, result.damage, { effectiveness }, rng, events);
+          }
+        }
+      }
+    }
+
+    if (mon.fainted) return;
+    const v = mon.volatiles || {};
+
+    if (v.saltCure) {
+      const harsh = (mon.types || []).some((t) => ['water', 'steel'].includes(lowerType(t)));
+      effects.chip(mon, Math.max(1, Math.floor(mon.maxHp / (harsh ? 4 : 8))), events, 'Salt Cure', 'condition-damage');
+    }
+
+    if (v.syrupBomb && !mon.fainted) {
+      const foe = activeOf(state.sides[1 - index]);
+      v.syrupBomb -= 1;
+      applyStage(mon, 'speed', -1, events, true);
+      if (v.syrupBomb <= 0 || foe.fainted) delete v.syrupBomb;
+    }
+
+    if (v.skyDropped) {
+      const carrier = activeOf(state.sides[1 - index]);
+      const holding = carrier && carrier.id === v.skyDropped && carrier.volatiles && carrier.volatiles.locked;
+      if (!holding) delete v.skyDropped;
+    }
+  });
+
+  settleEffects(events);
 }
 
 /** Everything after both sides have acted: end-of-turn effects, then the result. */
@@ -2022,6 +2336,9 @@ function endTurn(state, events) {
     effects.chip(mon, fieldRules.trapChip(mon, null), events, mon.trapped.move, 'trap-damage');
   }
 
+  // Future Sight and Doom Desire land, Salt Cure stings, Syrup Bomb slows.
+  if (!over()) delayedEffects(state, events, rng);
+
   // Leech Seed heals whoever planted it.
   for (let index = 0; index < 2; index += 1) {
     if (over()) break;
@@ -2067,8 +2384,12 @@ function endTurn(state, events) {
     }
   }
 
-  // Protect lasts one turn; clear it at the end.
-  for (const side of state.sides) activeOf(side).protectedNow = false;
+  // Protect lasts one turn; clear it at the end, along with Beak Blast's heat.
+  for (const side of state.sides) {
+    activeOf(side).protectedNow = false;
+    if (activeOf(side).volatiles) delete activeOf(side).volatiles.beakBlast;
+  }
+  rules.refreshUproar(state);
 
   // Berries last.
   for (const side of state.sides) {

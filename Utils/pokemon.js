@@ -266,6 +266,28 @@ function rollIvs() {
   return ivs;
 }
 
+const HIDDEN_POWER_TYPES = [
+  'fighting', 'flying', 'poison', 'ground', 'rock', 'bug', 'ghost', 'steel',
+  'fire', 'water', 'grass', 'electric', 'psychic', 'ice', 'dragon', 'dark',
+];
+
+/**
+ * Hidden Power's type, from whether each IV is odd (the games' formula).
+ * Takes a stored row (`iv_hp`...) or a rolled Pokemon (`ivs`). Null when the
+ * IVs aren't known.
+ */
+function hiddenPowerType(source) {
+  if (!source) return null;
+  const iv = (stat, column) => (source.ivs ? source.ivs[stat] : source[`iv_${column}`]);
+  const order = [
+    iv('hp', 'hp'), iv('attack', 'attack'), iv('defense', 'defense'),
+    iv('speed', 'speed'), iv('specialAttack', 'special_attack'), iv('specialDefense', 'special_defense'),
+  ];
+  if (order.some((value) => value == null)) return null;
+  const bits = order.reduce((sum, value, i) => sum + (value % 2) * 2 ** i, 0);
+  return HIDDEN_POWER_TYPES[Math.floor((bits * 15) / 63)];
+}
+
 function zeroEvs() {
   const evs = {};
   for (const stat of STATS) evs[stat] = 0;
@@ -497,6 +519,7 @@ module.exports = {
   wildLevelRange,
   rollLevel,
   rollIvs,
+  hiddenPowerType,
   zeroEvs,
   rollAbility,
   calculateStats,
