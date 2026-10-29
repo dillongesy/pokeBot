@@ -381,9 +381,9 @@ module.exports = {
     {
       name: 'Held Items',
       description:
-        'Battle gear. Every one of these does something in a fight - see ' +
-        'Utils/battleeffects.js for exactly what. `.useitem <pokemon> <item>` to ' +
-        'equip, `.take <pokemon>` to get it back.',
+        'Battle gear. Every one of these does something in a fight; `.examine <item>` ' +
+        'says exactly what. `.useitem <pokemon> <item>` to equip, `.take <pokemon>` to ' +
+        'get it back.',
       items: [
         { tier: 'rare', item: 'leftovers', price: 8000 },
         { tier: 'rare', item: 'choice-band', price: 9000 },

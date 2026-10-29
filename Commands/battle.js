@@ -820,17 +820,17 @@ function settle(userId, state, setup, outcome = null) {
   // Experience lines were already logged per knockout. Level-ups, and the
   // moves they taught, get their own message.
   for (const mon of applied.pokemon) {
+    // One line per Pokemon, with any move it learned into a free slot.
     if (mon.levelledFrom) {
       const grew = mon.level - mon.levelledFrom;
+      const learned = (mon.learned || []).length ? ` It learned ${mon.learned.join(', ')}.` : '';
       levelUps.push(
-        `${mon.name} grew to level ${mon.level}` +
-          (grew > 1 ? ` (up ${grew} from ${mon.levelledFrom}).` : '.')
+        `⬆️ **Level up!** ${mon.name} grew to level ${mon.level}` +
+          (grew > 1 ? ` (up ${grew} from ${mon.levelledFrom}).` : '.') +
+          learned
       );
-    }
-
-    // Moves learned into a free slot.
-    if ((mon.learned || []).length) {
-      levelUps.push(`${mon.name} learned ${mon.learned.join(', ')}.`);
+    } else if ((mon.learned || []).length) {
+      levelUps.push(`📘 **New move!** ${mon.name} learned ${mon.learned.join(', ')}.`);
     }
 
     // Moves that need a slot freed get their own prompt instead (see conclude).
@@ -957,7 +957,7 @@ function settle(userId, state, setup, outcome = null) {
   }
 
   const announcements = [
-    ...(levelUps.length ? [`⬆️ **Level up!** ${levelUps.join(' ')}`] : []),
+    ...(levelUps.length ? [levelUps.join('\n')] : []),
     ...stopsObeying,
     ...evolving,
     ...extras,

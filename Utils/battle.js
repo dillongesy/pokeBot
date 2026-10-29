@@ -1958,6 +1958,16 @@ function endTurn(state, events) {
   // A wild battle ended by Roar, Whirlwind or Teleport: nothing else happens.
   if (state.fled) return events;
 
+  // Once a side has nothing left the battle is over: no weather, burn,
+  // poison or Leech Seed afterwards, so the winner can't be knocked out by
+  // the sandstorm after winning. Checked again between each effect below.
+  const over = () => wipedOut(state.sides[0]) || wipedOut(state.sides[1]);
+  if (over()) {
+    for (const side of state.sides) for (const mon of side.team) mon.flinched = false;
+    checkFinished(state, events);
+    return events;
+  }
+
   // A flinch only stops a Pokemon that has not moved yet this turn. One from
   // a slower attacker lands after its target has already acted, so it must
   // not carry over and cost the target its next turn.
@@ -1968,6 +1978,7 @@ function endTurn(state, events) {
   // End of turn, in the games' order: item and ability effects first
   // (Leftovers, Speed Boost, Shed Skin, the orbs), then burn and poison.
   for (const side of state.sides) {
+    if (over()) break;
     const mon = activeOf(side);
     if (mon.fainted) continue;
 
@@ -1976,12 +1987,14 @@ function endTurn(state, events) {
   }
 
   for (const side of state.sides) {
+    if (over()) break;
     const mon = activeOf(side);
     if (!mon.fainted) residualDamage(mon, events);
   }
 
   // Then weather, traps and Leech Seed, in that order.
   for (const side of state.sides) {
+    if (over()) break;
     const mon = activeOf(side);
     if (mon.fainted) continue;
 
@@ -1994,6 +2007,7 @@ function endTurn(state, events) {
   }
 
   for (const side of state.sides) {
+    if (over()) break;
     const mon = activeOf(side);
     if (mon.fainted || !mon.trapped) continue;
 
@@ -2010,6 +2024,7 @@ function endTurn(state, events) {
 
   // Leech Seed heals whoever planted it.
   for (let index = 0; index < 2; index += 1) {
+    if (over()) break;
     const mon = activeOf(state.sides[index]);
     const other = activeOf(state.sides[1 - index]);
 
@@ -2031,7 +2046,7 @@ function endTurn(state, events) {
 
   // Conditions: Wish, Aqua Ring, Ingrain, Grassy Terrain, Nightmare, Curse,
   // Yawn, Perish Song, then every timer (Utils/conditions.js).
-  cond.endOfTurn(state, events, rng, {
+  if (!over()) cond.endOfTurn(state, events, rng, {
     applyStatus: (target, status, evts, r) => applyStatus(target, status, evts, r),
     chip: effects.chip,
   });

@@ -24,7 +24,7 @@
  *
  * Who uses which, as Emerald's trainer flags do:
  *
- *   wild        none - a random move (Gen 3 wild Pokemon are random)
+ *   wild        checkBadMove - a random move, but never one that would fail
  *   trainer     checkBadMove, tryToFaint, checkViability
  *   milestone   all five (gym leaders, the Elite Four, champions)
  *
@@ -86,7 +86,9 @@ const PROTECTS = new Set(['protect', 'detect', 'kings-shield', 'spiky-shield', '
 
 /** Script sets per kind of battle. */
 const FLAGS = {
-  wild: [],
+  // Wild Pokemon still pick at random, but never a move that would fail
+  // outright (Rain Dance in the rain, Thunder Wave on a Ground type).
+  wild: ['checkBadMove'],
   trainer: ['checkBadMove', 'tryToFaint', 'checkViability'],
   milestone: ['checkBadMove', 'tryToFaint', 'checkViability', 'hpAware', 'preferStrongest'],
 };
