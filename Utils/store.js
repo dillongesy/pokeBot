@@ -1080,7 +1080,9 @@ function awardBattle(userId, payout) {
     result.trainerExp = payout.trainerExp;
   }
 
-  recordBattle(userId, Boolean(payout.won));
+  // A wild battle that ended with someone blown away or teleporting off
+  // (Roar, Dragon Tail, Teleport) is neither a win nor a loss.
+  if (!payout.noContest) recordBattle(userId, Boolean(payout.won));
   return result;
 }
 

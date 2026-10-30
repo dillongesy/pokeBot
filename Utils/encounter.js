@@ -15,6 +15,7 @@
 const rates = require('./rates');
 const battle = require('./battle');
 const learnset = require('./learnset');
+const content = require('./content');
 const obedience = require('./obedience');
 const evolution = require('./evolution');
 const names = require('./names');
@@ -183,8 +184,9 @@ function wildCombatant(speciesId, level, { formFolder = null, rng = Math.random 
     shiny: 0,
   };
 
+  // Opponents never get moves that only work in double battles.
   const moves = learnset
-    .movesAtLevel(species.id, chosen.folder, mon.level)
+    .movesAtLevel(species.id, chosen.folder, mon.level, { exclude: content.doublesOnly })
     .map((entry) => ({ move: entry.name, data: learnset.move(entry.name), ppUp: 0 }));
 
   const combatant = battle.combatantFrom(row, moves);

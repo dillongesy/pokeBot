@@ -236,6 +236,20 @@ function shop() {
   return cache.shop;
 }
 
+/**
+ * Moves that do nothing in a single battle, which is the only kind there is
+ * for now: they help a partner (Helping Hand, Follow Me, Ally Switch, Heal
+ * Pulse), or guard against moves that hit several Pokemon (Wide Guard).
+ * Players can still learn, teach and buy them; opponents never get or use
+ * them (Utils/encounter.js, Utils/ai.js). Empty this when double battles exist.
+ */
+const DOUBLES_ONLY = new Set([
+  'helping-hand', 'follow-me', 'rage-powder', 'ally-switch', 'aromatic-mist', 'hold-hands',
+  'coaching', 'spotlight', 'dragon-cheer', 'wide-guard', 'decorate', 'after-you', 'quash',
+  'instruct', 'heal-pulse', 'floral-healing',
+]);
+const doublesOnly = (name) => DOUBLES_ONLY.has(name);
+
 function goldShop() {
   if (!cache.goldShop) {
     cache.goldShop = readJson(
@@ -348,6 +362,8 @@ module.exports = {
   berries,
   berry,
   shop,
+  DOUBLES_ONLY,
+  doublesOnly,
   goldShop,
   goldTiers,
   findForSale,

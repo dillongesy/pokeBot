@@ -695,6 +695,9 @@ function applyStage(target, stat, delta, events, fromFoe = false) {
 function landHit(attacker, defender, move, amount, detail, rng, events) {
   const { critical = false, effectiveness = 1 } = detail || {};
 
+  // The last move that landed on it, for the opponent's switching (Utils/ai.js).
+  (defender.volatiles || (defender.volatiles = {})).lastLanded = move;
+
   // A Substitute takes the hit instead. When it breaks, excess damage does
   // not carry over to the Pokemon, as in the games.
   if (fieldRules.behindSubstitute(defender)) {
@@ -1862,6 +1865,8 @@ function flee(state, sideIndex, mon, events, blownAway = false) {
   state.finished = true;
   state.fled = true;
   state.winner = null;
+  // Not the player running: no win, and no loss either (Commands/battle.js).
+  state.endedBy = blownAway ? 'blown-away' : 'teleported';
   events.push({ kind: blownAway ? 'blown-away' : 'teleported', name: mon.name, side: state.sides[sideIndex].name });
   events.push({ kind: 'end', winner: null, fled: true });
   return true;

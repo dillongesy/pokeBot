@@ -889,6 +889,9 @@ function settle(userId, state, setup, outcome = null) {
   // level and skips anyone who didn't grow.
   const startedAt = setup.startedAt || new Map();
 
+  // Blown away by Roar or Dragon Tail, or teleported off: no result at all.
+  payout.noContest = Boolean(state.endedBy);
+
   payout.grew = state.sides[0].team
     .filter((mon) => startedAt.has(mon.id))
     .map((mon) => ({ id: mon.id, from: startedAt.get(mon.id) }));
@@ -907,6 +910,8 @@ function settle(userId, state, setup, outcome = null) {
     } catch (err) {
       console.error('Daily quest update failed after a battle:', err);
     }
+  } else if (state.endedBy) {
+    lines.push("**The battle ended.** It doesn't count as a win or a loss.");
   } else if (outcome === 'fled') {
     lines.push(
       state.kind === 'wild'
@@ -1427,8 +1432,9 @@ function keepLogOpen(card, log) {
 async function conclude({ userId, state, setup, card, log, outcome = null, edit = null }) {
   const { lines, announcements, offers } = settle(userId, state, setup, outcome);
 
-  const heading =
-    outcome === 'fled'
+  const heading = state.endedBy
+    ? 'Battle over'
+    : outcome === 'fled'
       ? state.kind === 'wild'
         ? 'Got away'
         : 'Walked away'

@@ -179,11 +179,15 @@ function learnableAt(speciesId, formFolder, level) {
  *
  * The last four it has learned, newest last. May be fewer than four, but
  * never zero: a Pokemon below its first level-up move still gets that move.
+ * `exclude` (a move name -> boolean) leaves some moves out, as if never learned.
  *
  * @returns {Array<{name: string, displayName: string, level: number}>}
  */
-function movesAtLevel(speciesId, formFolder, level) {
-  const { moves } = levelUpMoves(speciesId, formFolder);
+function movesAtLevel(speciesId, formFolder, level, { exclude = null } = {}) {
+  const { moves: all } = levelUpMoves(speciesId, formFolder);
+
+  // `exclude` drops moves first, so the next ones down take their place.
+  const moves = exclude ? all.filter((move) => !exclude(move.name)) : all;
   if (!moves.length) return [];
 
   const due = moves.filter((move) => move.level <= level);
