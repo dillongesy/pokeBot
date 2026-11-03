@@ -61,6 +61,9 @@ const NATURE_POWER = { electric: 'thunderbolt', grassy: 'energy-ball', misty: 'm
 /** Which type Camouflage gives on each terrain. */
 const CAMOUFLAGE = { electric: ['electric'], grassy: ['grass'], misty: ['fairy'], psychic: ['psychic'] };
 
+/** Arceus and Silvally keep their type: Soak and Magic Powder fail on them. */
+const TYPE_LOCKED = new Set(['multitype', 'rks-system']);
+
 /** Abilities that can't be copied, swapped or overwritten. */
 const FIXED_ABILITIES = new Set([
   'multitype', 'stance-change', 'schooling', 'comatose', 'shields-down', 'disguise', 'rks-system',
@@ -575,9 +578,10 @@ const MOVES = {
   },
 
   // ---- types and abilities ----
-  soak: retype((ctx) => ['water'], 'target'),
-  'forests-curse': retype((ctx) => [...new Set([...ctx.defender.types.map(lower), 'grass'])], 'target'),
-  'trick-or-treat': retype((ctx) => [...new Set([...ctx.defender.types.map(lower), 'ghost'])], 'target'),
+  soak: retype((ctx) => ['water'], 'target', { lockedBy: TYPE_LOCKED }),
+  'magic-powder': retype((ctx) => ['psychic'], 'target', { lockedBy: TYPE_LOCKED }),
+  'forests-curse': addType('grass'),
+  'trick-or-treat': addType('ghost'),
   'reflect-type': retype((ctx) => ctx.defender.types.map(lower), 'self'),
   conversion: retype((ctx) => [lower(ctx.attacker.moves[0] && ctx.attacker.moves[0].data.type)], 'self'),
   camouflage: retype((ctx) => CAMOUFLAGE[ctx.state.field.terrain] || ['normal'], 'self'),
@@ -610,12 +614,23 @@ const MOVES = {
       say(ctx, 'skill-swap', { target: ctx.defender.name });
     },
   },
+  // Copies the target's look, typing, stats (not HP), stat changes, ability,
+  // weight and moves (5 PP each). It all reverts when the user switches out
+  // (battle.clearVolatiles); nothing is saved after the battle.
   transform: {
     fails: (ctx) => (ctx.attacker.transformed || ctx.defender.transformed || ctx.defender.substitute ? FAIL : null),
     run: (ctx) => {
       const a = ctx.attacker;
       const d = ctx.defender;
+      a.untransformed = {
+        types: [...a.types],
+        stats: { ...a.stats },
+        weight: a.weight,
+        ability: a.ability,
+        moves: a.moves,
+      };
       a.transformed = true;
+      a.appearance = { speciesId: d.speciesId, form: d.form };
       a.types = [...d.types];
       a.stats = { ...d.stats, hp: a.stats.hp };
       a.stages = { ...d.stages };
@@ -883,10 +898,11 @@ function splitter(keys, label) {
   };
 }
 
-function retype(typesFor, who) {
+function retype(typesFor, who, { lockedBy = null } = {}) {
   return {
     fails: (ctx) => {
       const mon = who === 'self' ? ctx.attacker : ctx.defender;
+      if (lockedBy && lockedBy.has(abilityOf(mon))) return FAIL;
       const types = typesFor(ctx).filter(Boolean);
       if (!types.length) return FAIL;
       return types.join() === mon.types.map(lower).join() ? FAIL : null;
@@ -894,7 +910,27 @@ function retype(typesFor, who) {
     run: (ctx) => {
       const mon = who === 'self' ? ctx.attacker : ctx.defender;
       mon.types = typesFor(ctx);
+      // A new typing replaces a type Trick-or-Treat or Forest's Curse added.
+      mon.addedType = null;
       ctx.events.push({ kind: 'retyped', name: mon.name, types: mon.types });
+    },
+  };
+}
+
+/**
+ * Trick-or-Treat and Forest's Curse: give the target an extra type on top of
+ * its own. Only one can be added at a time, so each replaces the other's.
+ * Fails if the target already has the type.
+ */
+function addType(type) {
+  return {
+    fails: (ctx) => (ctx.defender.types.map(lower).includes(type) ? FAIL : null),
+    run: (ctx) => {
+      const mon = ctx.defender;
+      const own = mon.types.map(lower).filter((t) => t !== mon.addedType);
+      mon.types = [...own, type];
+      mon.addedType = type;
+      ctx.events.push({ kind: 'type-added', name: mon.name, type });
     },
   };
 }

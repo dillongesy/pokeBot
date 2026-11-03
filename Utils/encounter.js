@@ -19,7 +19,7 @@ const content = require('./content');
 const obedience = require('./obedience');
 const evolution = require('./evolution');
 const names = require('./names');
-const { createPokemon, loadSpecies, loadForm } = require('./pokemon');
+const { createPokemon, loadSpecies, loadForm, baseForm, rollSpeciesGender } = require('./pokemon');
 
 const WILD = 'wild';
 const TRAINER = 'trainer';
@@ -140,17 +140,24 @@ function variedLevel(cap, rng, progress = 0) {
  * Used for every opponent (wild, trainer and milestone), with moves chosen by
  * the same rule as the player's Pokemon. IVs and nature are rolled normally.
  */
-function wildCombatant(speciesId, level, { formFolder = null, rng = Math.random } = {}) {
+function wildCombatant(speciesId, level, { formFolder = null, gender: knownGender = null, rng = Math.random } = {}) {
   const species = loadSpecies(speciesId);
   if (!species) return null;
+
+  // Gender is rolled first so species split into Male and Female forms
+  // (Combee, Pyroar) show the right one. A gender an evolution depended on
+  // (see evolution.opponentSpecies) is kept.
+  const rolledGender = (species.gender || {}).genderless
+    ? 'genderless'
+    : knownGender || rollSpeciesGender(species, rng);
 
   const forms = species.forms || [];
   const chosen =
     (formFolder && forms.find((f) => f.folder === formFolder)) ||
-    forms.find((f) => f.percentage > 0) ||
-    forms[0];
+    baseForm(forms, rolledGender);
 
   if (!chosen) return null;
+  const gender = chosen.genderLock || rolledGender;
 
   const form = loadForm(speciesId, chosen.folder);
   if (!form) return null;
@@ -165,6 +172,7 @@ function wildCombatant(speciesId, level, { formFolder = null, rng = Math.random 
     display_name: mon.displayName,
     form_folder: chosen.folder,
     form_slug: chosen.slug,
+    gender,
     level: mon.level,
     types: mon.types.join(','),
     stat_hp: mon.stats.hp,
@@ -211,20 +219,29 @@ const rolledIvs = (rng) => ({
 /** One wild Pokemon, at the trainer's level. */
 function wildTeam(speciesId, cap, rng, progress = 0) {
   const level = variedLevel(cap, rng, progress);
-  const mon = wildCombatant(ageAppropriate(speciesId, level), level, { rng });
+  const mon = ageAppropriate(speciesId, level, rng);
   return mon ? [mon] : [];
 }
 
 /**
- * The species that should actually turn up at this level.
+ * An opponent of the species that should actually turn up at this level.
  *
- * Species come from the drop roller and levels from the cap, so this walks
- * the evolution chain down to a stage that fits the level (no level 11
- * Venusaur). Uses Utils/evolution.js.
+ * Species come from the drop roller and levels from the cap, so this moves
+ * along the evolution chain to a stage that fits the level: no level 11
+ * Venusaur, no level 26 Torchic. Uses Utils/evolution.js.
  *
  * Milestone rosters skip this, since their species are fixed.
  */
-const ageAppropriate = (speciesId, level) => evolution.speciesAtLevel(speciesId, level);
+function ageAppropriate(speciesId, level, rng) {
+  const picked = evolution.opponentSpecies(speciesId, level, rng);
+  const mon = wildCombatant(picked.speciesId, level, { gender: picked.gender, rng });
+
+  // Now and then it is shiny, at the base drop rate (no Charm or Incense).
+  // Only the sprite shows it, and it can't be caught. Milestone rosters
+  // never are.
+  if (mon && rng() < 1 / rates.shinyRate) mon.shiny = true;
+  return mon;
+}
 
 /**
  * A random trainer's team.
@@ -243,7 +260,7 @@ function npcTeam(speciesIds, cap, rng, progress = 0) {
       ? Math.max(2, Math.max(opponentLevel(cap, rng) + 1, variedLevel(cap, rng, progress)))
       : variedLevel(cap, rng, progress);
 
-    const mon = wildCombatant(ageAppropriate(speciesId, level), level, { rng });
+    const mon = ageAppropriate(speciesId, level, rng);
     if (mon) team.push(mon);
   });
 

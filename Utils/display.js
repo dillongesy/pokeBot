@@ -67,6 +67,15 @@ const titleCase = (slug) =>
     .map(capitalize)
     .join(' ');
 
+/** A stat as players read it: "specialDefense" or "special_defense" -> "Special Defense", "hp" -> "HP". */
+const statName = (stat) => {
+  const words = String(stat || '')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .split(/[\s_-]+/)
+    .filter(Boolean);
+  return words.length === 1 && words[0].toLowerCase() === 'hp' ? 'HP' : words.map(capitalize).join(' ');
+};
+
 /**
  * What to call a Pokemon.
  *
@@ -205,6 +214,7 @@ module.exports = {
   GENDER_SYMBOLS,
   capitalize,
   titleCase,
+  statName,
   displayName,
   typeList,
   colorFor,

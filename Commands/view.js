@@ -131,15 +131,16 @@ function buildView(row) {
       { name: 'Base Stat Total', value: String(row.bst), inline: true },
       {
         name: 'Friendship',
-        value: `${happiness.describe(row.happiness)} (${row.happiness})`,
-        inline: true,
+        value:
+          `${happiness.meter(row.happiness)}\n` +
+          `${happiness.describe(row.happiness)} (${row.happiness}/${happiness.MAX})`,
       },
       { name: `Stats - IV ${ivPercent(row)}%`, value: '```\n' + statBlock(row, nature) + '\n```' }
     )
     .setFooter({
-      // The global id, which never changes (unlike the per-owner party number).
+      // The slot, which moves, and the ID, unique across the bot and permanent.
       text:
-        `#${row.party_number}, ID ${row.id}, ` +
+        `Slot ${row.party_number} · ID ${row.id} · ` +
         `caught by ${row.original_trainer_id === row.current_trainer_id ? 'you' : 'someone else'}` +
         (row.equipped_item ? `, holding ${titleCase(row.equipped_item)}` : ''),
     });

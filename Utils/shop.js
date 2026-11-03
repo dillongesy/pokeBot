@@ -328,8 +328,17 @@ module.exports = {
 
     {
       name: 'Held Gear',
-      description: 'An Everstone stops a Pokemon evolving, however much it levels up.',
-      items: [{ tier: 'common', item: 'everstone', price: 2000 }],
+      description:
+        'An Everstone stops a Pokemon evolving, however much it levels up. A Soothe Bell makes ' +
+        'it grow fond of you faster. The rest evolve one Pokemon each when it levels up holding ' +
+        'them: Oval Stone (Happiny), Razor Claw (Sneasel), Razor Fang (Gligar).',
+      items: [
+        { tier: 'common', item: 'everstone', price: 2000 },
+        { tier: 'common', item: 'soothe-bell', price: 4000 },
+        { tier: 'common', item: 'oval-stone', price: 3000 },
+        { tier: 'common', item: 'razor-claw', price: 4000 },
+        { tier: 'common', item: 'razor-fang', price: 4000 },
+      ],
     },
 
     {

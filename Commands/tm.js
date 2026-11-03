@@ -15,9 +15,11 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const store = require('../Utils/store');
+const partylock = require('../Utils/partylock');
 const content = require('../Utils/content');
 const machines = require('../Utils/machines');
 const learnset = require('../Utils/learnset');
+const happiness = require('../Utils/happiness');
 const versiongroups = require('../Utils/versiongroups');
 const { displayName, colorFor, titleCase } = require('../Utils/display');
 
@@ -97,6 +99,10 @@ const slotList = (known) =>
  * TM not owned, or no free slot).
  */
 function teach(userId, row, query, rawSlot) {
+  // Not during a battle or trade (see Utils/partylock.js).
+  const busy = partylock.refusalFor(userId, 'teach your Pokemon moves');
+  if (busy) return { content: busy };
+
   const move = resolveMove(query);
 
   if (!move) {
@@ -145,6 +151,10 @@ function teach(userId, row, query, rawSlot) {
 
   const result = store.teachMove(row.id, move, slot);
   if (!result.ok) return { content: result.message };
+
+  // Being taught a TM raises friendship a little, as in the games.
+  const friendship = happiness.after(row, 'learnTm');
+  if (friendship !== row.happiness) store.updatePokemon(row.id, { happiness: friendship });
 
   const replaced = result.replaced ? content.move(result.replaced) : null;
 

@@ -18,6 +18,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const store = require('../Utils/store');
+const partylock = require('../Utils/partylock');
 const learnset = require('../Utils/learnset');
 const versiongroups = require('../Utils/versiongroups');
 const moveinfo = require('../Utils/moveinfo');
@@ -150,6 +151,10 @@ async function sendShow({ send, userId, rawPokemonId }) {
  * move to forget (Utils/moveprompt.js).
  */
 function learn(userId, rawPokemonId, rawMove, rawSlot) {
+  // Not during a battle or trade (see Utils/partylock.js).
+  const busy = partylock.refusalFor(userId, 'change your Pokemon\'s moves');
+  if (busy) return { content: busy };
+
   const pokemonId = store.parsePartyNumber(rawPokemonId);
 
   if (!Number.isInteger(pokemonId)) {

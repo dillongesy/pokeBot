@@ -59,6 +59,19 @@ const CACHE = path.join(DATA, '.cache');
 const ULTRA_BEASTS = new Set([793, 794, 795, 796, 797, 798, 799, 803, 804, 805, 806]);
 const PSEUDO_LEGENDARIES = new Set([149, 248, 373, 376, 445, 635, 706, 784, 887, 998]);
 
+// Species whose forms are hidden until evolution, so every form shares the
+// default artwork (a Polar Scatterbug looks like any other Scatterbug).
+const SHARED_ART = new Set(['scatterbug', 'spewpa']);
+
+// The pixel sprites a Female form swaps in. Official artwork has no female
+// versions, so both genders keep the default artwork.
+const FEMALE_SPRITES = {
+  front: 'frontFemale',
+  frontShiny: 'frontShinyFemale',
+  back: 'backFemale',
+  backShiny: 'backShinyFemale',
+};
+
 // Paradox Pokemon count as legendary here even though PokeAPI does not flag them.
 const EXTRA_LEGENDARY = new Set([1009, 1010, 1020, 1021, 1022, 1023]);
 
@@ -437,6 +450,8 @@ function spriteUrls(sprites) {
     frontShinyFemale: sprites.front_shiny_female || null,
     back: sprites.back_default || null,
     backShiny: sprites.back_shiny || null,
+    backFemale: sprites.back_female || null,
+    backShinyFemale: sprites.back_shiny_female || null,
   };
 }
 
@@ -611,6 +626,20 @@ async function importPokemon(options) {
       if (base) roster.push({ custom: c, variety: base });
     }
 
+    // Species that look different by gender get a Male and a Female form in
+    // place of their default one, like Pyroar and Meowstic. Skipped when
+    // PokeAPI or custom.js already splits them.
+    const alreadySplit = roster.some(
+      (e) => CUSTOM.genderLock[e.custom ? e.custom.slug : e.form.name]
+    );
+    if (species.has_gender_differences && !alreadySplit) {
+      const at = roster.findIndex((e) => !e.custom && e.form.is_default && e.variety.is_default);
+      if (at >= 0) {
+        const entry = roster[at];
+        roster.splice(at, 1, { ...entry, gender: 'male' }, { ...entry, gender: 'female' });
+      }
+    }
+
     const speciesGender = genderInfo(species);
 
     const localised = namesByLanguage(species.names);
@@ -671,16 +700,21 @@ async function importPokemon(options) {
     for (const entry of roster) {
       const { variety } = entry;
       const isCustom = Boolean(entry.custom);
-      const slug = isCustom ? entry.custom.slug : entry.form.name;
+      const split = entry.gender || null;
+      const slug = isCustom ? entry.custom.slug : split ? `${entry.form.name}-${split}` : entry.form.name;
+      const splitName = split ? titleCase(split) : null;
 
       let folderName = isCustom
         ? safeFolder(entry.custom.name)
-        : formFolder(slug, species.name);
+        : split ? splitName : formFolder(slug, species.name);
       while (usedFolders.has(folderName)) folderName += '+';
       usedFolders.add(folderName);
 
       const formDir = path.join(speciesDir, folderName);
       const urls = spriteUrls(variety.sprites);
+      if (split === 'female') {
+        for (const [key, female] of Object.entries(FEMALE_SPRITES)) urls[key] = urls[female] || urls[key];
+      }
 
       // typing comes from the form, the only place per-form types are recorded
       const types = isCustom
@@ -688,8 +722,10 @@ async function importPokemon(options) {
         : (entry.form.types || []).sort((a, b) => a.slot - b.slot).map((t) => t.type.name);
 
       // A form only wears its variety's official artwork when it IS that
-      // variety's default look. Every other form needs a curated image.
-      const usesVarietyArt = !isCustom && entry.form.is_default;
+      // variety's default look, or when every form of the species looks the
+      // same. Every other form needs a curated image.
+      const usesVarietyArt =
+        !isCustom && (entry.form.is_default || SHARED_ART.has(species.name));
       const curated = isCustom
         ? { art: entry.custom.art, shiny: entry.custom.shiny }
         : ARTWORK[slug] || {};
@@ -702,15 +738,15 @@ async function importPokemon(options) {
       const percentage = slug in rates ? rates[slug] : 0;
       if (!(slug in rates)) missingRate++;
 
-      const genderLock = (CUSTOM.genderLock && CUSTOM.genderLock[slug]) || null;
+      const genderLock = split || (CUSTOM.genderLock && CUSTOM.genderLock[slug]) || null;
 
       const data = {
         id: isCustom ? null : entry.form.id,
         slug,
         name: isCustom ? entry.custom.name : entry.form.name,
         // Uses the species' English name plus the form suffix (see above).
-        displayName: isCustom
-          ? formnames.formDisplayName(info.displayName, entry.custom.name)
+        displayName: isCustom || split
+          ? formnames.formDisplayName(info.displayName, isCustom ? entry.custom.name : splitName)
           : formDisplayName(
             entry.form.name,
             species.name,
@@ -720,7 +756,7 @@ async function importPokemon(options) {
         formName: folderName,
         folder: folderName,
         species: { id: species.id, name: species.name },
-        isDefault: isCustom ? false : Boolean(entry.form.is_default) && variety.is_default,
+        isDefault: isCustom || split === 'female' ? false : Boolean(entry.form.is_default) && variety.is_default,
         isCustom,
         isMega: isCustom ? false : Boolean(entry.form.is_mega),
         isGmax: slug.endsWith('-gmax'),
@@ -777,6 +813,7 @@ async function importPokemon(options) {
         slug,
         displayName: data.displayName,
         percentage,
+        genderLock,
         types,
       });
 

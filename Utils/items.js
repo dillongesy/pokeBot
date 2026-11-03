@@ -15,8 +15,10 @@ const path = require('path');
 const content = require('./content');
 const evolution = require('./evolution');
 const happiness = require('./happiness');
+const { statName } = require('./display');
 const {
   loadSpecies,
+  baseForm,
   experienceForLevel,
   normaliseName,
   MAX_LEVEL,
@@ -313,11 +315,10 @@ function megaFormFor(row, effect) {
  * formIsConsistent checks that the two agree.
  */
 
-/** The form a species starts in - the one wild drops come in. */
+/** The form a species starts in - the one wild drops come in, of its gender. */
 function baseFormFolder(row) {
   const species = loadSpecies(row.species_id);
-  const forms = (species && species.forms) || [];
-  const base = forms.find((form) => form.percentage > 0) || forms[0];
+  const base = baseForm(species && species.forms, row.gender);
   return base ? base.folder : null;
 }
 
@@ -521,10 +522,24 @@ function apply(row, slug) {
       const species = loadSpecies(row.species_id);
       const growthRate = species && species.breeding ? species.breeding.growthRate : 'medium';
 
-      const changes = { level, exp: experienceForLevel(growthRate, level) };
+      // A Rare Candy counts as a level-up for friendship, and friendship
+      // evolutions see the new value.
+      const friendship = happiness.after(row, 'levelUp');
+      const changes = { level, exp: experienceForLevel(growthRate, level), happiness: friendship };
 
       // Check for a level-up evolution.
-      const evolved = evolution.resolve(row, 'level-up', { level });
+      const evolved = evolution.resolve({ ...row, happiness: friendship }, 'level-up', { level });
+
+      // Eevee and Rockruff by time of day: the player picks (Utils/evolveprompt.js).
+      if (evolved && evolved.choice) {
+        return {
+          ok: true,
+          consumed: true,
+          changes,
+          evolutionChoice: evolved.choice,
+          message: `It grew to level ${level}.`,
+        };
+      }
 
       if (evolved) {
         return {
@@ -545,7 +560,7 @@ function apply(row, slug) {
       const current = row[column] || 0;
 
       if (current >= MAX_EV_PER_STAT) {
-        return { ok: false, message: `Its ${effect.stat.replace('_', ' ')} effort is already maxed.` };
+        return { ok: false, message: `Its ${statName(effect.stat)} effort is already maxed.` };
       }
 
       const spare = Math.min(
@@ -561,29 +576,30 @@ function apply(row, slug) {
       return {
         ok: true,
         consumed: true,
-        changes: { [column]: current + spare },
-        message: `Its ${effect.stat.replace('_', ' ')} effort rose by ${spare}, to ${current + spare}.`,
+        changes: { [column]: current + spare, happiness: happiness.after(row, 'vitamin') },
+        message: `Its ${statName(effect.stat)} effort rose by ${spare}, to ${current + spare}.`,
       };
     }
 
     case 'ev-drop': {
       const column = `ev_${effect.stat}`;
       const current = row[column] || 0;
-      const readable = effect.stat.replace('_', ' ');
+      const readable = statName(effect.stat);
 
       if (current <= 0) {
         return { ok: false, message: `It has no ${readable} effort to lose.` };
       }
 
       const lost = Math.min(effect.amount, current);
-      const friendship = happiness.fromBerry(row.happiness);
+      const raised = happiness.after(row, 'berry');
+      const friendship = raised - happiness.clamp(row.happiness);
 
       return {
         ok: true,
         consumed: true,
         changes: {
           [column]: current - lost,
-          ...(friendship ? { happiness: happiness.clamp((row.happiness || 0) + friendship) } : {}),
+          ...(friendship ? { happiness: raised } : {}),
         },
         message:
           `Its ${readable} effort fell by ${lost}, to ${current - lost}.` +
@@ -731,6 +747,24 @@ function apply(row, slug) {
             returnable: true,
             changes: { equipped_item: slug },
             message: `It is now holding the ${name}. Trade it away and it will evolve.`,
+          };
+        }
+
+        // So are the ones held while levelling up (Happiny's Oval Stone).
+        if (evolution.levelHeldItems().has(slug)) {
+          if (row.equipped_item === slug) {
+            return { ok: false, message: `It is already holding the ${name}. Now level it up.` };
+          }
+          const evolvesThis = evolution
+            .optionsFrom(row.species_id)
+            .some((link) => (link.conditions || []).some((c) => c.trigger === 'level-up' && c.heldItem === slug));
+
+          return {
+            ok: true,
+            consumed: false,
+            returnable: true,
+            changes: { equipped_item: slug },
+            message: `It is now holding the ${name}.${evolvesThis ? ' Level it up and it will evolve.' : ''}`,
           };
         }
 

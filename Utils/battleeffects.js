@@ -724,11 +724,12 @@ const HELD_ITEMS = {
     attackMultiplier: ({ attacker, move }) =>
       /cubone|marowak/i.test(attacker.species || '') && move.damageClass === 'physical' ? 2 : 1,
   },
+  // Only for an untransformed Ditto, as in the games.
   'metal-powder': {
-    defenceMultiplier: ({ defender }) => (/ditto/i.test(defender.species || '') ? 2 : 1),
+    defenceMultiplier: ({ defender }) => (/ditto/i.test(defender.species || '') && !defender.transformed ? 2 : 1),
   },
   'quick-powder': {
-    speedMultiplier: ({ mon }) => (/ditto/i.test(mon.species || '') ? 2 : 1),
+    speedMultiplier: ({ mon }) => (/ditto/i.test(mon.species || '') && !mon.transformed ? 2 : 1),
   },
   'soul-dew': {
     damageOut: ({ attacker, move }) =>

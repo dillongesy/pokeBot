@@ -28,7 +28,7 @@ const DB_FILE = path.join(__dirname, '..', 'Data', 'pokedropper.db');
  * Stored in SQLite's `PRAGMA user_version`, so an out-of-date file fails
  * clearly at startup instead of with "no such column" errors later.
  */
-const SCHEMA_VERSION = 13;
+const SCHEMA_VERSION = 16;
 
 /**
  * Which Elite Four members a player has beaten on the milestone in front of
@@ -43,6 +43,19 @@ CREATE TABLE elite_four_wins (
   beaten_at       INTEGER NOT NULL,
 
   PRIMARY KEY (discord_user_id, milestone, member)
+);
+`;
+
+/**
+ * Which servers each player has used the bot in, for the leaderboards' "This
+ * server" filter (the bot can't list a server's members without the members
+ * intent). Written on every command and catch in a server.
+ */
+const USER_GUILDS = `
+CREATE TABLE user_guilds (
+  discord_user_id TEXT NOT NULL,
+  guild_id        TEXT NOT NULL,
+  PRIMARY KEY (discord_user_id, guild_id)
 );
 `;
 
@@ -103,9 +116,8 @@ CREATE TABLE users (
   party_sort      TEXT NOT NULL DEFAULT 'party',
   party_direction TEXT NOT NULL DEFAULT 'asc',
 
-  -- The next pokemon.party_number to assign. Only ever increases, so numbers
-  -- are never reused after a Pokemon is released or traded (otherwise a
-  -- confirmation could end up applying to a different Pokemon).
+  -- Unused since schema 16, when party numbers became slots (see
+  -- pokemon.party_number). Kept so older databases need no table rebuild.
   next_party_number INTEGER NOT NULL DEFAULT 1,
 
   -- How this player likes .bag sorted, set by .inventorysort: alphabetical,
@@ -134,9 +146,17 @@ CREATE TABLE users (
   -- How many times they have run the whole ladder and reset it. Shown in .me.
   prestige           INTEGER NOT NULL DEFAULT 0,
 
-  -- Win/loss counts for .me and the leaderboards.
+  -- Win/loss counts for .me and the leaderboards. Fleeing is a loss; a
+  -- battle ended by Roar and the like counts as neither. The totals cover
+  -- every kind; the split by kind started at schema 15.
   battles_won        INTEGER NOT NULL DEFAULT 0,
   battles_lost       INTEGER NOT NULL DEFAULT 0,
+  wild_won           INTEGER NOT NULL DEFAULT 0,
+  wild_lost          INTEGER NOT NULL DEFAULT 0,
+  trainer_won        INTEGER NOT NULL DEFAULT 0,
+  trainer_lost       INTEGER NOT NULL DEFAULT 0,
+  milestone_won      INTEGER NOT NULL DEFAULT 0,
+  milestone_lost     INTEGER NOT NULL DEFAULT 0,
 
   created_at      INTEGER NOT NULL,
   updated_at      INTEGER NOT NULL
@@ -211,7 +231,7 @@ CREATE TABLE pokemon (
   gender               TEXT NOT NULL,
   shiny                INTEGER NOT NULL DEFAULT 0,
 
-  -- Friendship, 0-255. See Utils/happiness.js. Not yet checked by evolution.
+  -- Friendship, 0-255. See Utils/happiness.js.
   happiness            INTEGER NOT NULL DEFAULT 70,
 
   -- Whether this shiny came from a natural roll rather than a Shiny Incense.
@@ -255,17 +275,15 @@ CREATE TABLE pokemon (
   -- for filtering and sorting in SQL.
   rarity               TEXT NOT NULL DEFAULT 'normal',
 
-  -- The per-owner number used in commands (".view 12"). Assigned from
-  -- users.next_party_number when the Pokemon arrives and cleared when it
-  -- leaves; a traded Pokemon gets a new number from its new owner. The id
-  -- above is the permanent identity.
+  -- The slot used in commands (".view 12"): 1 to N with no gaps, in the order
+  -- the player arranged (.swap, .order). A new Pokemon takes the end; when one
+  -- leaves, everything after it moves up. The id above is the permanent
+  -- identity, unique across the bot, shown in .view.
   --
   -- NULL means unowned (an uncaught drop or a released Pokemon).
   party_number         INTEGER,
 
-  -- Display position when the party is hand-ordered. NULL sorts last, in
-  -- catch order. Separate from party_number, so reordering never changes
-  -- what a number refers to.
+  -- Unused since schema 16: the hand-made order is the slot order now.
   party_position       INTEGER,
 
   equipped_item        TEXT,
@@ -437,7 +455,8 @@ CREATE TABLE admins (
 );
 
 ${DAILY_QUESTS}
-${ELITE_FOUR_WINS}`;
+${ELITE_FOUR_WINS}
+${USER_GUILDS}`;
 
 // ---------------------------------------------------------------------------
 // Migrations
@@ -456,7 +475,112 @@ ${ELITE_FOUR_WINS}`;
  * daily quests, Elite Four wins, form renames and the milestone Lootbox
  * back-pay) were removed after the server reached 13.
  */
-const MIGRATIONS = {};
+const MIGRATIONS = {
+  13: splitGenderForms,
+  15: partyNumbersAsSlots,
+  14: `
+    ALTER TABLE users ADD COLUMN wild_won       INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE users ADD COLUMN wild_lost      INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE users ADD COLUMN trainer_won    INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE users ADD COLUMN trainer_lost   INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE users ADD COLUMN milestone_won  INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE users ADD COLUMN milestone_lost INTEGER NOT NULL DEFAULT 0;
+    ${USER_GUILDS}
+    INSERT OR IGNORE INTO user_guilds (discord_user_id, guild_id)
+      SELECT caught_by, guild_id FROM drops WHERE caught_by IS NOT NULL AND guild_id IS NOT NULL
+      UNION
+      SELECT dropped_by, guild_id FROM drops WHERE dropped_by IS NOT NULL AND guild_id IS NOT NULL;
+  `,
+};
+
+/**
+ * Schema 16 changes no tables. Party numbers become slots, 1 to N with no
+ * gaps, so each party is renumbered in the order its owner sees it now: their
+ * hand-made order if they use one, otherwise their old numbers. The hand-made
+ * order ("custom") is the slot order from now on.
+ */
+function partyNumbersAsSlots(handle) {
+  const users = handle.prepare('SELECT discord_user_id AS id, party_sort FROM users').all();
+
+  // Parked on negative values first, so the unique index can't trip.
+  const park = handle.prepare('UPDATE pokemon SET party_number = -id WHERE current_trainer_id = ?');
+  const place = handle.prepare('UPDATE pokemon SET party_number = ? WHERE id = ?');
+
+  let renumbered = 0;
+  for (const user of users) {
+    const order = user.party_sort === 'custom'
+      ? 'party_position IS NULL, party_position, party_number IS NULL, party_number, id'
+      : 'party_number IS NULL, party_number, id';
+
+    const ids = handle
+      .prepare(`SELECT id FROM pokemon WHERE current_trainer_id = ? ORDER BY ${order}`)
+      .all(user.id)
+      .map((row) => row.id);
+
+    park.run(user.id);
+    ids.forEach((id, i) => place.run(i + 1, id));
+    renumbered += ids.length;
+  }
+
+  handle.exec("UPDATE users SET party_sort = 'party' WHERE party_sort = 'custom'");
+  console.log(`Numbered ${renumbered} owned Pokemon as party slots.`);
+}
+
+/**
+ * Schema 14 changes no tables. Species that look different by gender
+ * (Combee, Pikachu) now have a Male and a Female form instead of "Default"
+ * (made by Utils/importdata.js), so stored ones move to the form matching
+ * their gender.
+ *
+ * Needs the re-imported Data/Pokemon, so it refuses to run without it rather
+ * than marking itself done.
+ */
+function splitGenderForms(handle) {
+  const file = path.join(__dirname, '..', 'Data', 'Pokemon', 'index.json');
+  const { forms } = JSON.parse(fs.readFileSync(file, 'utf8'));
+
+  if (!forms.some((f) => f.slug === 'combee-female' && f.displayName === 'Combee')) {
+    throw new Error('Data/Pokemon is out of date - run "npm run import:pokemon" first.');
+  }
+
+  const known = new Set(forms.map((f) => `${f.speciesId}/${f.folder}`));
+  const gendered = new Map();
+  for (const form of forms) {
+    if (form.genderLock && form.percentage > 0) gendered.set(`${form.speciesId}/${form.genderLock}`, form);
+  }
+
+  const rows = handle
+    .prepare('SELECT id, species_id, form_folder, gender FROM pokemon')
+    .all()
+    .filter((row) => !known.has(`${row.species_id}/${row.form_folder}`));
+
+  const update = handle.prepare(
+    'UPDATE pokemon SET form_folder = ?, form_slug = ?, display_name = ? WHERE id = ?'
+  );
+
+  let moved = 0;
+  for (const row of rows) {
+    const gender = row.gender === 'female' ? 'female' : 'male';
+    const form = gendered.get(`${row.species_id}/${gender}`);
+    if (!form) continue;
+
+    update.run(form.folder, form.slug, form.displayName, row.id);
+    moved += 1;
+  }
+
+  // Gendered forms lost "Male"/"Female" from their names ("Pyroar", not
+  // "Male Pyroar"), including the ones that were already split.
+  const rename = handle.prepare(
+    'UPDATE pokemon SET display_name = ? WHERE species_id = ? AND form_folder = ? AND display_name != ?'
+  );
+  let renamed = 0;
+  for (const form of forms) {
+    if (!/\b(Male|Female)\b/.test(form.folder)) continue;
+    renamed += Number(rename.run(form.displayName, form.speciesId, form.folder, form.displayName).changes);
+  }
+
+  console.log(`Moved ${moved} stored Pokemon to their Male or Female form, renamed ${renamed}.`);
+}
 
 // ---------------------------------------------------------------------------
 // Connection

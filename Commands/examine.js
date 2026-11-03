@@ -26,7 +26,7 @@ const lootbox = require('../Utils/lootbox');
 const machines = require('../Utils/machines');
 const names = require('../Utils/names');
 const inventory = require('../Utils/inventory');
-const { clip, titleCase, fitLines, LIMITS } = require('../Utils/display');
+const { clip, titleCase, statName, fitLines, LIMITS } = require('../Utils/display');
 
 /**
  * Which species a family form item (Dynamax Band, Reveal Glass) works on,
@@ -77,7 +77,7 @@ const EXPLAIN = {
 
   ev: {
     summary: (what) =>
-      `Adds ${what.amount} ${titleCase(what.stat)} effort to a Pokemon. ` +
+      `Adds ${what.amount} ${statName(what.stat)} effort to a Pokemon. ` +
       `Effort caps at ${items.MAX_EV_PER_STAT} per stat and ${items.MAX_EV_TOTAL} in total.`,
     usage: (slug) => `.useitem <pokemon> ${slug}`,
   },

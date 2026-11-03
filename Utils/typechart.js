@@ -79,7 +79,7 @@ function effectiveness(attacking, defending) {
 /** How a multiplier reads in a battle log. Null when there is nothing to say. */
 function describe(multiplier) {
   if (multiplier === 0) return "It doesn't affect the target...";
-  if (multiplier >= 4) return "It's super effective!";
+  if (multiplier >= 4) return "It's extremely effective!";
   if (multiplier > 1) return "It's super effective!";
   if (multiplier <= 0.25) return "It's not very effective...";
   if (multiplier < 1) return "It's not very effective...";

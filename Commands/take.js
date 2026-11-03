@@ -12,9 +12,14 @@
 const { SlashCommandBuilder } = require('discord.js');
 
 const store = require('../Utils/store');
+const partylock = require('../Utils/partylock');
 const { unequip } = require('./useitem');
 
 function take(userId, rawPokemonId) {
+  // Not during a battle or trade (see Utils/partylock.js).
+  const busy = partylock.refusalFor(userId, 'take items from your Pokemon');
+  if (busy) return { content: busy };
+
   const pokemonId = store.parsePartyNumber(rawPokemonId);
 
   if (!Number.isInteger(pokemonId)) {

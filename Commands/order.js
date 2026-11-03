@@ -151,7 +151,7 @@ function arrange(userId, arrangement, rawIgnore) {
   const busy = partylock.refusalFor(userId, 'rearrange your party');
   if (busy) return { content: busy };
 
-  const all = store.listParty(userId, { sort: 'custom', limit: -1 });
+  const all = store.listParty(userId, { sort: 'party', direction: 'asc', limit: -1 });
 
   if (all.length < 2) {
     return { content: 'You need at least two Pokemon before ordering means anything.' };
@@ -184,8 +184,9 @@ function arrange(userId, arrangement, rawIgnore) {
 
   sortable.sort(comparatorFor(arrangement, counts, cap));
 
-  store.assignPartyPositions(userId, [...pinned, ...sortable].map((row) => row.id));
-  store.setPartyOrder(userId, 'custom', 'asc');
+  // Slot numbers are the order, so this renumbers the party.
+  store.assignPartyNumbers(userId, [...pinned, ...sortable].map((row) => row.id));
+  store.setPartyOrder(userId, 'party', 'asc');
 
   const tail =
     arrangement === 'battle'
@@ -215,7 +216,7 @@ function setPreference(userId, field, rawDirection) {
   store.setPartyOrder(userId, field, direction);
 
   return {
-    content: `Your party will sort by **${SORT_LABELS[field]}**, ${direction === 'desc' ? 'highest' : 'lowest'} first.`,
+    content: `Your party will sort by **${SORT_LABELS[field] || field}**, ${direction === 'desc' ? 'highest' : 'lowest'} first.`,
   };
 }
 

@@ -18,6 +18,7 @@ const { Client, GatewayIntentBits, MessageFlags } = require('discord.js');
 const { loadCommands } = require('./Utils/commands');
 const { tryCatch } = require('./Commands/catch');
 const db = require('./Utils/db');
+const store = require('./Utils/store');
 const reminders = require('./Utils/reminders');
 const channels = require('./Utils/channels');
 const livebuttons = require('./Utils/livebuttons');
@@ -104,6 +105,7 @@ client.on('messageCreate', async (message) => {
       if (command && command.run) {
         if (!mayAnswer(message.guildId, message.channelId, name)) return;
 
+        store.noteGuild(message.author.id, message.guildId);
         await command.run(message, args);
         return;
       }
@@ -113,7 +115,7 @@ client.on('messageCreate', async (message) => {
     // allowlist the same way commands do.
     if (!mayAnswer(message.guildId, message.channelId)) return;
 
-    await tryCatch(message);
+    if (await tryCatch(message)) store.noteGuild(message.author.id, message.guildId);
   } catch (err) {
     console.error('Message handler failed:', err);
     await message.channel.send('Something went wrong running that.').catch(() => {});
@@ -144,6 +146,7 @@ client.on('interactionCreate', async (interaction) => {
   }
 
   try {
+    store.noteGuild(interaction.user.id, interaction.guildId);
     await command.execute(interaction);
   } catch (err) {
     console.error(`/${interaction.commandName} failed:`, err);

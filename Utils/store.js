@@ -18,6 +18,7 @@ const milestones = require('./milestones');
 const rewards = require('./rewards');
 const obedience = require('./obedience');
 const evolution = require('./evolution');
+const happiness = require('./happiness');
 const lootbox = require('./lootbox');
 const { normaliseName, recalculateStats } = require('./pokemon');
 
@@ -286,7 +287,7 @@ function setBagOrder(userId, sort) {
 /**
  * Number every slot in a bag, in the order given.
  *
- * Like assignPartyPositions: a custom order needs every row to have a
+ * Like assignPartyNumbers: a custom order needs every row to have a
  * position. Runs in one transaction.
  */
 function assignInventoryPositions(userId, items) {
@@ -749,21 +750,41 @@ function awardTrainerExp(userId, amount) {
   }
 }
 
+/** The per-kind result columns, by battle kind (encounter.WILD and so on). */
+const BATTLE_KIND_COLUMNS = {
+  wild: ['wild_won', 'wild_lost'],
+  trainer: ['trainer_won', 'trainer_lost'],
+  milestone: ['milestone_won', 'milestone_lost'],
+};
+
 /**
- * Record a battle result.
+ * Record a battle result, in the totals and under its kind.
  *
- * Losses cost nothing, so a loss is only counted.
+ * Losses cost nothing, so a loss is only counted. Fleeing counts as a loss.
  */
-function recordBattle(userId, won) {
+function recordBattle(userId, won, kind = null) {
   ensureUser(userId);
+
+  // Column names come from the fixed table above, never from input.
+  const [wonColumn, lostColumn] = BATTLE_KIND_COLUMNS[kind] || [];
+  const split = wonColumn ? `, ${wonColumn} = ${wonColumn} + ?, ${lostColumn} = ${lostColumn} + ?` : '';
+  const counts = won ? [1, 0] : [0, 1];
 
   db.open()
     .prepare(
       `UPDATE users
-       SET battles_won = battles_won + ?, battles_lost = battles_lost + ?, updated_at = ?
+       SET battles_won = battles_won + ?, battles_lost = battles_lost + ?${split}, updated_at = ?
        WHERE discord_user_id = ?`
     )
-    .run(won ? 1 : 0, won ? 0 : 1, now(), userId);
+    .run(...counts, ...(wonColumn ? counts : []), now(), userId);
+}
+
+/** Remember that a player uses the bot in this server (the leaderboards' filter). */
+function noteGuild(userId, guildId) {
+  if (!userId || !guildId) return;
+  db.open()
+    .prepare('INSERT OR IGNORE INTO user_guilds (discord_user_id, guild_id) VALUES (?, ?)')
+    .run(userId, guildId);
 }
 
 /**
@@ -998,13 +1019,22 @@ function awardBattle(userId, payout) {
     }
 
     // Experience was already paid per knockout (awardKnockout). Handle
-    // evolutions and new moves; `payout.grew` lists who levelled and from
-    // what level.
+    // friendship, evolutions and new moves; `payout.grew` lists the team,
+    // from what level each started, and who fainted.
     for (const entry of payout.grew || []) {
-      const row = handle.prepare('SELECT * FROM pokemon WHERE id = ?').get(entry.id);
+      let row = handle.prepare('SELECT * FROM pokemon WHERE id = ?').get(entry.id);
       if (!row || row.id < 0) continue;
 
       const before = entry.from;
+
+      // Friendship first, so friendship evolutions see it (Utils/happiness.js).
+      let friendship = happiness.after(row, 'levelUp', Math.max(0, row.level - before));
+      if (entry.fainted) {
+        friendship = happiness.after({ ...row, happiness: friendship }, entry.faintedBadly ? 'faintBadly' : 'faint');
+      }
+      if (payout.leagueBattle) friendship = happiness.after({ ...row, happiness: friendship }, 'leagueBattle');
+      if (friendship !== row.happiness) row = updatePokemon(row.id, { happiness: friendship });
+
       let after = row;
 
       if (after.level <= before) continue;
@@ -1015,11 +1045,18 @@ function awardBattle(userId, payout) {
       const evolutions = [];
       const evolvedInto = [];
       let extras = [];
+      let evolutionChoice = null;
 
       if (after.level > before) {
         for (let step = 0; step < 3; step += 1) {
           const evolved = evolution.resolve(after, 'level-up', { level: after.level });
           if (!evolved) break;
+
+          // Espeon or Umbreon: asked after the battle (Utils/evolveprompt.js).
+          if (evolved.choice) {
+            evolutionChoice = evolved.choice;
+            break;
+          }
 
           const wasCalled = after.nickname || after.display_name;
           after = updatePokemon(after.id, evolved.changes);
@@ -1049,6 +1086,7 @@ function awardBattle(userId, payout) {
         learned,
         offered,
         evolutions,
+        evolutionChoice,
         // Shedinja is granted after this transaction commits, since granting
         // opens its own transaction.
         pendingExtras: extras,
@@ -1082,7 +1120,7 @@ function awardBattle(userId, payout) {
 
   // A wild battle that ended with someone blown away or teleporting off
   // (Roar, Dragon Tail, Teleport) is neither a win nor a loss.
-  if (!payout.noContest) recordBattle(userId, Boolean(payout.won));
+  if (!payout.noContest) recordBattle(userId, Boolean(payout.won), payout.battleKind);
   return result;
 }
 
@@ -1467,26 +1505,54 @@ function claimDrop(dropId, userId) {
 // ---------------------------------------------------------------------------
 
 /**
- * Take the next party number for a user, and move their high-water mark on.
+ * The slot a Pokemon arriving in a party takes: the end.
  *
- * Must be called inside the caller's transaction, after ensureUser, so it
- * commits or rolls back together with the ownership change.
+ * Party numbers are slots, 1 to N with no gaps: slot 1 is the first Pokemon.
+ * Releasing or trading one away shifts the rest up (closeGap). Every
+ * Pokemon also has a permanent id, unique across the bot, shown in .view.
  *
- * Numbers are never reused, so a released or traded Pokemon's number is
- * retired. The unique index in db.js enforces uniqueness.
+ * Must be called inside the caller's transaction, so it commits or rolls back
+ * together with the ownership change. The unique index in db.js enforces
+ * uniqueness.
  */
 function takePartyNumber(handle, userId) {
   const row = handle
-    .prepare('SELECT next_party_number FROM users WHERE discord_user_id = ?')
+    .prepare('SELECT MAX(party_number) AS n FROM pokemon WHERE current_trainer_id = ?')
     .get(userId);
 
-  const number = row ? row.next_party_number : 1;
+  return ((row && row.n) || 0) + 1;
+}
+
+/**
+ * Number a user's whole party 1 to N in the given order.
+ *
+ * Inside the caller's transaction. Numbers are parked on negative values
+ * first, since the unique index would otherwise trip halfway through a swap
+ * or shift.
+ */
+function renumberParty(handle, userId, pokemonIds) {
+  handle
+    .prepare('UPDATE pokemon SET party_number = -id WHERE current_trainer_id = ? AND party_number IS NOT NULL')
+    .run(userId);
+
+  const update = handle.prepare('UPDATE pokemon SET party_number = ? WHERE id = ? AND current_trainer_id = ?');
+  pokemonIds.forEach((id, i) => update.run(i + 1, id, userId));
+}
+
+/**
+ * Close the gap a Pokemon leaving slot `number` left: everything after it
+ * moves up one. Inside the caller's transaction; parked on negatives, as in
+ * renumberParty, so the unique index can't trip.
+ */
+function closeGap(handle, userId, number) {
+  if (!Number.isInteger(number)) return;
 
   handle
-    .prepare('UPDATE users SET next_party_number = ?, updated_at = ? WHERE discord_user_id = ?')
-    .run(number + 1, now(), userId);
-
-  return number;
+    .prepare('UPDATE pokemon SET party_number = -(party_number - 1) WHERE current_trainer_id = ? AND party_number > ?')
+    .run(userId, number);
+  handle
+    .prepare('UPDATE pokemon SET party_number = -party_number WHERE current_trainer_id = ? AND party_number < 0')
+    .run(userId);
 }
 
 /** Columns a user is allowed to sort their party by, mapped to real SQL. */
@@ -1503,12 +1569,25 @@ const SORT_COLUMNS = {
   hp: 'p.stat_hp',
   attack: 'p.stat_attack',
   defense: 'p.stat_defense',
+  spatk: 'p.stat_special_attack',
+  spdef: 'p.stat_special_defense',
   speed: 'p.stat_speed',
+  ivhp: 'p.iv_hp',
+  ivattack: 'p.iv_attack',
+  ivdefense: 'p.iv_defense',
+  ivspatk: 'p.iv_special_attack',
+  ivspdef: 'p.iv_special_defense',
+  ivspeed: 'p.iv_speed',
+  friendship: 'p.happiness',
+  rarity: "CASE p.rarity WHEN 'mythical' THEN 3 WHEN 'ultraBeast' THEN 2 WHEN 'legendary' THEN 1 ELSE 0 END",
+  gender: 'p.gender',
+  nature: 'p.nature',
   shiny: 'p.shiny',
   caught: 'p.acquired_at',
 
-  // The custom order from .order and .party swap. NULL positions sort last.
-  custom: 'CASE WHEN p.party_position IS NULL THEN 1 ELSE 0 END, p.party_position',
+  // The order from .order and .swap. Slots are that order now, so it is the
+  // same as the party number; kept so saved preferences still work.
+  custom: 'p.party_number',
 };
 
 /**
@@ -1521,6 +1600,7 @@ function partyWhere(userId, filter = {}) {
   const params = [userId];
 
   if (filter.shiny) clauses.push('p.shiny = 1');
+  if (filter.holding) clauses.push('p.equipped_item IS NOT NULL');
 
   if (filter.rarity) {
     clauses.push('p.rarity = ?');
@@ -1642,20 +1722,16 @@ function caughtSpeciesIds(userId) {
 }
 
 /**
- * Give every Pokemon in a user's party an explicit position, in whatever
- * order they are currently displayed.
+ * Put a user's whole party in this order: the first id becomes slot 1.
  *
- * Used by .order and .party swap. Runs in one transaction.
+ * Used by .order and .swap. Runs in one transaction.
  */
-function assignPartyPositions(userId, pokemonIds) {
+function assignPartyNumbers(userId, pokemonIds) {
   const handle = db.open();
-  const update = handle.prepare(
-    'UPDATE pokemon SET party_position = ? WHERE id = ? AND current_trainer_id = ?'
-  );
 
   handle.exec('BEGIN IMMEDIATE');
   try {
-    pokemonIds.forEach((id, i) => update.run(i + 1, id, userId));
+    renumberParty(handle, userId, pokemonIds);
     handle.exec('COMMIT');
   } catch (err) {
     handle.exec('ROLLBACK');
@@ -1666,37 +1742,42 @@ function assignPartyPositions(userId, pokemonIds) {
 }
 
 /**
- * Swap the positions of two Pokemon, given by party number. The party numbers
- * themselves don't change.
+ * Swap two slots: the Pokemon in slot 1 goes to slot 4 and the one in 4 to 1.
  *
- * If the party has no custom order yet, positions are assigned first.
- *
- * @returns {{ ok: boolean, message?: string, moved?: object[] }}
+ * @returns {{ ok: boolean, message?: string, moved?: object[] }} `moved` is
+ *   the two Pokemon as they were, in the order given
  */
-function swapPartyPositions(userId, first, second) {
-  if (first === second) return { ok: false, message: 'Those are the same Pokemon.' };
+function swapPartyNumbers(userId, first, second) {
+  if (first === second) return { ok: false, message: 'Those are the same slot.' };
 
   for (const number of [first, second]) {
     if (!Number.isInteger(number) || number < 1) {
-      return { ok: false, message: 'Swap which two? Try `.p swap 1 10`, using the numbers from `.party`.' };
+      return { ok: false, message: 'Swap which two? Try `.swap 1 10`, using the numbers from `.party`.' };
     }
   }
 
-  const ordered = listParty(userId, { sort: 'custom', limit: -1, offset: 0 });
-  if (ordered.length < 2) return { ok: false, message: 'You need at least two Pokemon to swap.' };
+  const a = getOwnedByNumber(userId, first);
+  const b = getOwnedByNumber(userId, second);
 
-  const indexOf = (number) => ordered.findIndex((row) => row.party_number === number);
-  const a = indexOf(first);
-  const b = indexOf(second);
-
-  const missing = a === -1 ? first : b === -1 ? second : null;
+  const missing = !a ? first : !b ? second : null;
   if (missing !== null) return { ok: false, message: noSuchNumber(userId, missing) };
 
-  const ids = ordered.map((row) => row.id);
-  [ids[a], ids[b]] = [ids[b], ids[a]];
-  assignPartyPositions(userId, ids);
+  // One parks on -1 while the other moves, so the unique index can't trip.
+  const handle = db.open();
+  const move = handle.prepare('UPDATE pokemon SET party_number = ? WHERE id = ? AND current_trainer_id = ?');
 
-  return { ok: true, moved: [ordered[b], ordered[a]] };
+  handle.exec('BEGIN IMMEDIATE');
+  try {
+    move.run(-1, a.id, userId);
+    move.run(first, b.id, userId);
+    move.run(second, a.id, userId);
+    handle.exec('COMMIT');
+  } catch (err) {
+    handle.exec('ROLLBACK');
+    throw err;
+  }
+
+  return { ok: true, moved: [a, b] };
 }
 
 /**
@@ -1763,11 +1844,7 @@ function noSuchNumber(userId, number) {
 
   if (!highest) return 'You have not caught anything yet. Type `.d` to drop one.';
 
-  return (
-    `You have no #${number}. Your numbers go up to ${highest} ` +
-    '- `.party` lists them, and they are not always contiguous, because a ' +
-    'number retires with the Pokemon that had it.'
-  );
+  return `You have no #${number}. Your party goes from 1 to ${highest} - \`.party\` lists them.`;
 }
 
 /** The most recent catch, which is what .view defaults to. */
@@ -1833,17 +1910,32 @@ function updatePokemon(pokemonId, changes) {
  * @returns {boolean} whether it was theirs to release
  */
 function releasePokemon(userId, pokemonId) {
-  const changed = db
-    .open()
-    .prepare(
-      `UPDATE pokemon
-       SET current_trainer_id = NULL, released_at = ?, equipped_item = NULL,
-           party_number = NULL
-       WHERE id = ? AND current_trainer_id = ? AND released_at IS NULL`
-    )
-    .run(now(), pokemonId, userId);
+  const handle = db.open();
+  handle.exec('BEGIN IMMEDIATE');
 
-  return changed.changes === 1;
+  try {
+    const slot = handle
+      .prepare('SELECT party_number FROM pokemon WHERE id = ? AND current_trainer_id = ?')
+      .get(pokemonId, userId);
+
+    const changed = handle
+      .prepare(
+        `UPDATE pokemon
+         SET current_trainer_id = NULL, released_at = ?, equipped_item = NULL,
+             party_number = NULL
+         WHERE id = ? AND current_trainer_id = ? AND released_at IS NULL`
+      )
+      .run(now(), pokemonId, userId);
+
+    // Everything after it moves up a slot.
+    if (changed.changes === 1) closeGap(handle, userId, slot && slot.party_number);
+
+    handle.exec('COMMIT');
+    return changed.changes === 1;
+  } catch (err) {
+    handle.exec('ROLLBACK');
+    throw err;
+  }
 }
 
 /**
@@ -2032,6 +2124,11 @@ function executeTrade(trade) {
     ensureUser(trade.to_user_id);
     ensureUser(trade.from_user_id);
 
+    // Where each side's Pokemon sat, to close the gaps afterwards.
+    const slotOf = handle.prepare('SELECT party_number FROM pokemon WHERE id = ?');
+    const offeredSlot = (slotOf.get(trade.offered_pokemon) || {}).party_number;
+    const wantedSlot = trade.wanted_pokemon ? (slotOf.get(trade.wanted_pokemon) || {}).party_number : null;
+
     // The offered Pokemon goes to the person accepting.
     const toNumber = takePartyNumber(handle, trade.to_user_id);
     if (claim.run(trade.to_user_id, toNumber, trade.offered_pokemon, trade.from_user_id).changes !== 1) {
@@ -2057,6 +2154,10 @@ function executeTrade(trade) {
       return { ok: false, reason: 'That trade was already settled.' };
     }
 
+    // Whoever gave a Pokemon away has a gap to close.
+    closeGap(handle, trade.from_user_id, offeredSlot);
+    if (trade.wanted_pokemon) closeGap(handle, trade.to_user_id, wantedSlot);
+
     handle.exec('COMMIT');
     return { ok: true };
   } catch (err) {
@@ -2069,46 +2170,95 @@ function executeTrade(trade) {
 // Leaderboards
 // ---------------------------------------------------------------------------
 
+/**
+ * Battles needed to appear on a win-rate board, so a 1-0 record isn't 100%.
+ * The leaderboard says so.
+ */
+const MIN_BATTLES = 100;
+
+/**
+ * Trainer levels a prestige is worth: a full climb, from level 1 to one past
+ * the last milestone.
+ */
+const LEVELS_PER_PRESTIGE = milestones.total() + 1;
+
+/** The win and loss columns for each battle board, by kind. */
+const BATTLE_BOARD_KINDS = {
+  all: { label: 'all battles', columns: ['battles_won', 'battles_lost'] },
+  wild: { label: 'wild', columns: BATTLE_KIND_COLUMNS.wild },
+  trainer: { label: 'trainers', columns: BATTLE_KIND_COLUMNS.trainer },
+  milestone: { label: 'milestones', columns: BATTLE_KIND_COLUMNS.milestone },
+};
+
+/**
+ * Win rate and wins, for all battles and each kind: winRate, winRateWild,
+ * wins, winsTrainer and so on. Rows carry won and lost for display.
+ */
+function battleBoards() {
+  const boards = {};
+
+  for (const [kind, { label, columns }] of Object.entries(BATTLE_BOARD_KINDS)) {
+    const [won, lost] = columns;
+    const suffix = kind === 'all' ? '' : kind[0].toUpperCase() + kind.slice(1);
+
+    boards[`winRate${suffix}`] = {
+      label: `Win rate (${label})`,
+      minBattles: MIN_BATTLES,
+      tiebreak: true,
+      sql: `SELECT discord_user_id AS id, ROUND(100.0 * ${won} / (${won} + ${lost}), 1) AS score,
+                   ${won} AS tiebreak, ${won} AS won, ${lost} AS lost
+            FROM users WHERE ${won} + ${lost} >= ${MIN_BATTLES}`,
+    };
+    boards[`wins${suffix}`] = {
+      label: `Wins (${label})`,
+      sql: `SELECT discord_user_id AS id, ${won} AS score, ${won} AS won, ${lost} AS lost
+            FROM users WHERE ${won} > 0`,
+    };
+  }
+
+  return boards;
+}
+
 /** What the leaderboard can rank by, and how each one reads. */
 const LEADERBOARDS = {
   caught: {
     label: 'Pokemon caught',
     sql: `SELECT discord_user_id AS id, total_caught AS score FROM users
-          WHERE total_caught > 0 ORDER BY score DESC, discord_user_id ASC LIMIT ?`,
+          WHERE total_caught > 0`,
   },
   party: {
     label: 'Party size',
     sql: `SELECT current_trainer_id AS id, COUNT(*) AS score FROM pokemon
           WHERE current_trainer_id IS NOT NULL
-          GROUP BY current_trainer_id ORDER BY score DESC, id ASC LIMIT ?`,
+          GROUP BY current_trainer_id`,
   },
   shinies: {
     label: 'Shinies',
     sql: `SELECT current_trainer_id AS id, COUNT(*) AS score FROM pokemon
           WHERE current_trainer_id IS NOT NULL AND shiny = 1
-          GROUP BY current_trainer_id ORDER BY score DESC, id ASC LIMIT ?`,
+          GROUP BY current_trainer_id`,
   },
   coins: {
     label: 'Coins',
     sql: `SELECT discord_user_id AS id, coins AS score FROM users
-          WHERE coins > 0 ORDER BY score DESC, discord_user_id ASC LIMIT ?`,
+          WHERE coins > 0`,
   },
   gold: {
     label: 'Gold',
     sql: `SELECT discord_user_id AS id, gold AS score FROM users
-          WHERE gold > 0 ORDER BY score DESC, discord_user_id ASC LIMIT ?`,
+          WHERE gold > 0`,
   },
   level: {
     label: 'Highest level Pokemon',
     sql: `SELECT current_trainer_id AS id, MAX(level) AS score FROM pokemon
           WHERE current_trainer_id IS NOT NULL
-          GROUP BY current_trainer_id ORDER BY score DESC, id ASC LIMIT ?`,
+          GROUP BY current_trainer_id`,
   },
   iv: {
     label: 'Best IVs',
     sql: `SELECT current_trainer_id AS id, MAX(iv_total) AS score FROM pokemon
           WHERE current_trainer_id IS NOT NULL
-          GROUP BY current_trainer_id ORDER BY score DESC, id ASC LIMIT ?`,
+          GROUP BY current_trainer_id`,
   },
 
   // Rarity boards, using the stored rarity column.
@@ -2116,19 +2266,19 @@ const LEADERBOARDS = {
     label: 'Legendaries',
     sql: `SELECT current_trainer_id AS id, COUNT(*) AS score FROM pokemon
           WHERE current_trainer_id IS NOT NULL AND rarity = 'legendary'
-          GROUP BY current_trainer_id ORDER BY score DESC, id ASC LIMIT ?`,
+          GROUP BY current_trainer_id`,
   },
   mythical: {
     label: 'Mythicals',
     sql: `SELECT current_trainer_id AS id, COUNT(*) AS score FROM pokemon
           WHERE current_trainer_id IS NOT NULL AND rarity = 'mythical'
-          GROUP BY current_trainer_id ORDER BY score DESC, id ASC LIMIT ?`,
+          GROUP BY current_trainer_id`,
   },
   ultrabeast: {
     label: 'Ultra Beasts',
     sql: `SELECT current_trainer_id AS id, COUNT(*) AS score FROM pokemon
           WHERE current_trainer_id IS NOT NULL AND rarity = 'ultraBeast'
-          GROUP BY current_trainer_id ORDER BY score DESC, id ASC LIMIT ?`,
+          GROUP BY current_trainer_id`,
   },
 
   // Distinct species owned, as opposed to party size.
@@ -2136,7 +2286,7 @@ const LEADERBOARDS = {
     label: 'Pokedex completion',
     sql: `SELECT current_trainer_id AS id, COUNT(DISTINCT species_id) AS score FROM pokemon
           WHERE current_trainer_id IS NOT NULL
-          GROUP BY current_trainer_id ORDER BY score DESC, id ASC LIMIT ?`,
+          GROUP BY current_trainer_id`,
   },
 
   // The only board ranking guilds rather than users. Counted from drops,
@@ -2147,9 +2297,42 @@ const LEADERBOARDS = {
     guilds: true,
     sql: `SELECT guild_id AS id, COUNT(*) AS score FROM drops
           WHERE caught_by IS NOT NULL AND guild_id IS NOT NULL
-          GROUP BY guild_id ORDER BY score DESC, id ASC LIMIT ?`,
+          GROUP BY guild_id`,
+  },
+  // Battles (see battleBoards above) and trainer progress.
+  ...battleBoards(),
+
+  prestige: {
+    label: 'Prestiges',
+    tiebreak: true,
+    sql: `SELECT discord_user_id AS id, prestige AS score,
+                 prestige * ${LEVELS_PER_PRESTIGE} + trainer_level AS tiebreak, prestige, trainer_level
+          FROM users WHERE prestige > 0`,
+  },
+  trainerLevels: {
+    label: 'Trainer levels',
+    sql: `SELECT discord_user_id AS id, prestige * ${LEVELS_PER_PRESTIGE} + trainer_level AS score,
+                 prestige, trainer_level
+          FROM users WHERE trainer_level > 1 OR prestige > 0`,
   },
 };
+
+/**
+ * The full query for a board: its own rows, filtered to one server's players
+ * if asked, sorted either way. Board SQL comes from the fixed table above.
+ */
+function boardQuery(entry, { dir = 'desc', guildId = null } = {}) {
+  const order = dir === 'asc' ? 'ASC' : 'DESC';
+  const where = guildId && !entry.guilds
+    ? 'WHERE id IN (SELECT discord_user_id FROM user_guilds WHERE guild_id = ?)'
+    : '';
+
+  return {
+    sql: `SELECT * FROM (${entry.sql}) ${where}
+          ORDER BY score ${order}${entry.tiebreak ? `, tiebreak ${order}` : ''}, id ASC LIMIT ?`,
+    params: where ? [guildId] : [],
+  };
+}
 
 /**
  * Who owns the most of one species.
@@ -2157,31 +2340,37 @@ const LEADERBOARDS = {
  * ".lb pikachu". Separate from LEADERBOARDS because it takes an argument. Keys
  * are bound as parameters, and an empty list returns early.
  */
-function speciesLeaderboard(speciesKeys, limit = 10) {
+function speciesLeaderboard(speciesKeys, { limit = 10, dir = 'desc', guildId = null } = {}) {
   if (!speciesKeys || !speciesKeys.length) return [];
 
-  return db
-    .open()
-    .prepare(
-      `SELECT current_trainer_id AS id, COUNT(*) AS score FROM pokemon
-       WHERE current_trainer_id IS NOT NULL
-         AND species_key IN (${speciesKeys.map(() => '?').join(', ')})
-       GROUP BY current_trainer_id ORDER BY score DESC, id ASC LIMIT ?`
-    )
-    .all(...speciesKeys, limit);
+  const entry = {
+    sql: `SELECT current_trainer_id AS id, COUNT(*) AS score FROM pokemon
+          WHERE current_trainer_id IS NOT NULL
+            AND species_key IN (${speciesKeys.map(() => '?').join(', ')})
+          GROUP BY current_trainer_id`,
+  };
+  const query = boardQuery(entry, { dir, guildId });
+  return db.open().prepare(query.sql).all(...speciesKeys, ...query.params, limit);
 }
 
-/** Top players by one measure. The board name is looked up, never interpolated. */
-function leaderboard(board, limit = 10) {
+/**
+ * Top players by one measure. The board name is looked up, never interpolated.
+ *
+ * @param {object} [options]  limit, dir ('desc' or 'asc'), guildId (only
+ *   players who use the bot in that server)
+ */
+function leaderboard(board, options = {}) {
+  const { limit = 10, ...rest } = typeof options === 'number' ? { limit: options } : options;
   const entry = LEADERBOARDS[board] || LEADERBOARDS.caught;
-  return db.open().prepare(entry.sql).all(limit);
+  const query = boardQuery(entry, rest);
+  return db.open().prepare(query.sql).all(...query.params, limit);
 }
 
 /** Where one player sits on a board, or null if they are not on it. */
-function leaderboardRank(board, userId) {
-  const all = leaderboard(board, 1000);
+function leaderboardRank(board, userId, options = {}) {
+  const all = leaderboard(board, { ...options, limit: 10000 });
   const index = all.findIndex((row) => row.id === userId);
-  return index < 0 ? null : { rank: index + 1, score: all[index].score, of: all.length };
+  return index < 0 ? null : { rank: index + 1, row: all[index], score: all[index].score, of: all.length };
 }
 
 /** Rename a Pokemon, or clear the nickname by passing null. */
@@ -2213,6 +2402,7 @@ module.exports = {
   trainerCap,
   awardTrainerExp,
   recordBattle,
+  noteGuild,
   clearMilestone,
   prestigeTrainer,
   battleTeam,
@@ -2272,12 +2462,14 @@ module.exports = {
   leaderboardRank,
   speciesLeaderboard,
   LEADERBOARDS,
+  MIN_BATTLES,
+  LEVELS_PER_PRESTIGE,
   listParty,
   countParty,
   speciesCounts,
   countOwned,
   caughtSpeciesIds,
-  assignPartyPositions,
-  swapPartyPositions,
+  assignPartyNumbers,
+  swapPartyNumbers,
   SORT_COLUMNS,
 };

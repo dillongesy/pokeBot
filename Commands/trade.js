@@ -1,48 +1,81 @@
 'use strict';
 
 /**
- * .trade - swap Pokemon with someone.
+ * .trade - swap Pokemon with someone, one for one.
  *
- *   .trade @user 12         offer your #12 to them
- *   .trade accept 45        accept, giving them your #45
- *   .trade confirm 45       same as accept
- *   .trade decline          turn down the offer waiting on you
- *   .trade cancel           take back the offer you made
- *   .trade                  show whatever is pending
+ *   .trade @user          ask them to trade; they press Accept or Decline
+ *   .trade add 12         put your #12 into the trade (again to change it)
+ *   .trade confirm        lock it in; the swap happens once both confirm
+ *   .trade cancel         either side can call it off
+ *   .trade                what the current trade looks like
+ *
+ * Once anyone has confirmed, the Pokemon can't be changed; cancel and start
+ * again instead. A trade with no activity for 5 minutes times out.
  *
  * Trades are always one for one. Quest progress is based on what you own, so
  * free gifting would let players pass one Pokemon around to complete the same
  * quest repeatedly.
  *
- * Both sides are re-checked at accept time, so an offer whose Pokemon has
- * since been released or traded fails cleanly.
+ * While a trade is open both players are held by Utils/partylock.js, so
+ * neither can release, reorder or battle with what they're offering. Trades
+ * live in memory, like battles, so a restart clears them.
  *
- * Quests are recalculated for both players afterwards. Completed quests stay
- * completed. The original trainer is kept, and held items travel with the
- * Pokemon.
+ * Held items travel with the Pokemon, and trade evolutions happen on arrival
+ * (Kadabra, Onix holding a Metal Coat, Karrablast for Shelmet). The original
+ * trainer is kept. Quests are recalculated for both players afterwards.
  */
 
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ComponentType,
+} = require('discord.js');
 
 const store = require('../Utils/store');
+const pager = require('../Utils/pager');
 const partylock = require('../Utils/partylock');
+const livebuttons = require('../Utils/livebuttons');
 const content = require('../Utils/content');
 const questengine = require('../Utils/questengine');
 const { displayName, ivPercent, titleCase } = require('../Utils/display');
+const { loadSpecies } = require('../Utils/pokemon');
 const evolution = require('../Utils/evolution');
 const learnset = require('../Utils/learnset');
 const moveprompt = require('../Utils/moveprompt');
 
-/** How long an unanswered offer stands. */
-const TTL_MS = 5 * 60 * 1000;
+/** How long a request waits for Accept or Decline. */
+const REQUEST_MS = 60_000;
+
+/** How long an open trade can sit with nothing happening. */
+const IDLE_MS = 5 * 60_000;
+
+/** Only the people in a trade get pinged, never @everyone in a name. */
+const MENTIONS = { allowedMentions: { parse: ['users'] } };
 
 const mention = (id) => `<@${id}>`;
 
-/** The words each response answers to. */
-const ACCEPT_WORDS = new Set(['accept', 'confirm', 'yes', 'ok']);
-const DECLINE_WORDS = new Set(['decline', 'no', 'reject', 'deny']);
+/** The words each action answers to. */
+const ADD_WORDS = new Set(['add', 'set', 'offer', 'put']);
+const CONFIRM_WORDS = new Set(['confirm', 'accept', 'yes', 'ok']);
+const CANCEL_WORDS = new Set(['cancel', 'decline', 'no', 'stop', 'quit']);
 
-/** One side of a trade, described. */
+/**
+ * Open trades: userId -> session. Both players point at the same session.
+ *
+ * session = {
+ *   users: [a, b], names: { id: name }, picks: { id: pokemonId | null },
+ *   confirmed: Set<userId>, send, timer
+ * }
+ */
+const sessions = new Map();
+
+/** Players with a request out or waiting on them, so they can't stack up. */
+const requested = new Set();
+
+/** One side of a trade, described: "**✨Pikachu** ♀, Lv.36, IV 61%, holding Leftovers" */
 function describe(row) {
   if (!row) return '*nothing*';
   const held = row.equipped_item
@@ -58,149 +91,271 @@ function parseUserId(raw) {
   return /^\d{15,25}$/.test(String(raw || '').trim()) ? String(raw).trim() : null;
 }
 
-/** Offer one of yours to somebody. */
-function offer(fromUserId, targetRaw, rawPokemonId, channelId) {
-  const toUserId = parseUserId(targetRaw);
+/** The other player in a session. */
+const otherOf = (session, userId) => session.users.find((id) => id !== userId);
 
-  if (!toUserId) return { content: 'Trade with who? Try `.trade @someone 12`.' };
-  if (toUserId === fromUserId) return { content: 'You cannot trade with yourself.' };
+/** What each player has put in, re-read so it's current. */
+const pickOf = (session, userId) =>
+  session.picks[userId] ? store.getOwnedPokemon(userId, session.picks[userId]) : null;
 
-  // Not allowed while either player is in a battle (see Utils/partylock.js).
-  const busy = partylock.refusalFor(fromUserId, 'offer a trade');
-  if (busy) return { content: busy };
+/** Restart the inactivity clock. */
+function touch(session) {
+  clearTimeout(session.timer);
+  session.timer = setTimeout(() => {
+    end(session);
+    // From a timer, so nothing may throw out of here.
+    Promise.resolve()
+      .then(() => session.send({ content: 'Trade has timed out due to inactivity.' }))
+      .catch(() => {});
+  }, IDLE_MS);
+  if (session.timer.unref) session.timer.unref();
+}
 
-  if (partylock.heldBy(toUserId) === partylock.BATTLE) {
-    return { content: 'They are in the middle of a battle. Try again when it is over.' };
+/** Close a session and let both players use their party again. */
+function end(session) {
+  clearTimeout(session.timer);
+  for (const id of session.users) {
+    if (sessions.get(id) === session) sessions.delete(id);
+    partylock.release(id);
+  }
+}
+
+/** Start a trade between two players who have agreed to it. */
+function open(a, b, names, send) {
+  const session = {
+    users: [a, b],
+    names,
+    picks: { [a]: null, [b]: null },
+    confirmed: new Set(),
+    send,
+    timer: null,
+  };
+
+  for (const id of session.users) {
+    sessions.set(id, session);
+    partylock.hold(id, partylock.TRADE);
   }
 
-  const id = store.parsePartyNumber(rawPokemonId);
-  if (!Number.isInteger(id)) {
-    return { content: 'Offer which one? Try `.trade @someone 12`, using the number from `.party`.' };
-  }
-
-  const row = store.getOwnedByNumber(fromUserId, id);
-  if (!row) return { content: store.noSuchNumber(fromUserId, id) };
-
-  // The trades table stores global ids, so use row.id from here on rather
-  // than the party number the player typed.
-  const already = store.pendingTradeFor(row.id);
-  if (already) return { content: `#${id} is already promised in another trade. Cancel it first.` };
-
-  const outstanding = store.openTradeFrom(fromUserId);
-  if (outstanding) {
-    return {
-      content: 'You already have an offer out. Use `.trade cancel` before making another.',
-    };
-  }
-
-  store.createTrade({
-    fromUserId,
-    toUserId,
-    offeredPokemon: row.id,
-    wantedPokemon: null,
-    channelId,
-    ttlMs: TTL_MS,
-  });
-
-  const embed = new EmbedBuilder()
-    .setTitle('Trade offered')
-    .setColor(0x4287f5)
-    .setDescription(`${mention(fromUserId)} offers ${mention(toUserId)}:\n${describe(row)}`)
-    .addFields({
-      name: 'To respond',
-      value:
-        '`.trade accept <your pokemon>` to swap for one of yours\n' +
-        '`.trade decline` to say no',
-    })
-    .setFooter({ text: 'Expires in 5 minutes. Trades are always one for one.' });
-
-  return { embeds: [embed] };
+  touch(session);
+  return session;
 }
 
 /**
- * Accept an offer, giving one of yours back.
+ * Why these two can't start a trade right now, or null.
+ * Checked when asking and again when Accept is pressed.
  */
-function accept(userId, rawPokemonId) {
-  const trade = store.openTradeTo(userId);
-  if (!trade) return { content: 'Nobody has offered you anything.' };
+function blocker(fromUserId, toUserId) {
+  if (sessions.has(fromUserId)) return 'You are already in a trade. `.trade cancel` to end it first.';
+  if (sessions.has(toUserId)) return 'They are already in a trade.';
 
-  // Only check for battles here. The pending trade is itself a lock, and
-  // checking for it would block accepting the trade.
-  if (partylock.heldBy(userId) === partylock.BATTLE) {
-    return { content: partylock.refusalFor(userId, 'accept a trade') };
+  if (partylock.heldBy(fromUserId)) return partylock.refusalFor(fromUserId, 'start a trade');
+  if (partylock.heldBy(toUserId)) return 'They are busy with a battle or trade. Try again when it is over.';
+
+  return null;
+}
+
+/** "Trade Request" card with Accept and Decline, for the target to press. */
+function requestCard(fromUserId, toUserId) {
+  return {
+    embeds: [
+      new EmbedBuilder()
+        .setTitle('Trade Request')
+        .setColor(0x4287f5)
+        .setDescription(`${mention(fromUserId)} wants to trade with ${mention(toUserId)}.`)
+        .setFooter({ text: 'Trades are one for one. Held items go with the Pokemon.' }),
+    ],
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('trade:accept').setLabel('Accept').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('trade:decline').setLabel('Decline').setStyle(ButtonStyle.Danger)
+      ),
+    ],
+    ...MENTIONS,
+  };
+}
+
+/**
+ * Ask someone to trade, and open the trade if they accept.
+ *
+ * @param {function} reply   answers the command, returns the Message
+ * @param {function} send    posts later messages (timeout) to the channel
+ * @param {object}   names   { userId: name } for both players
+ */
+async function request({ reply, send, fromUserId, toUserId, names }) {
+  if (!toUserId) return reply({ content: 'Trade with who? Try `.trade @someone`.' });
+  if (toUserId === fromUserId) return reply({ content: "You can't trade with yourself!" });
+
+  if (requested.has(fromUserId)) return reply({ content: 'You already have a trade request waiting.' });
+  if (requested.has(toUserId)) return reply({ content: 'They already have a trade request waiting.' });
+
+  const busy = blocker(fromUserId, toUserId);
+  if (busy) return reply({ content: busy });
+
+  const prompt = await reply(requestCard(fromUserId, toUserId));
+  if (!prompt || typeof prompt.awaitMessageComponent !== 'function') return;
+
+  requested.add(fromUserId);
+  requested.add(toUserId);
+  livebuttons.track(prompt, toUserId);
+
+  let choice;
+  try {
+    choice = await prompt.awaitMessageComponent({
+      componentType: ComponentType.Button,
+      time: REQUEST_MS,
+      filter: (button) => button.user.id === toUserId,
+    });
+  } catch {
+    await prompt.edit({ content: 'Trade request timed out.', embeds: [], components: [] }).catch(() => {});
+    return;
+  } finally {
+    requested.delete(fromUserId);
+    requested.delete(toUserId);
+    livebuttons.release(prompt);
   }
 
-  if (partylock.heldBy(trade.from_user_id) === partylock.BATTLE) {
-    return { content: 'They have just started a battle. Try again when it is over.' };
+  if (choice.customId === 'trade:decline') {
+    await choice
+      .update({ content: `Trade declined by ${mention(toUserId)}.`, embeds: [], components: [], ...MENTIONS })
+      .catch(() => {});
+    return;
   }
 
-  const offered = store.getOwnedPokemon(trade.from_user_id, trade.offered_pokemon);
-  if (!offered) {
-    store.settleTrade(trade.id, 'cancelled');
-    return { content: 'That offer is no longer valid - they do not have it any more.' };
+  // Something may have started while the request sat there.
+  const late = blocker(fromUserId, toUserId);
+  if (late) {
+    await choice.update({ content: late, embeds: [], components: [] }).catch(() => {});
+    return;
   }
 
-  if (rawPokemonId === undefined || rawPokemonId === null || String(rawPokemonId).trim() === '') {
-    return {
+  open(fromUserId, toUserId, names, send);
+
+  await choice
+    .update({
       content:
-        'Trades go both ways - name one of yours to give back. ' +
-        'Try `.trade accept 45`, using the number from `.party`.',
+        'Trade accepted. Both users, please add your Pokémon to the trade using `.trade add <slot>`, ' +
+        'then `.trade confirm`.',
+      embeds: [],
+      components: [],
+    })
+    .catch(() => {});
+}
+
+/** Put one of yours into the trade, or swap it for another. */
+function add(userId, rawPokemonId) {
+  const session = sessions.get(userId);
+  if (!session) return { content: 'You are not in a trade. Start one with `.trade @someone`.' };
+
+  if (session.confirmed.size) {
+    return {
+      content: 'Someone has already confirmed the trade, so it cannot be changed now. `.trade cancel` to start over.',
     };
   }
 
   const id = store.parsePartyNumber(rawPokemonId);
-  if (!Number.isInteger(id)) return { content: 'Give which one? Try `.trade accept 45`.' };
+  if (!Number.isInteger(id)) return { content: 'Add which one? Try `.trade add 12`, using the number from `.party`.' };
 
-  const given = store.getOwnedByNumber(userId, id);
-  if (!given) return { content: store.noSuchNumber(userId, id) };
+  const row = store.getOwnedByNumber(userId, id);
+  if (!row) return { content: store.noSuchNumber(userId, id) };
 
-  if (store.pendingTradeFor(given.id)) {
-    return { content: `#${id} is promised in another trade already.` };
+  session.picks[userId] = row.id;
+  touch(session);
+
+  const other = otherOf(session, userId);
+  const theirs = pickOf(session, other);
+
+  if (!theirs) {
+    return {
+      content: `${session.names[userId]} added ${describe(row)} to the trade. Waiting for the other user to add their Pokémon.`,
+    };
   }
 
-  trade.wanted_pokemon = given.id;
+  const [a, b] = session.users;
+  return {
+    content:
+      `Trade set: ${describe(pickOf(session, a))} (added by ${session.names[a]}) and ` +
+      `${describe(pickOf(session, b))} (added by ${session.names[b]}). Type \`.trade confirm\` to confirm the trade.`,
+  };
+}
+
+/** Lock it in. The second confirmation carries out the swap. */
+function confirm(userId) {
+  const session = sessions.get(userId);
+  if (!session) return { content: 'No active trade to confirm.' };
+
+  const [a, b] = session.users;
+  if (!session.picks[a] || !session.picks[b]) {
+    return { content: 'Both users need to add a Pokémon first, with `.trade add <slot>`.' };
+  }
+
+  session.confirmed.add(userId);
+  touch(session);
+
+  if (session.confirmed.size < 2) return { content: 'Trade confirmed. Waiting for the other user to confirm.' };
+
+  return complete(session);
+}
+
+/** Carry out a trade both sides confirmed. */
+function complete(session) {
+  const [a, b] = session.users;
+  const givenByA = pickOf(session, a);
+  const givenByB = pickOf(session, b);
+
+  end(session);
+
+  if (!givenByA || !givenByB) return { content: 'Trade cancelled - one of the Pokémon is no longer available.' };
+
+  // Recorded in the trades table, which also guards against a double swap.
+  const tradeId = store.createTrade({
+    fromUserId: a,
+    toUserId: b,
+    offeredPokemon: givenByA.id,
+    wantedPokemon: givenByB.id,
+    channelId: null,
+    ttlMs: IDLE_MS,
+  });
+
+  const trade = {
+    id: tradeId,
+    from_user_id: a,
+    to_user_id: b,
+    offered_pokemon: givenByA.id,
+    wanted_pokemon: givenByB.id,
+  };
 
   const result = store.executeTrade(trade);
   if (!result.ok) {
     store.settleTrade(trade.id, 'cancelled');
-    return { content: result.reason };
+    return { content: `Trade cancelled - ${result.reason}` };
   }
 
   // Both sides may evolve on arrival, each in its new owner's hands.
+  // Karrablast and Shelmet need to have been traded for each other.
   const evolutions = [
-    evolveOnTrade(trade.offered_pokemon, userId),
-    evolveOnTrade(given.id, trade.from_user_id),
+    evolveOnTrade(givenByA.id, b, givenByB),
+    evolveOnTrade(givenByB.id, a, givenByA),
   ].filter(Boolean);
 
   // Evolution moves with no free slot: each new owner is asked which to forget.
   const offers = evolutions.map((evolved) => evolved.offer).filter(Boolean);
 
-  const embed = new EmbedBuilder()
-    .setTitle('Trade complete')
-    .setColor(0x2ecc71)
-    .addFields(
-      { name: `${mention(trade.from_user_id)} gave`, value: describe(offered) },
-      { name: `${mention(userId)} gave`, value: describe(given) }
-    )
-    .setFooter({ text: 'Original trainers are unchanged' });
-
-  for (const evolved of evolutions) {
-    embed.addFields({ name: 'Evolution!', value: evolved.text });
-  }
+  const lines = [`Trade completed! ${mention(a)} traded ${describe(givenByA)} with ${mention(b)} for ${describe(givenByB)}.`];
+  for (const evolved of evolutions) lines.push(`🎉 ${evolved.text}`);
 
   // Recalculate quests for both players. The trade is already committed, so a
   // failure here is logged and picked up by the next sync.
   try {
-    for (const [who, synced] of questengine.syncMany([userId, trade.from_user_id])) {
+    for (const [who, synced] of questengine.syncMany([a, b])) {
       const line = questengine.announce(synced.completed);
-      if (line) embed.addFields({ name: `Quest - ${mention(who)}`, value: line });
+      if (line) lines.push(`${mention(who)}: ${line}`);
     }
   } catch (err) {
     console.error('Quest sync failed after a trade:', err);
   }
 
   // `offers` is not part of the message; the caller strips it and asks.
-  return { embeds: [embed], offers };
+  return { content: lines.join('\n'), offers, ...MENTIONS };
 }
 
 /**
@@ -213,14 +368,16 @@ function accept(userId, rawPokemonId) {
  * Evolution moves go into free slots straight away; the rest come back as
  * `offer` for the new owner to be asked about.
  *
+ * @param {object} tradedFor  the Pokemon it was traded for, as it was before
  * @returns {{text: string, offer: object|null}|null} null if nothing happened
  */
-function evolveOnTrade(pokemonId, ownerId) {
+function evolveOnTrade(pokemonId, ownerId, tradedFor) {
   const row = store.getOwnedPokemon(ownerId, pokemonId);
   if (!row) return null;
 
-  const result = evolution.resolve(row, 'trade', {});
-  if (!result) return null;
+  const partner = tradedFor ? loadSpecies(tradedFor.species_id) : null;
+  const result = evolution.resolve(row, 'trade', { tradedFor: partner ? partner.name : null });
+  if (!result || !result.changes) return null;
 
   const changes = { ...result.changes };
   let consumedName = null;
@@ -243,6 +400,35 @@ function evolveOnTrade(pokemonId, ownerId) {
   };
 }
 
+/** Either side calls it off. */
+function cancel(userId) {
+  const session = sessions.get(userId);
+  if (!session) return { content: 'No active trade to cancel.' };
+
+  end(session);
+  return { content: 'Trade has been cancelled.' };
+}
+
+/** What the current trade looks like. */
+function status(userId) {
+  const session = sessions.get(userId);
+  if (!session) {
+    return { content: 'To trade, use `.trade @someone` to start.' };
+  }
+
+  const embed = new EmbedBuilder().setTitle('Current trade').setColor(0x4287f5);
+
+  for (const id of session.users) {
+    embed.addFields({
+      name: `${session.names[id]}${session.confirmed.has(id) ? ' ✅' : ''}`,
+      value: describe(pickOf(session, id)),
+    });
+  }
+
+  embed.setFooter({ text: '.trade add <slot> · .trade confirm · .trade cancel' });
+  return { embeds: [embed] };
+}
+
 /**
  * Send a reply, then ask about any evolution moves that need a slot freed.
  *
@@ -257,62 +443,21 @@ async function reply(send, result) {
   for (const offer of offers || []) await moveprompt.askAll({ send, ...offer });
 }
 
-function decline(userId) {
-  const trade = store.openTradeTo(userId);
-  if (!trade) return { content: 'Nobody has offered you anything.' };
-
-  store.settleTrade(trade.id, 'declined');
-  return { content: `Declined ${mention(trade.from_user_id)}'s offer.` };
+/** A name to show for someone, from their server nickname if there is one. */
+function nameOf(member, user) {
+  return (member && member.displayName) || (user && (user.globalName || user.username)) || 'Someone';
 }
 
-function cancel(userId) {
-  const trade = store.openTradeFrom(userId);
-  if (!trade) return { content: 'You have no offer out.' };
-
-  store.settleTrade(trade.id, 'cancelled');
-  return { content: 'Cancelled your offer.' };
-}
-
-/** What is pending, in either direction. */
-function status(userId) {
-  const incoming = store.openTradeTo(userId);
-  const outgoing = store.openTradeFrom(userId);
-
-  if (!incoming && !outgoing) {
-    return { content: 'No trades pending. Offer one with `.trade @someone 12`.' };
-  }
-
-  const embed = new EmbedBuilder().setTitle('Pending trades').setColor(0x4287f5);
-
-  if (incoming) {
-    const row = store.getOwnedPokemon(incoming.from_user_id, incoming.offered_pokemon);
-    embed.addFields({
-      name: `From ${mention(incoming.from_user_id)}`,
-      value: `${describe(row)}\n\`.trade accept <your pokemon>\` or \`.trade decline\``,
-    });
-  }
-
-  if (outgoing) {
-    const row = store.getOwnedPokemon(userId, outgoing.offered_pokemon);
-    embed.addFields({
-      name: `To ${mention(outgoing.to_user_id)}`,
-      value: `${describe(row)}\n\`.trade cancel\` to take it back`,
-    });
-  }
-
-  return { embeds: [embed] };
-}
-
-/** Route ".trade ..." to the right thing. */
-function run(userId, args, channelId) {
+/** Route the actions that aren't starting a trade. */
+function run(userId, args) {
   const first = String(args[0] || '').toLowerCase();
 
   if (!first) return status(userId);
-  if (ACCEPT_WORDS.has(first)) return accept(userId, args[1]);
-  if (DECLINE_WORDS.has(first)) return decline(userId);
-  if (first === 'cancel') return cancel(userId);
+  if (ADD_WORDS.has(first)) return add(userId, args[1]);
+  if (CONFIRM_WORDS.has(first)) return confirm(userId);
+  if (CANCEL_WORDS.has(first)) return cancel(userId);
 
-  return offer(userId, args[0], args[1], channelId);
+  return { content: 'To trade, use `.trade @someone` to start, then `.trade add <slot>` and `.trade confirm`.' };
 }
 
 module.exports = {
@@ -320,87 +465,90 @@ module.exports = {
 
   data: new SlashCommandBuilder()
     .setName('trade')
-    .setDescription('Swaps Pokemon with someone.')
+    .setDescription('Swaps Pokemon with someone, one for one.')
     .addSubcommand((sub) =>
       sub
-        .setName('offer')
-        .setDescription('Offer one of yours to someone.')
+        .setName('start')
+        .setDescription('Ask someone to trade.')
         .addUserOption((o) => o.setName('user').setDescription('Who to trade with.').setRequired(true))
-        .addIntegerOption((o) =>
-          o.setName('pokemon').setDescription('Its number, from /party.').setRequired(true)
-        )
     )
     .addSubcommand((sub) =>
       sub
-        .setName('accept')
-        .setDescription('Accept the offer waiting on you.')
-        .addIntegerOption((o) =>
-          o
-            .setName('pokemon')
-            .setDescription('What to give back. Trades are always one for one.')
-            .setRequired(true)
-        )
+        .setName('add')
+        .setDescription('Put one of yours into the trade.')
+        .addIntegerOption((o) => o.setName('pokemon').setDescription('Its slot, from /party.').setRequired(true))
     )
-    .addSubcommand((sub) => sub.setName('decline').setDescription('Turn down the offer waiting on you.'))
-    .addSubcommand((sub) => sub.setName('cancel').setDescription('Take back the offer you made.'))
-    .addSubcommand((sub) => sub.setName('status').setDescription('Show pending trades.')),
+    .addSubcommand((sub) => sub.setName('confirm').setDescription('Lock in the trade.'))
+    .addSubcommand((sub) => sub.setName('cancel').setDescription('Call off the trade.'))
+    .addSubcommand((sub) => sub.setName('status').setDescription('Show the current trade.')),
 
   async execute(interaction) {
     store.ensureUser(interaction.user.id);
     const sub = interaction.options.getSubcommand();
     const userId = interaction.user.id;
 
-    if (sub === 'offer') {
+    if (sub === 'start') {
       const target = interaction.options.getUser('user');
-      await interaction.reply(
-        offer(userId, `<@${target.id}>`, interaction.options.getInteger('pokemon'), interaction.channelId)
-      );
+      const targetMember = interaction.options.getMember('user');
+      store.ensureUser(target.id);
+
+      await request({
+        reply: pager.interactionSender(interaction),
+        send: (payload) => interaction.channel.send({ ...MENTIONS, ...payload }),
+        fromUserId: userId,
+        toUserId: target.id,
+        names: { [userId]: nameOf(interaction.member, interaction.user), [target.id]: nameOf(targetMember, target) },
+      });
       return;
     }
 
-    if (sub === 'accept') {
-      // The first payload is the reply; move prompts follow it up.
-      await reply(
-        (payload) => (interaction.replied ? interaction.followUp(payload) : interaction.reply(payload)),
-        accept(userId, interaction.options.getInteger('pokemon'))
-      );
-      return;
-    }
+    const args = sub === 'add' ? ['add', interaction.options.getInteger('pokemon')] : sub === 'status' ? [] : [sub];
 
-    if (sub === 'decline') {
-      await interaction.reply(decline(userId));
-      return;
-    }
-
-    if (sub === 'cancel') {
-      await interaction.reply(cancel(userId));
-      return;
-    }
-
-    await interaction.reply(status(userId));
+    // The first payload is the reply; move prompts follow it up.
+    await reply(
+      (payload) => (interaction.replied ? interaction.followUp(payload) : interaction.reply(payload)),
+      run(userId, args)
+    );
   },
 
   async run(message, args) {
     store.ensureUser(message.author.id);
 
+    const send = (payload) => message.channel.send({ ...MENTIONS, ...payload });
+    const first = String(args[0] || '').toLowerCase();
+    const isAction = ADD_WORDS.has(first) || CONFIRM_WORDS.has(first) || CANCEL_WORDS.has(first);
+
     // Prefer the parsed mention over the raw text.
     const mentioned = message.mentions && message.mentions.users && message.mentions.users.first();
-    const first = String(args[0] || '').toLowerCase();
-    const isAction = ACCEPT_WORDS.has(first) || DECLINE_WORDS.has(first) || first === 'cancel';
+    const target = mentioned ? mentioned.id : !isAction ? parseUserId(args[0]) : null;
 
-    if (mentioned && !isAction) {
-      await message.channel.send(offer(message.author.id, `<@${mentioned.id}>`, args[1], message.channelId));
+    if (target) {
+      store.ensureUser(target);
+      const member = message.guild ? message.guild.members.cache.get(target) : null;
+
+      await request({
+        reply: send,
+        send,
+        fromUserId: message.author.id,
+        toUserId: target,
+        names: {
+          [message.author.id]: nameOf(message.member, message.author),
+          [target]: nameOf(member, mentioned),
+        },
+      });
       return;
     }
 
-    await reply((payload) => message.channel.send(payload), run(message.author.id, args, message.channelId));
+    await reply(send, run(message.author.id, args));
   },
 
-  offer,
-  accept,
-  decline,
+  request,
+  open,
+  add,
+  confirm,
   cancel,
   status,
+  evolveOnTrade,
   parseUserId,
-  TTL_MS,
+  sessions,
 };

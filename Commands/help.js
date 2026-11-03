@@ -38,11 +38,12 @@ const GROUPS = [
   {
     name: '📦 Your collection',
     commands: [
-      { name: 'party', usage: '.p [sort]', blurb: 'Everything you have caught. `.p shiny`, `.p lvl 25-35`, `.p suggested`.' },
-      { name: 'view', usage: '.v <id>', blurb: 'One Pokemon in full - stats, IVs, nature.' },
-      { name: 'nickname', usage: '.nick <id> <name>', blurb: 'Rename one. "clear" undoes it.' },
+      { name: 'party', usage: '.p [sort]', blurb: 'Everything you have caught, with dropdowns to filter and sort. `.p iv desc`, `.p shiny`, `.p lvl 25-35`.' },
+      { name: 'view', usage: '.v <slot>', blurb: 'One Pokemon in full - stats, IVs, nature.' },
+      { name: 'nickname', usage: '.nick <slot> <name>', blurb: 'Rename one. "clear" undoes it.' },
+      { name: 'swap', usage: '.swap <a> <b>', blurb: 'Swap two party slots, using the numbers from `.p`.' },
       { name: 'order', usage: '.order <field>', blurb: 'Rearrange the party. `.order battle` builds your team.' },
-      { name: 'release', usage: '.release <id>', blurb: 'Let one go. Asks first. Pays nothing.' },
+      { name: 'release', usage: '.release <slot>', blurb: 'Let one go. Asks first. Pays nothing.' },
     ],
   },
   {
@@ -53,8 +54,8 @@ const GROUPS = [
       { name: 'goldshop', usage: '.gs', blurb: 'Permanent buffs, bought with quest gold. `.goldbuy <id>`.' },
       { name: 'bag', usage: '.bag', blurb: 'What you are carrying, numbered.' },
       { name: 'examine', usage: '.iv <item>', blurb: 'Read what something in your bag does.' },
-      { name: 'useitem', usage: '.useitem <id> <item>', blurb: 'Level, evolve, Mega Evolve or equip. `default` puts a form back.' },
-      { name: 'take', usage: '.take <id>', blurb: 'Take back what it is holding. A held form reverts.' },
+      { name: 'useitem', usage: '.useitem <slot> <item>', blurb: 'Level, evolve, Mega Evolve or equip. `default` puts a form back.' },
+      { name: 'take', usage: '.take <slot>', blurb: 'Take back what it is holding. A held form reverts.' },
       { name: 'inventorysort', usage: '.is <mode>', blurb: 'A-Z, shop order, quantity, or `swap a b`.' },
       { name: 'trash', usage: '.trash <item> [n]', blurb: 'Destroy items. Asks first.' },
     ],
@@ -74,7 +75,7 @@ const GROUPS = [
   {
     name: '🤝 Other trainers',
     commands: [
-      { name: 'trade', usage: '.t @user <id>', blurb: 'Swap Pokemon. Some evolve on arrival.' },
+      { name: 'trade', usage: '.t @user', blurb: 'Trade one for one: `.t add <slot>`, then `.t confirm`. Held items go too, and some evolve on arrival.' },
       { name: 'team', usage: '.team @user', blurb: 'The first six, which are the battle team.' },
       { name: 'compare', usage: '.compare @user', blurb: 'What they have that you do not.' },
     ],
@@ -84,8 +85,8 @@ const GROUPS = [
     commands: [
       { name: 'battle', usage: '.battle', blurb: 'Fight whatever turns up, with your first six.' },
       { name: 'battle milestone', usage: '.battle milestone [name]', blurb: 'Take on your next gym leader. The Elite Four is four battles; name one to pick.' },
-      { name: 'moves', usage: '.moves <id>', blurb: 'What one of yours knows, and what is next.' },
-      { name: 'tm', usage: '.tm <id> [move]', blurb: 'Teach a move. TMs are reusable.' },
+      { name: 'moves', usage: '.moves <slot>', blurb: 'What one of yours knows, and what is next.' },
+      { name: 'tm', usage: '.tm <slot> [move]', blurb: 'Teach a move. TMs are reusable.' },
       { name: 'pvp-battle', usage: '.pvp @user', blurb: 'Fight another player.', soon: true },
     ],
   },
@@ -199,7 +200,7 @@ function buildPaged(userId) {
           name: 'Your Pokemon have numbers',
           value:
             '`.party` gives each one a small number - **#1**, **#2** - and that is what ' +
-            'every command takes: `.view 3`, `.release 3`, `.trade @someone 3`.\n' +
+            'every command takes: `.view 3`, `.release 3`, `.trade add 3`.\n' +
             'A number is yours and it never moves. Sorting your party does not change it, ' +
             'and one that leaves takes its number with it, so a gap just means something ' +
             'used to be there.',

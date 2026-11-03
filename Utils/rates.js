@@ -262,6 +262,17 @@ module.exports = {
     ],
 
     /**
+     * When ordinary opponents have evolved (milestones are fixed rosters).
+     *
+     * Level evolutions happen exactly at their level. Everything else
+     * (trades, stones, friendship) has no level, so it becomes possible
+     * `afterLevels` after the previous stage could first appear, then grows
+     * more likely over `rampLevels` up to `maxChance`. Below that cap the
+     * unevolved one still turns up: a level 70 Pikachu now and then.
+     */
+    opponentEvolution: { afterLevels: 10, rampLevels: 40, maxChance: 0.9 },
+
+    /**
      * Coins for a win: a small flat range, so the shop stays meaningful at
      * every level.
      */

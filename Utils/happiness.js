@@ -1,19 +1,23 @@
 'use strict';
 
 /**
- * Friendship, and what raises it.
+ * Friendship, and what changes it - Emerald's rules.
  *
- *   Berries    the six EV-lowering berries, as in the games (implemented)
- *   Battling   a Pokemon that fights without fainting (not yet implemented)
- *   Petting    spending time with a Pokemon, on a cooldown (not yet
- *              implemented)
+ *   levelUp       each level gained, in battle or from a Rare Candy
+ *   vitamin       HP Up, Protein and the rest
+ *   berry         the six EV-lowering berries
+ *   leagueBattle  every Pokemon on the team, after beating a Gym Leader,
+ *                 Elite Four member or Champion (any milestone)
+ *   learnTm       being taught a TM
+ *   faint         fainting in battle
+ *   faintBadly    fainting to something 30 or more levels higher
  *
- * Friendship evolutions: about twenty evolutions in the data require
- * minHappiness (Azurill, Chansey, Golbat, the Eevee friendship lines and so
- * on), but Utils/evolution.js does not check it yet. Enabling the check now
- * would make berries the only way to reach those evolutions, so it stays off
- * until friendship can be earned through play. Enabling it is a one-line
- * change in Utils/evolution.js.
+ * Each gain is smaller once friendship passes 100 and again at 200, and a
+ * held Soothe Bell makes gains half again as big (losses are unchanged).
+ *
+ * Friendship evolutions (Pichu, Golbat, Eevee to Espeon or Umbreon...) check
+ * it on level-up; see Utils/evolution.js. Return and Frustration read it for
+ * their power; see Utils/movepower.js.
  */
 
 const db = require('./db');
@@ -30,11 +34,57 @@ const MAX = 255;
  */
 const START = 70;
 
-/**
- * Friendship required by friendship evolutions (per PokeAPI). Not enforced
- * yet; see the note above.
- */
+/** Where most friendship evolutions start (some, like Pichu, need 220). */
 const EVOLVE_AT = 160;
+
+/** Emerald's table: the change below 100, at 100-199, and at 200 or more. */
+const EVENTS = {
+  levelUp: [5, 3, 2],
+  vitamin: [5, 3, 2],
+  berry: [10, 5, 2],
+  leagueBattle: [3, 2, 1],
+  learnTm: [1, 1, 0],
+  faint: [-1, -1, -1],
+  faintBadly: [-5, -5, -10],
+};
+
+/** Fainting to a foe at least this many levels higher counts as faintBadly. */
+const BAD_FAINT_GAP = 30;
+
+/** Held, it makes every gain 1.5 times as big (rounded down), as in Emerald. */
+const SOOTHE_BELL = 'soothe-bell';
+
+const clamp = (value) => Math.max(MIN, Math.min(MAX, Math.round(Number(value) || 0)));
+
+/**
+ * How much one event changes friendship, from where it is now.
+ *
+ * @param {string} event      a key of EVENTS
+ * @param {number} current
+ * @param {string} [heldItem]
+ */
+function amountFor(event, current, heldItem = null) {
+  const now = clamp(current);
+  const tier = now >= 200 ? 2 : now >= 100 ? 1 : 0;
+
+  let amount = EVENTS[event][tier];
+  if (amount > 0 && heldItem === SOOTHE_BELL) amount = Math.floor((amount * 150) / 100);
+  return amount;
+}
+
+/**
+ * A Pokemon's friendship after an event happens `times` times in a row.
+ *
+ * Pure, so callers can write it in the same UPDATE as everything else. Each
+ * repeat uses the new value, so gaining ten levels slows down past 100.
+ *
+ * @param {object} row  a pokemon row (reads happiness and equipped_item)
+ */
+function after(row, event, times = 1) {
+  let value = clamp(row.happiness ?? START);
+  for (let i = 0; i < times; i += 1) value = clamp(value + amountFor(event, value, row.equipped_item));
+  return value;
+}
 
 /** How it reads on a card. */
 function describe(value) {
@@ -48,7 +98,14 @@ function describe(value) {
   return 'Wild';
 }
 
-const clamp = (value) => Math.max(MIN, Math.min(MAX, Math.round(Number(value) || 0)));
+/** Hearts in the meter. Each is a tenth of the way to 255. */
+const HEARTS = 10;
+
+/** "❤️❤️❤️🤍🤍🤍🤍🤍🤍🤍" - filled in proportion to friendship. */
+function meter(value) {
+  const filled = Math.round((clamp(value) / MAX) * HEARTS);
+  return '❤️'.repeat(filled) + '🤍'.repeat(HEARTS - filled);
+}
 
 /** One Pokemon's friendship, or the starting value if the row is gone. */
 function of(pokemonId) {
@@ -60,98 +117,30 @@ function of(pokemonId) {
   return row ? row.happiness : START;
 }
 
-/**
- * Move a Pokemon's friendship, clamped to 0-255.
- *
- * The clamp happens inside the UPDATE, so concurrent changes are not lost.
- * Accepts negative amounts.
- *
- * @returns {number} what it is now
- */
-function gain(pokemonId, amount) {
-  const handle = db.open();
-
-  handle
-    .prepare(
-      `UPDATE pokemon
-       SET happiness = MAX(?, MIN(?, happiness + ?))
-       WHERE id = ?`
-    )
-    .run(MIN, MAX, Math.round(Number(amount) || 0), pokemonId);
-
-  return of(pokemonId);
-}
-
-// ---------------------------------------------------------------------------
-// The sources
-// ---------------------------------------------------------------------------
-
-/** How much each source is worth. Provisional values. */
-const REWARDS = {
-  /** Per battle survived. */
-  battle: 3,
-
-  /** Per petting session. */
-  pet: 5,
-};
-
-/**
- * Friendship gained from one of the six EV-lowering berries. As in the games,
- * the gain shrinks as friendship rises.
- *
- * Pure: takes the current value and returns the gain, so Utils/items.js can
- * write it in the same UPDATE as the EV change.
- */
-function fromBerry(current) {
-  const now = clamp(current);
-  if (now >= 200) return 2;
-  if (now >= 100) return 5;
-  return 10;
-}
-
-/** How long between two pettings of the same Pokemon. */
-const PET_COOLDOWN_MS = 60 * 60 * 1000;
-
-/**
- * Not implemented yet. Friendship for a Pokemon that finished a battle
- * without fainting.
- */
-function fromBattle(/* pokemonId */) {
-  throw new Error('Happiness from battling is not implemented yet.');
-}
-
-/**
- * Not implemented yet. Friendship from petting, which will need a
- * per-Pokemon cooldown.
- */
-function fromPetting(/* pokemonId */) {
-  throw new Error('Petting is not implemented yet.');
-}
-
 module.exports = {
   MIN,
   MAX,
   START,
   EVOLVE_AT,
-  REWARDS,
-  PET_COOLDOWN_MS,
+  EVENTS,
+  BAD_FAINT_GAP,
+  SOOTHE_BELL,
   clamp,
+  amountFor,
+  after,
   describe,
+  meter,
   of,
-  gain,
-  fromBerry,
-  fromBattle,
-  fromPetting,
 };
 
-// `node Utils/happiness.js` - check the schema default and list the sources.
+// `node Utils/happiness.js` - check the schema default and print the table.
 if (require.main === module) {
   const { SCHEMA } = require('./db');
 
   const declared = /happiness\s+INTEGER NOT NULL DEFAULT (\d+)/.exec(SCHEMA);
   const schemaDefault = declared ? Number(declared[1]) : null;
 
-  console.log(`start ${START}, evolves at ${EVOLVE_AT}, range ${MIN}-${MAX}`);
+  console.log(`start ${START}, most evolve at ${EVOLVE_AT}, range ${MIN}-${MAX}`);
   console.log(
     schemaDefault === START
       ? `schema default matches (${schemaDefault})`
@@ -159,22 +148,14 @@ if (require.main === module) {
   );
 
   for (const value of [0, 40, 70, 120, 160, 220, 255]) {
-    console.log(`  ${String(value).padStart(3)}  ${describe(value)}`);
+    console.log(`  ${String(value).padStart(3)}  ${meter(value)}  ${describe(value)}`);
   }
 
-  console.log('\nberry gain by current friendship:');
-  for (const value of [0, 70, 99, 100, 199, 200, 255]) {
-    console.log(`  ${String(value).padStart(3)}  +${fromBerry(value)}`);
-  }
-
-  console.log('\nsources:');
-  for (const name of ['fromBattle', 'fromPetting']) {
-    try {
-      module.exports[name](0);
-      console.log(`  ${name}  built`);
-    } catch (err) {
-      console.log(`  ${name}  ${err.message}`);
-    }
+  console.log('\nchange at 70 / 150 / 230, and with a Soothe Bell:');
+  for (const event of Object.keys(EVENTS)) {
+    const plain = [70, 150, 230].map((v) => amountFor(event, v)).join(' / ');
+    const bell = [70, 150, 230].map((v) => amountFor(event, v, SOOTHE_BELL)).join(' / ');
+    console.log(`  ${event.padEnd(13)} ${plain.padEnd(14)} ${bell}`);
   }
 
   if (schemaDefault !== START) process.exit(1);

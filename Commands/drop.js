@@ -314,9 +314,15 @@ function rollDrop({
   }
 
   const forms = formsBySpecies.get(speciesEntry.id) || [];
-  const formEntry = (force && force.form && forms.find((f) => f.folder === force.form))
+  let formEntry = (force && force.form && forms.find((f) => f.folder === force.form))
     // A forced form ignores the drop percentages, so 0% forms can be spawned.
     || rollForm(forms);
+
+  // A forced gender on a species split into Male and Female forms takes the
+  // matching form, unless the form was forced too.
+  if (force && force.gender && !force.form && formEntry.genderLock && formEntry.genderLock !== force.gender) {
+    formEntry = forms.find((f) => f.genderLock === force.gender && f.percentage > 0) || formEntry;
+  }
 
   const speciesDir = path.join(POKEMON_DIR, speciesEntry.folder);
   const formDir = path.join(speciesDir, formEntry.folder);
@@ -331,7 +337,7 @@ function rollDrop({
     shiny,
     // What the equipped items did, for the card to report.
     notes: narrowed.notes,
-    gender: (force && force.gender) || rollGender(formEntry, species.gender),
+    gender: formEntry.genderLock || (force && force.gender) || rollGender(formEntry, species.gender),
     image: resolveImage(form, formDir, shiny),
     // IVs, nature, level and stats are generated at drop time, so what
     // appeared is exactly what gets caught.

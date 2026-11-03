@@ -16,6 +16,7 @@ const store = require('../Utils/store');
 const questengine = require('../Utils/questengine');
 const daily = require('../Utils/daily');
 const { displayName } = require('../Utils/display');
+const { ivPercent, MAX_IV } = require('../Utils/pokemon');
 
 /** Longer messages are never a guess. Generous to allow for localised names. */
 const MAX_NAME_LENGTH = 48;
@@ -34,6 +35,29 @@ function safeDisplayName(member, fallback = 'Someone') {
   if (lowered.includes('@everyone') || lowered.includes('@here')) return 'Someone';
 
   return name;
+}
+
+/** The six IVs by full name, matching the row's iv_ columns. */
+const IV_NAMES = [
+  ['hp', 'HP'],
+  ['attack', 'Attack'],
+  ['defense', 'Defense'],
+  ['special_attack', 'Special Attack'],
+  ['special_defense', 'Special Defense'],
+  ['speed', 'Speed'],
+];
+
+/** "Attack", "Attack and Speed", "HP, Attack and Speed". */
+const listed = (names) =>
+  names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+
+/** "IVs: **87.1%**", plus any perfect stats: "Perfect Attack and Speed (31/31)!" */
+function ivLine(row) {
+  const perfect = IV_NAMES.filter(([key]) => row[`iv_${key}`] === MAX_IV).map(([, name]) => name);
+  return (
+    `IVs: **${ivPercent(row.iv_total)}%**` +
+    (perfect.length ? ` - Perfect **${listed(perfect)}** (${MAX_IV}/${MAX_IV})!` : '')
+  );
 }
 
 /**
@@ -79,7 +103,8 @@ async function tryCatch(message) {
 
   await message.channel.send(
     `Added ${displayName(drop)} to ${trainer}'s party! ` +
-      `Level ${drop.level}. You gained **${coins}** coins for your catch.` +
+      `Level ${drop.level}. You gained **${coins}** coins for your catch.\n` +
+      ivLine(drop) +
       (finished ? `\n${finished}` : '') +
       (dailyNotices.length ? `\n${dailyNotices.join('\n')}` : '')
   );

@@ -46,9 +46,11 @@ const milestones = require('../Utils/milestones');
 const rates = require('../Utils/rates');
 const typechart = require('../Utils/typechart');
 const movepower = require('../Utils/movepower');
-const { titleCase, capitalize } = require('../Utils/display');
+const { titleCase, capitalize, statName } = require('../Utils/display');
 const partylock = require('../Utils/partylock');
 const moveprompt = require('../Utils/moveprompt');
+const evolveprompt = require('../Utils/evolveprompt');
+const happiness = require('../Utils/happiness');
 const livebuttons = require('../Utils/livebuttons');
 const daily = require('../Utils/daily');
 const ai = require('../Utils/ai');
@@ -65,7 +67,11 @@ const TURN_MS = 90_000;
 /** The pause between turns that play out on their own (Dig, Outrage, a recharge). */
 const AUTO_TURN_MS = 1_500;
 
-/** How much of the log the card shows: the latest lines, up to this many. */
+/**
+ * How much of the log the card shows: the latest turn (both sides' moves,
+ * and the experience lines if something fainted), within these limits. The
+ * Battle log button has the rest.
+ */
 const CARD_LOG_LINES = 18;
 const CARD_LOG_CHARS = 3_500;
 
@@ -121,7 +127,7 @@ const teamDots = (side) =>
 
 function lineFor(mon, side) {
   return (
-    `**${mon.name}** Lv.${mon.level}${statusTag(mon)}\n` +
+    `${mon.shiny ? '✨ ' : ''}**${mon.name}** Lv.${mon.level}${statusTag(mon)}\n` +
     `${healthBar(mon)} ${mon.hp}/${mon.maxHp}\n` +
     `${teamDots(side)}`
   );
@@ -337,6 +343,7 @@ function conditionLine(event) {
     case 'belly-drum': return `${n} cut its own HP and maximized its Attack! **-${event.cost}**`;
     case 'pain-split': return 'The battlers shared their pain!';
     case 'retyped': return `${n} transformed into the ${event.types.map((t) => titleCase(t)).join('/')} type!`;
+    case 'type-added': return `${titleCase(event.type)} type was added to ${n}!`;
     case 'ability-changed': return `${n} acquired ${event.ability}!`;
     case 'skill-swap': return `${n} swapped Abilities with its target!`;
     case 'transformed': return `${n} transformed into ${event.target}!`;
@@ -410,15 +417,15 @@ function narrate(events) {
         break;
       case 'stat':
         lines.push(
-          `${event.name}'s ${titleCase(event.stat)} ` +
+          `${event.name}'s ${statName(event.stat)} ` +
           `${event.delta > 0 ? 'rose' : 'fell'}${Math.abs(event.delta) > 1 ? ' sharply' : ''}.`
         );
         break;
       case 'stat-blocked':
         lines.push(
           event.by
-            ? `${event.name}'s ${event.by} kept its ${titleCase(event.stat)} up.`
-            : `${event.name}'s ${titleCase(event.stat)} won't go ${event.direction}.`
+            ? `${event.name}'s ${event.by} kept its ${statName(event.stat)} up.`
+            : `${event.name}'s ${statName(event.stat)} won't go ${event.direction}.`
         );
         break;
       case 'drain': lines.push(`${event.name} drained health. **+${event.amount}**`); break;
@@ -496,11 +503,15 @@ function narrate(events) {
   return lines;
 }
 
-/** The latest lines of the log that fit on the card. */
+/**
+ * The lines of the latest turn that fit on the card. `log.turnStart` marks
+ * where it began (see finishTurn); before the first turn it is the opening.
+ */
 function recentLines(log) {
   const lines = [];
   let length = 0;
-  for (let i = log.length - 1; i >= 0 && lines.length < CARD_LOG_LINES; i -= 1) {
+  const from = log.turnStart || 0;
+  for (let i = log.length - 1; i >= from && lines.length < CARD_LOG_LINES; i -= 1) {
     length += log[i].length + 1;
     if (length > CARD_LOG_CHARS) break;
     lines.unshift(log[i]);
@@ -553,8 +564,10 @@ function buildCard(state, log) {
       { name: foeSide.name, value: lineFor(theirs, foeSide), inline: true }
     );
 
-  const theirArt = spritesFor(theirs.speciesId, theirs.form, theirs.shiny);
-  const myArt = spritesFor(mine.speciesId, mine.form, mine.shiny);
+  // A transformed Pokemon looks like what it copied.
+  const looks = (mon) => mon.appearance || mon;
+  const theirArt = spritesFor(looks(theirs).speciesId, looks(theirs).form, theirs.shiny);
+  const myArt = spritesFor(looks(mine).speciesId, looks(mine).form, mine.shiny);
 
   // A few forms have no back sprite; use the front one instead.
   const myPicture = myArt.back || myArt.front;
@@ -855,6 +868,7 @@ function settle(userId, state, setup, outcome = null) {
   //   -> Elite Four progress / milestone cleared -> Lootbox -> milestone unlock
   const evolutions = [];
   const offers = [];
+  const choices = [];
   const levelUps = [];
   const stopsObeying = [];
   const extras = [];
@@ -892,9 +906,24 @@ function settle(userId, state, setup, outcome = null) {
   // Blown away by Roar or Dragon Tail, or teleported off: no result at all.
   payout.noContest = Boolean(state.endedBy);
 
+  // Wins and losses are also counted by kind (an Elite Four member is a
+  // milestone, though it pays like a trainer until the fourth falls).
+  payout.battleKind = setup.kind;
+
+  // Friendship (Utils/happiness.js): fainting costs some, more against a foe
+  // 30 levels higher, and beating a Gym Leader, Elite Four member or Champion
+  // raises the whole team's.
+  const foeLevel = Math.max(0, ...state.sides[1].team.map((mon) => mon.level || 0));
+  payout.leagueBattle = setup.kind === encounter.MILESTONE && state.winner === 0 && !state.endedBy;
+
   payout.grew = state.sides[0].team
     .filter((mon) => startedAt.has(mon.id))
-    .map((mon) => ({ id: mon.id, from: startedAt.get(mon.id) }));
+    .map((mon) => ({
+      id: mon.id,
+      from: startedAt.get(mon.id),
+      fainted: Boolean(mon.fainted),
+      faintedBadly: Boolean(mon.fainted) && foeLevel >= mon.level + happiness.BAD_FAINT_GAP,
+    }));
 
   const applied = store.awardBattle(userId, payout);
   const lines = [];
@@ -940,6 +969,9 @@ function settle(userId, state, setup, outcome = null) {
 
     // Moves that need a slot freed get their own prompt instead (see conclude).
     if ((mon.offered || []).length) offers.push({ id: mon.id, moves: mon.offered });
+
+    // So do evolutions decided by time of day (Espeon or Umbreon).
+    if (mon.evolutionChoice) choices.push({ id: mon.id, options: mon.evolutionChoice });
 
     // Evolutions are announced separately (see the bottom of this function).
     for (const step of mon.evolutions || []) evolutions.push(step);
@@ -1072,7 +1104,7 @@ function settle(userId, state, setup, outcome = null) {
     ...unlocks,
   ];
 
-  return { lines, announcements, offers };
+  return { lines, announcements, offers, choices };
 }
 
 // ---------------------------------------------------------------------------
@@ -1184,6 +1216,8 @@ async function loop({ userId, state, setup, card, log }) {
    * the result. Returns true once the battle is over.
    */
   const finishTurn = async (events, choice) => {
+    // The card shows from here: this turn's moves, experience and send-outs.
+    log.turnStart = log.length;
     log.push(...narrate(events));
 
     // Pay out experience for knockouts this turn.
@@ -1430,7 +1464,7 @@ function keepLogOpen(card, log) {
  * none, so the card is edited directly.
  */
 async function conclude({ userId, state, setup, card, log, outcome = null, edit = null }) {
-  const { lines, announcements, offers } = settle(userId, state, setup, outcome);
+  const { lines, announcements, offers, choices } = settle(userId, state, setup, outcome);
 
   const heading = state.endedBy
     ? 'Battle over'
@@ -1468,15 +1502,19 @@ async function conclude({ userId, state, setup, card, log, outcome = null, edit 
   }
 
   // Moves that need a slot freed: ask which to forget, one card at a time.
-  // Not awaited, so the battle (and its party lock) ends while they wait.
-  if (offers.length && card && card.channel && typeof card.channel.send === 'function') {
+  // Then evolutions decided by time of day. Not awaited, so the battle (and
+  // its party lock) ends while they wait.
+  if ((offers.length || choices.length) && card && card.channel && typeof card.channel.send === 'function') {
     const send = (payload) => card.channel.send(payload);
 
     (async () => {
       for (const offer of offers) {
         await moveprompt.askAll({ send, userId, pokemonId: offer.id, moves: offer.moves });
       }
-    })().catch((err) => console.error('Move offers failed:', err));
+      for (const choice of choices) {
+        await evolveprompt.ask({ send, userId, pokemonId: choice.id, options: choice.options });
+      }
+    })().catch((err) => console.error('Move and evolution offers failed:', err));
   }
 }
 

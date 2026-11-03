@@ -27,6 +27,12 @@ const REGIONAL = { Alola: 'Alolan', Galar: 'Galarian', Hisui: 'Hisuian', Paldea:
 /** Default-form labels that only mean "the usual one". */
 const PLAIN_DEFAULTS = new Set(['Normal', 'Average', 'Standard', 'Ordinary']);
 
+/**
+ * Gender splits (Pyroar, Combee) are named as the species alone; the gender
+ * symbol already says which. "Female Mega" is just "Mega Meowstic".
+ */
+const GENDER_WORDS = new Set(['Male', 'Female']);
+
 /** Species whose form label reads best after the name. */
 const SUFFIXED = new Set(['Unown', 'Zygarde']);
 
@@ -57,7 +63,11 @@ const bracket = (rest) => (rest && !PLAIN_DEFAULTS.has(rest) ? ` (${fix(rest)})`
  * @param {boolean} isDefault
  */
 function formDisplayName(species, label, isDefault = false) {
-  const words = String(label || '').trim();
+  const words = String(label || '')
+    .trim()
+    .split(/\s+/)
+    .filter((word) => !GENDER_WORDS.has(word))
+    .join(' ');
   if (!words) return species;
 
   if (isDefault && PLAIN_DEFAULTS.has(words)) return species;

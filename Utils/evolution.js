@@ -26,7 +26,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const { loadSpecies, loadForm } = require('./pokemon');
+const { loadSpecies, loadForm, rollSpeciesGender } = require('./pokemon');
+const rates = require('./rates');
 
 const DATA = path.join(__dirname, '..', 'Data');
 
@@ -110,6 +111,28 @@ function tradeHeldItems() {
   }
 
   tradeItemsCache = found;
+  return found;
+}
+
+let levelItemsCache = null;
+
+/**
+ * Items held while levelling up to evolve (Happiny's Oval Stone, Gligar's
+ * Razor Fang). Using one equips it; the evolution uses it up.
+ */
+function levelHeldItems() {
+  if (levelItemsCache) return levelItemsCache;
+
+  const found = new Set();
+  for (const species of index().species) {
+    for (const link of optionsFrom(species.id)) {
+      for (const condition of link.conditions || []) {
+        if (condition.trigger === 'level-up' && condition.heldItem) found.add(condition.heldItem);
+      }
+    }
+  }
+
+  levelItemsCache = found;
   return found;
 }
 
@@ -211,9 +234,17 @@ function optionsFrom(speciesId) {
 /**
  * Does one condition fire?
  *
- * Conditions the bot doesn't track (happiness, time of day, location,
- * affection, known moves) are ignored rather than treated as failing. Players
- * can use an Everstone to opt out.
+ * Checked as in the games: level, gender, friendship (Pichu, Golbat, Eevee),
+ * known moves (Sylveon, Lickilicky), and items used or held (Happiny levels
+ * up holding an Oval Stone, Onix is traded holding a Metal Coat).
+ *
+ * Time of day has no clock here: a single timed evolution (Riolu by day)
+ * ignores it, and where the time decides between targets (Espeon or Umbreon)
+ * the player picks - see resolve(). `context.timeOfDay` is that pick.
+ *
+ * Never fire: affection (not tracked) and location level-ups, which all have
+ * a stone instead (Leafeon's Leaf Stone, Magnezone's Thunder Stone).
+ * Players can use an Everstone to opt out.
  */
 function conditionMatches(condition, trigger, context) {
   if (condition.trigger !== trigger) {
@@ -234,44 +265,124 @@ function conditionMatches(condition, trigger, context) {
 
   if (condition.minLevel != null && (context.level ?? 0) < condition.minLevel) return false;
 
+  if (condition.minHappiness != null && (context.happiness ?? 0) < condition.minHappiness) return false;
+  if (condition.minAffection != null || condition.location) return false;
+  if (context.timeOfDay && condition.timeOfDay && condition.timeOfDay !== context.timeOfDay) return false;
+
+  if (condition.knownMove && !context.knownMoves().includes(condition.knownMove)) return false;
+  if (condition.knownMoveType && !context.knownMoves().some((name) => moveType(name) === condition.knownMoveType)) {
+    return false;
+  }
+
   // Gender requirements (Combee and Salandit female only, Kirlia to Gallade
   // for males, Burmy to Wormadam or Mothim).
   if (condition.gender != null && GENDERS[condition.gender] !== context.gender) return false;
 
   if (trigger === 'use-item' && condition.item !== context.item) return false;
 
-  if (trigger === 'trade') {
-    // "Trade while holding X" needs X actually held.
-    if (condition.heldItem && condition.heldItem !== context.heldItem) return false;
-  }
+  // "Trade (or level up) while holding X" needs X actually held.
+  if (condition.heldItem && condition.heldItem !== context.heldItem) return false;
+
+  // Karrablast and Shelmet only evolve when traded for each other.
+  if (condition.tradeSpecies && condition.tradeSpecies !== context.tradedFor) return false;
 
   return true;
+}
+
+/** A move's type, for Sylveon's "knows a Fairy move". */
+const moveType = (name) => {
+  const move = require('./content').move(name);
+  return move ? move.type : null;
+};
+
+/** The moves a stored Pokemon knows, read only when a condition needs them. */
+function knownMovesOf(row) {
+  let known = null;
+  return () => {
+    if (!known) {
+      known = row.id > 0
+        ? require('./db').open().prepare('SELECT move FROM pokemon_moves WHERE pokemon_id = ?').all(row.id).map((m) => m.move)
+        : [];
+    }
+    return known;
+  };
+}
+
+/** The region of the form a stored Pokemon is in ("Hisui" for Hisuian Sneasel). */
+function regionOf(row) {
+  const form = index().forms.find((f) => f.speciesId === row.species_id && f.folder === row.form_folder);
+  return form ? form.region : null;
 }
 
 /**
  * Which species this one could evolve into right now.
  *
- * Several can match when they differ only by something the bot doesn't track
- * (Espeon and Umbreon differ by time of day), so the caller picks.
+ * Each match lists every condition that fired (Rockruff's three times of
+ * day are three conditions on one link). Evolutions that belong to a regional
+ * form go only to that form: Hisuian Sneasel becomes Sneasler, any other
+ * Sneasel Weavile.
  */
 function candidates(row, trigger, context = {}) {
   if (row.equipped_item === EVERSTONE) return [];
 
-  const level = context.level ?? row.level;
-  const heldItem = context.heldItem ?? row.equipped_item;
-  const gender = context.gender ?? row.gender;
+  const full = {
+    ...context,
+    level: context.level ?? row.level,
+    heldItem: context.heldItem ?? row.equipped_item,
+    gender: context.gender ?? row.gender,
+    happiness: context.happiness ?? row.happiness,
+    knownMoves: knownMovesOf(row),
+  };
 
-  const matches = [];
+  let matches = [];
 
   for (const link of optionsFrom(row.species_id)) {
-    const condition = (link.conditions || []).find((c) =>
-      conditionMatches(c, trigger, { ...context, level, heldItem, gender })
-    );
+    const conditions = (link.conditions || []).filter((c) => conditionMatches(c, trigger, full));
+    if (conditions.length) matches.push({ link, condition: conditions[0], conditions });
+  }
 
-    if (condition) matches.push({ link, condition });
+  const regional = (match) => needsRegionalForm(row.species_id, match.link.id);
+  if (matches.some(regional)) {
+    const mine = regionOf(row);
+    const theirs = matches.filter((m) => regional(m) && (loadSpecies(m.link.id) || {}).region === mine);
+    matches = theirs.length ? theirs : matches.filter((m) => !regional(m));
   }
 
   return matches;
+}
+
+/**
+ * The forms a time of day picks (Rockruff's Lycanroc). Dusk needs Own Tempo,
+ * as in the games.
+ */
+const TIME_FORMS = {
+  lycanroc: { day: 'Midday', night: 'Midnight', dusk: 'Dusk' },
+};
+
+const TIME_NAMES = { day: 'Day', night: 'Night', dusk: 'Dusk' };
+
+/**
+ * When several evolutions differ only by time of day, the ones to offer.
+ *
+ * @returns {Array<{timeOfDay, target}>|null} null when there is no choice
+ */
+function timeChoices(row, matches) {
+  const options = [];
+
+  for (const match of matches) {
+    for (const condition of match.conditions) {
+      const time = condition.timeOfDay;
+      if (!time || options.some((o) => o.timeOfDay === time)) continue;
+      if (time === 'dusk' && row.ability !== 'own-tempo') continue;
+
+      const target = describe(row, match.link, { timeOfDay: time });
+      if (target) options.push({ timeOfDay: time, label: TIME_NAMES[time] || time, target });
+    }
+  }
+
+  // Every match has to be timed: Eevee may also be able to become Sylveon.
+  const untimed = matches.some((m) => !m.conditions.some((c) => c.timeOfDay));
+  return options.length >= 2 && !untimed ? options : null;
 }
 
 /**
@@ -347,7 +458,8 @@ function describe(row, link, context = {}) {
     }
   }
 
-  const wantedForm = context.item ? ITEM_FORMS[context.item] : null;
+  const timed = context.timeOfDay && TIME_FORMS[link.name];
+  const wantedForm = context.item ? ITEM_FORMS[context.item] : timed ? timed[context.timeOfDay] : null;
 
   // Only keep the form name if the target has artwork for it (Mothim is
   // listed in all three Burmy cloaks but only one has artwork).
@@ -417,22 +529,36 @@ const pickRandom = (list) => list[Math.floor(Math.random() * list.length)];
 /**
  * Work out whether a Pokemon evolves, and into what.
  *
- * @returns {null | { target, condition, changes, consumesHeldItem, alsoCreates }}
+ * @returns {null | { choice } | { target, condition, changes, consumesHeldItem, alsoCreates }}
+ *   `choice` lists the times of day to pick from instead of evolving
  */
 function resolve(row, trigger, context = {}) {
-  const matches = candidates(row, trigger, context);
+  let matches = candidates(row, trigger, context);
   if (!matches.length) return null;
 
-  // Ties are broken at random (e.g. Eevee levelling up can match several
-  // eeveelutions).
+  // Knowing the move wins: an Eevee that knows a Fairy move becomes Sylveon.
+  const byMove = matches.filter((m) => m.condition.knownMove || m.condition.knownMoveType);
+  if (byMove.length) matches = byMove;
+
+  // Espeon or Umbreon, Midday or Midnight Lycanroc: the player picks, then
+  // calls again with `context.timeOfDay` (Utils/evolveprompt.js).
+  if (!context.timeOfDay) {
+    const choice = timeChoices(row, matches);
+    if (choice) return { choice };
+  }
+
+  // Any other tie is broken at random (Wurmple, Tyrogue).
   const chosen = pickRandom(matches);
   const target = describe(row, chosen.link, context);
   if (!target) return null;
 
+  // A held item a level-up evolution needed is used up (Razor Claw, Oval Stone).
+  const usesUpItem = trigger === 'level-up' && Boolean(chosen.condition.heldItem);
+
   return {
     target,
     condition: chosen.condition,
-    changes: changesFor(row, target),
+    changes: { ...changesFor(row, target), ...(usesUpItem ? { equipped_item: null } : {}) },
     // Trade evolutions consume the required held item.
     consumesHeldItem: trigger === 'trade' && !!chosen.condition.heldItem,
     // Nincada leaves a Shedinja behind.
@@ -444,83 +570,167 @@ function resolve(row, trigger, context = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// What could plausibly exist at a level
+// What an opponent has evolved into
 // ---------------------------------------------------------------------------
+
+/** Is this link a level-up evolution? Those happen exactly at their level. */
+const levelOf = (link) => {
+  const levels = (link.conditions || []).map((c) => c.minLevel).filter(Boolean);
+  return levels.length ? Math.min(...levels) : null;
+};
+
+/** The gender a link needs (Combee to Vespiquen: female), or null. */
+const genderFor = (link) => {
+  const condition = (link.conditions || []).find((c) => c.gender != null);
+  return condition ? GENDERS[condition.gender] : null;
+};
 
 /**
  * The lowest level this species can naturally be.
  *
- * Takes the highest level requirement along its chain (Venusaur: 32,
- * Mienshao: 50). Only level requirements count; stone and trade evolutions
- * add no minimum.
+ * A level evolution sets it outright (Combusken: 16, Blaziken: 36). Trades,
+ * stones and friendship have no level, so they count from when the stage
+ * before could first appear plus `afterLevels` (Kadabra 16, Alakazam 26).
  *
  * @returns {number} 1 for anything with nothing to climb
  */
-const minimumLevelCache = new Map();
+const earliestLevelCache = new Map();
 
-function minimumLevelFor(speciesId) {
-  if (minimumLevelCache.has(speciesId)) return minimumLevelCache.get(speciesId);
+function earliestLevel(speciesId) {
+  if (earliestLevelCache.has(speciesId)) return earliestLevelCache.get(speciesId);
 
   const species = loadSpecies(speciesId);
   const chain = (species && species.evolution && species.evolution.chain) || [];
+  const link = chain.find((l) => l.id === speciesId);
+  const from = link && link.evolvesFrom ? chain.find((l) => l.name === link.evolvesFrom) : null;
 
-  // Index the chain by name for lookups.
-  const byName = new Map(chain.map((link) => [link.name, link]));
-
-  let needed = 1;
-  let current = species && species.evolution ? { name: species.name, ...species.evolution } : null;
-  let guard = 0;
-
-  while (current && guard < 10) {
-    guard += 1;
-
-    for (const condition of current.conditions || []) {
-      if (condition.minLevel) needed = Math.max(needed, condition.minLevel);
-    }
-
-    current = current.evolvesFrom ? byName.get(current.evolvesFrom) : null;
+  let level = 1;
+  if (from && from.id) {
+    const before = earliestLevel(from.id);
+    const atLevel = levelOf(link);
+    level = atLevel ? Math.max(before, atLevel) : before + rates.battle.opponentEvolution.afterLevels;
   }
 
-  minimumLevelCache.set(speciesId, needed);
-  return needed;
+  earliestLevelCache.set(speciesId, level);
+  return level;
 }
 
 /**
- * The species to use for an opponent of a given level.
- *
- * Walks down the evolution chain to the highest stage that can exist at this
- * level, so a level 11 Venusaur becomes an Ivysaur and a level 8 one a
- * Bulbasaur. This keeps the encounter table's weighting intact, unlike
- * re-rolling.
- *
- * @param {number} speciesId
- * @param {number} level
- * @returns {number} the species id to actually use - possibly the same one
+ * How likely an opponent of this level has taken this evolution: all or
+ * nothing for level evolutions, a ramp up to `maxChance` for the rest.
  */
-function speciesAtLevel(speciesId, level) {
-  if (minimumLevelFor(speciesId) <= level) return speciesId;
+function evolvedChance(link, level) {
+  const from = earliestLevel(link.id);
+  if (level < from) return 0;
+  if (levelOf(link)) return 1;
 
+  const { rampLevels, maxChance } = rates.battle.opponentEvolution;
+  return Math.min(maxChance, (maxChance * (level - from + 1)) / rampLevels);
+}
+
+/**
+ * Does this evolution belong to a regional form the species' default form
+ * isn't? Paldean Wooper becomes Clodsire and Galarian Meowth Perrserker;
+ * opponents are always the default form, so they skip these.
+ */
+function needsRegionalForm(fromId, toId) {
+  const target = loadSpecies(toId);
+  if (!target || !target.region) return false;
+
+  const forms = index().forms.filter((f) => f.speciesId === fromId);
+  const usual = forms.find((f) => f.isDefault) || forms[0];
+  return forms.some(
+    (f) => !f.isDefault && f.region === target.region && (!usual || usual.region !== target.region)
+  );
+}
+
+/**
+ * The line from the bottom of the chain up to this species, for opponents.
+ *
+ * Babies are left off unless the baby itself was picked, so a Pikachu never
+ * turns into a Pichu.
+ */
+function lineTo(speciesId) {
   const species = loadSpecies(speciesId);
   const chain = (species && species.evolution && species.evolution.chain) || [];
-  if (!chain.length) return speciesId;
 
-  // Stages on this line that can be this level, highest stage first. Sorted
-  // by stage, not id, since chains aren't always in dex order (babies).
-  const legal = chain
-    .filter((link) => link.id && minimumLevelFor(link.id) <= level)
-    .sort((a, b) => (b.stage || 1) - (a.stage || 1));
+  const line = [speciesId];
+  let link = chain.find((l) => l.id === speciesId);
 
-  return legal.length ? legal[0].id : speciesId;
+  for (let guard = 0; link && link.evolvesFrom && guard < 10; guard += 1) {
+    const from = chain.find((l) => l.name === link.evolvesFrom);
+    if (!from || !from.id) break;
+
+    const before = loadSpecies(from.id);
+    if (before && before.rarity && before.rarity.isBaby) break;
+
+    line.unshift(from.id);
+    link = from;
+  }
+
+  return line;
+}
+
+const rollGenderOf = (speciesId, rng) => rollSpeciesGender(loadSpecies(speciesId), rng);
+
+/**
+ * The species an ordinary opponent of this level turns up as.
+ *
+ * Climbs the picked species' line from the bottom, so the stage depends on
+ * the level and not on which stage was picked: a level 26 Torchic or
+ * Blaziken is a Combusken, and a level 40 Abra or Alakazam is usually a
+ * Kadabra, sometimes an Alakazam. Past the picked species any branch can be
+ * taken (a level 50 Eevee is usually one of its evolutions).
+ *
+ * Milestone rosters skip this, since their species are fixed.
+ *
+ * @returns {{ speciesId: number, gender: string|null }} gender is set when an
+ *   evolution depended on it (a male Combee stays a Combee)
+ */
+function opponentSpecies(speciesId, level, rng = Math.random) {
+  const line = lineTo(speciesId);
+  let current = line[0];
+  let gender = null;
+
+  for (let step = 1; step < 10; step += 1) {
+    // Follow the picked line first, then any branch.
+    const next = line[step];
+    const options = optionsFrom(current).filter((link) =>
+      next ? link.id === next : link.id && !needsRegionalForm(current, link.id)
+    );
+    if (!options.length) break;
+
+    if (!gender && options.some(genderFor)) {
+      gender = next ? genderFor(options[0]) || rollGenderOf(current, rng) : rollGenderOf(current, rng);
+    }
+
+    const open = options
+      .filter((link) => !genderFor(link) || genderFor(link) === gender)
+      .map((link) => ({ link, chance: evolvedChance(link, level) }))
+      .filter((option) => option.chance > 0);
+    if (!open.length) break;
+
+    // Evolve as often as the likeliest branch allows, then pick a branch by
+    // how likely each is.
+    if (rng() >= Math.max(...open.map((option) => option.chance))) break;
+
+    let roll = rng() * open.reduce((sum, option) => sum + option.chance, 0);
+    const picked = open.find((option) => (roll -= option.chance) < 0) || open[open.length - 1];
+    current = picked.link.id;
+  }
+
+  return { speciesId: current, gender };
 }
 
 module.exports = {
-  minimumLevelFor,
-  speciesAtLevel,
+  earliestLevel,
+  opponentSpecies,
   UNSUPPORTED,
   HANDLED_ELSEWHERE,
   EVERSTONE,
   SHEDINJA,
   tradeHeldItems,
+  levelHeldItems,
   useItems,
   itemTargets,
   optionsFrom,

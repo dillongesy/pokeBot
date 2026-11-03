@@ -425,6 +425,49 @@ function loadSpecies(speciesId) {
 }
 
 /**
+ * The form a species starts in - the one wild drops come in.
+ *
+ * For species split into Male and Female forms (Pyroar, Combee), `gender`
+ * picks the matching one, so a female reverting from a Mega stays female.
+ *
+ * @param {object[]} forms  a species' `forms` list from info.json
+ * @param {string} [gender]
+ */
+function baseForm(forms, gender = null) {
+  const droppable = (forms || []).filter((form) => form.percentage > 0);
+  return (
+    (gender && droppable.find((form) => form.genderLock === gender)) ||
+    droppable[0] ||
+    (forms || [])[0] ||
+    null
+  );
+}
+
+/**
+ * Roll a gender for a new Pokemon of this species (opponents in battle).
+ *
+ * Species split into Male and Female forms (Pyroar, Combee) roll by those
+ * forms' drop rates, the same odds as a wild drop. The rest use the species'
+ * gender ratio.
+ *
+ * @param {object} species  from loadSpecies
+ * @returns {'male'|'female'|'genderless'}
+ */
+function rollSpeciesGender(species, rng = Math.random) {
+  const ratio = (species && species.gender) || {};
+  if (ratio.genderless) return 'genderless';
+
+  const locked = ((species && species.forms) || []).filter((form) => form.genderLock && form.percentage > 0);
+  if (locked.length) {
+    let roll = rng() * locked.reduce((sum, form) => sum + form.percentage, 0);
+    const picked = locked.find((form) => (roll -= form.percentage) < 0) || locked[locked.length - 1];
+    return picked.genderLock;
+  }
+
+  return rng() * 100 < (ratio.femalePercent || 0) ? 'female' : 'male';
+}
+
+/**
  * Recompute a stored Pokemon's six stats.
  *
  * Must be called after any change to level, EVs or form, since stats are
@@ -526,6 +569,8 @@ module.exports = {
   reloadData,
   loadForm,
   loadSpecies,
+  baseForm,
+  rollSpeciesGender,
   recalculateStats,
   normaliseName,
   nameCandidates,

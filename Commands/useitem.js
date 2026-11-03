@@ -13,6 +13,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const store = require('../Utils/store');
+const partylock = require('../Utils/partylock');
 const questengine = require('../Utils/questengine');
 const incense = require('../Utils/incense');
 const lootbox = require('../Utils/lootbox');
@@ -24,6 +25,7 @@ const { loadSpecies, loadForm, createPokemon } = require('../Utils/pokemon');
 const evolution = require('../Utils/evolution');
 const learnset = require('../Utils/learnset');
 const moveprompt = require('../Utils/moveprompt');
+const evolveprompt = require('../Utils/evolveprompt');
 const obedience = require('../Utils/obedience');
 const milestones = require('../Utils/milestones');
 
@@ -275,6 +277,11 @@ function use(userId, rawPokemonId, rawItem) {
   // ".use lootbox [n|all]": also takes no Pokemon argument.
   if (first === lootbox.LOOTBOX || first === 'lootboxes') return openLootbox(userId, rawItem);
 
+  // Changing a Pokemon mid-battle or mid-trade would change what is fighting
+  // or what gets handed over (see Utils/partylock.js).
+  const busy = partylock.refusalFor(userId, 'use items on your Pokemon');
+  if (busy) return { content: busy };
+
   const pokemonId = store.parsePartyNumber(rawPokemonId);
 
   if (!Number.isInteger(pokemonId)) {
@@ -402,10 +409,12 @@ function use(userId, rawPokemonId, rawItem) {
     console.error('Quest sync failed after using an item:', err);
   }
 
-  // `offered` is not part of the message; the caller strips it and asks.
+  // `offered` and `evolutionChoice` are not part of the message; the caller
+  // strips them and asks.
   return {
     embeds: [embed],
     offered: offered.length ? { pokemonId: row.id, moves: offered } : null,
+    evolutionChoice: result.evolutionChoice ? { pokemonId: row.id, options: result.evolutionChoice } : null,
   };
 }
 
@@ -415,10 +424,11 @@ function use(userId, rawPokemonId, rawItem) {
  * @param {function} send  posts a payload, returns the Message
  */
 async function reply(send, userId, result) {
-  const { offered, ...payload } = result;
+  const { offered, evolutionChoice, ...payload } = result;
   await send(payload);
 
   if (offered) await moveprompt.askAll({ send, userId, ...offered });
+  if (evolutionChoice) await evolveprompt.ask({ send, userId, ...evolutionChoice });
 }
 
 module.exports = {

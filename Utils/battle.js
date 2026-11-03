@@ -300,6 +300,8 @@ function create({ player, opponent, seed = Date.now(), kind = 'wild' }) {
     for (const mon of side.team) {
       if (!mon.volatiles) mon.volatiles = {};
       if (mon.toxicCounter === undefined) mon.toxicCounter = 0;
+      // What switching out restores after a type change (see clearVolatiles).
+      if (!mon.naturalTypes) mon.naturalTypes = [...(mon.types || [])];
     }
   }
 
@@ -391,6 +393,23 @@ function clearVolatiles(mon) {
   mon.trapped = null;
   mon.seededBy = null;
   mon.substitute = 0;
+
+  // Transform wears off: its own stats, ability, weight and moves (with
+  // the PP they had) come back.
+  if (mon.transformed && mon.untransformed) {
+    const own = mon.untransformed;
+    mon.stats = { ...own.stats, hp: mon.stats.hp };
+    mon.weight = own.weight;
+    mon.moves = own.moves;
+    effects.setAbility(mon, own.ability);
+    mon.transformed = false;
+    mon.untransformed = null;
+    mon.appearance = null;
+  }
+
+  // Soak, Trick-or-Treat, Burn Up and the like wear off.
+  if (mon.naturalTypes) mon.types = [...mon.naturalTypes];
+  mon.addedType = null;
 
   // Confusion, Taunt and the rest; Toxic's counter resets.
   cond.clearVolatiles(mon);
