@@ -893,7 +893,8 @@ const HELD_ITEMS = {
   'scope-lens': { critStage: 1 },
   'razor-claw': { critStage: 1 },
 
-  'lucky-punch': { critStage: ({ mon }) => (mon.species === 'Chansey' ? 2 : 0) },
+  // Species names can be any case ("Chansey" stored, "chansey" wild).
+  'lucky-punch': { critStage: ({ mon }) => (/chansey/i.test(mon.species || '') ? 2 : 0) },
   // Stick and its Gen 8 rename (PokeAPI slug "large-leek").
   stick: { critStage: ({ mon }) => (/farfetch/i.test(mon.species || '') ? 2 : 0) },
   'large-leek': { critStage: ({ mon }) => (/farfetch|sirfetch/i.test(mon.species || '') ? 2 : 0) },
@@ -905,9 +906,11 @@ const HELD_ITEMS = {
     attackMultiplier: ({ attacker, move }) =>
       /cubone|marowak/i.test(attacker.species || '') && move.damageClass === 'physical' ? 2 : 1,
   },
-  // Only for an untransformed Ditto, as in the games.
+  // Only for an untransformed Ditto, as in the games. Since Gen 3 it
+  // doubles Defense alone, so only physical moves are softened.
   'metal-powder': {
-    defenceMultiplier: ({ defender }) => (/ditto/i.test(defender.species || '') && !defender.transformed ? 2 : 1),
+    defenceMultiplier: ({ defender, move }) =>
+      /ditto/i.test(defender.species || '') && !defender.transformed && move.damageClass === 'physical' ? 2 : 1,
   },
   'quick-powder': {
     speedMultiplier: ({ mon }) => (/ditto/i.test(mon.species || '') && !mon.transformed ? 2 : 1),

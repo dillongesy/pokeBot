@@ -151,11 +151,12 @@ const EXPLAIN = {
         return 'A Pokemon can hold it, but it has no effect in battle yet.';
       }
 
-      // PokeAPI's short effect describes exactly what the battle engine does.
+      // PokeAPI's short effect, unless the bot uses a newer version of the
+      // item than PokeAPI describes (see HELD_TEXT).
       const record = content.importedItem(slug);
-      const effect = record && record.shortEffect
+      const effect = HELD_TEXT[slug] || (record && record.shortEffect
         ? record.shortEffect.replace(/^Held:\s*/i, '')
-        : null;
+        : null);
 
       return effect
         ? `Give it to a Pokemon to hold in battle. ${effect}`
@@ -246,6 +247,16 @@ function explanationFor(what, slug, targets) {
  *
  * Used by .examine and by the lootbox card.
  */
+/**
+ * Held items whose PokeAPI text describes an older version than the one the
+ * battle engine uses (Utils/battleeffects.js), or has no text at all.
+ */
+const HELD_TEXT = {
+  'soul-dew': "Latias and Latios's Psychic- and Dragon-type moves hit 20% harder.",
+  'metal-powder': "Doubles Ditto's Defense. The boost is lost after transforming.",
+  'large-leek': "Raises Farfetch'd's and Sirfetch'd's critical hit ratio by two stages.",
+};
+
 function describeItem(slug) {
   const what = items.classify(slug);
   const raw = evolution.itemTargets().get(slug) || [];
