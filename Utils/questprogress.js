@@ -13,6 +13,7 @@
  *   total-caught   how many Pokemon caught, ever
  *   type-caught    how many of one type caught
  *   coins-spent    coins spent, ever
+ *   battles-won    battles won, ever (wild, trainer and milestone)
  *   shiny-caught   shinies caught. With `withoutIncense: true` only natural
  *                  shinies count (the Shiny Dropper rule).
  *
@@ -32,8 +33,8 @@ function snapshot(userId) {
   const handle = db.open();
 
   const user = handle
-    .prepare('SELECT total_caught, total_spent FROM users WHERE discord_user_id = ?')
-    .get(userId) || { total_caught: 0, total_spent: 0 };
+    .prepare('SELECT total_caught, total_spent, battles_won FROM users WHERE discord_user_id = ?')
+    .get(userId) || { total_caught: 0, total_spent: 0, battles_won: 0 };
 
   const rows = handle
     .prepare(
@@ -68,6 +69,7 @@ function snapshot(userId) {
     // total_caught includes released Pokemon, unlike the party size.
     totalCaught: user.total_caught || 0,
     totalSpent: user.total_spent || 0,
+    battlesWon: user.battles_won || 0,
     partySize: rows.length,
   };
 }
@@ -89,6 +91,8 @@ function goalValue(goal, snap) {
       return snap.totalCaught;
     case 'coins-spent':
       return snap.totalSpent;
+    case 'battles-won':
+      return snap.battlesWon;
     case 'shiny-caught':
       // `withoutIncense`: shinies from a Shiny Incense don't count, whoever
       // paid for it.

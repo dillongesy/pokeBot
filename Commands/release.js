@@ -62,7 +62,7 @@ function buildPreview(row) {
     });
   }
 
-  embed.setFooter({ text: `Slot ${row.party_number} · ID ${row.id}` });
+  embed.setFooter({ text: `Slot ${row.party_number}` });
 
   return {
     content: `Release ${brief(row)}?`,

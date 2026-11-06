@@ -1178,7 +1178,7 @@ function readIndexIfPresent(...segments) {
 }
 
 /** The goal kinds Utils/questprogress.js knows how to evaluate. */
-const GOAL_KINDS = new Set(['total-caught', 'type-caught', 'coins-spent', 'shiny-caught']);
+const GOAL_KINDS = new Set(['total-caught', 'type-caught', 'coins-spent', 'shiny-caught', 'battles-won']);
 
 /** How many of a quest have to be done. Works for either shape. */
 const questRequirement = (quest) =>

@@ -7,7 +7,7 @@
  *
  * Arrangements (flexdex, dex, countLow, countHigh, alphabetical, battle)
  * rewrite the stored position of every Pokemon once. The result can then be
- * adjusted with `.p swap`. An optional ignoreNum leaves the first N slots
+ * adjusted with `.swap`. An optional ignoreNum leaves the first N slots
  * untouched.
  *
  * Preferences (level, iv, bst, ...) only set the default `.party` sort; no

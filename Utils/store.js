@@ -1071,9 +1071,11 @@ function awardBattle(userId, payout) {
       // learned directly; otherwise the caller asks which move to forget
       // (Utils/moveprompt.js). `.moves <n> learn` can still teach it later,
       // since what it can learn is derived from its level.
+      // Level-up moves already learned mid-battle (`movesFrom`) aren't
+      // offered again.
       const { learned, offered } = learnMoves(
         row.id,
-        learnset.movesOnGrowth({ ...row, level: before }, after, evolvedInto)
+        learnset.movesOnGrowth({ ...row, level: entry.movesFrom ?? before }, after, evolvedInto)
       );
 
       result.pokemon.push({
@@ -2202,7 +2204,7 @@ function battleBoards() {
     const suffix = kind === 'all' ? '' : kind[0].toUpperCase() + kind.slice(1);
 
     boards[`winRate${suffix}`] = {
-      label: `Win rate (${label})`,
+      label: kind === 'all' ? 'Win rate' : `Win rate (${label})`,
       minBattles: MIN_BATTLES,
       tiebreak: true,
       sql: `SELECT discord_user_id AS id, ROUND(100.0 * ${won} / (${won} + ${lost}), 1) AS score,
@@ -2210,7 +2212,7 @@ function battleBoards() {
             FROM users WHERE ${won} + ${lost} >= ${MIN_BATTLES}`,
     };
     boards[`wins${suffix}`] = {
-      label: `Wins (${label})`,
+      label: kind === 'all' ? 'Wins' : `Wins (${label})`,
       sql: `SELECT discord_user_id AS id, ${won} AS score, ${won} AS won, ${lost} AS lost
             FROM users WHERE ${won} > 0`,
     };

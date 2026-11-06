@@ -656,7 +656,7 @@ function apply(row, slug) {
         message:
           effect.returnable === false
             ? `It Mega Evolved! The ${name} is used up - reverting will not give it back.`
-            : `It Mega Evolved! Take the ${name} back off to revert.`,
+            : `It Mega Evolved! In battle it starts as normal and can Mega Evolve once per battle. Take the ${name} back off to revert.`,
       };
     }
 
@@ -806,13 +806,62 @@ function apply(row, slug) {
         teachable: { move: effect.move, displayName: readable },
         message:
           `${row.display_name} can learn ${readable}. ` +
-          `Use \`.tm ${row.id} ${effect.move}\` - it says which move it would replace first.`,
+          `Use \`.tm ${row.party_number} ${effect.move}\` - it says which move it would replace first.`,
       };
     }
 
     default:
       return { ok: false, message: effect.reason || `${name} does not do anything yet.` };
   }
+}
+
+/**
+ * The forms a stored Pokemon has in battle.
+ *
+ *   start    what it fights as at first. A stored Mega or Gigantamax (or
+ *            Primal) is in its base form until the battle changes it.
+ *   mega     the form it can Mega Evolve into, once per battle: it holds its
+ *            own Mega Stone (or the Dragon Ascent item), or it is a Rayquaza
+ *            that knows Dragon Ascent, as in the games.
+ *   primal   Groudon and Kyogre holding their orb revert as they come out.
+ *
+ * @param {object}   row        a pokemon row
+ * @param {string[]} moveNames  the moves it knows (for Rayquaza)
+ */
+function battleForms(row, moveNames = []) {
+  const species = loadSpecies(row.species_id);
+  const forms = (species && species.forms) || [];
+  const current = forms.find((form) => form.folder === row.form_folder) || {};
+
+  let start = row.form_folder;
+  if (current.isMega || megaBaseOf(row.form_folder) !== null) {
+    const base = megaBaseOf(row.form_folder);
+    start = base && forms.some((form) => form.folder === base) ? base : baseFormFolder(row);
+  } else if (isFamilyForm(row.form_folder, 'Gmax')) {
+    start = withoutFamily(row, row.form_folder, 'Gmax');
+  } else if (row.form_folder === 'Primal') {
+    start = baseFormFolder(row);
+  }
+
+  const effect = row.equipped_item ? classify(row.equipped_item) : null;
+  const atStart = { ...row, form_folder: start };
+
+  let mega = null;
+  if (effect && effect.kind === 'mega' && effect.speciesId === row.species_id) {
+    mega = megaFormFor(atStart, effect);
+  } else if (moveNames.includes('dragon-ascent')) {
+    const megaForm = forms.find((form) => megaBaseOf(form.folder) !== null);
+    if (megaForm) mega = megaForm.folder;
+  }
+
+  let primal = null;
+  if (effect && effect.kind === 'form' && effect.speciesId === row.species_id && effect.form === 'Primal') {
+    primal = 'Primal';
+  }
+
+  // Only forms that exist in the data.
+  const exists = (folder) => folder && forms.some((form) => form.folder === folder);
+  return { start: exists(start) ? start : row.form_folder, mega: exists(mega) ? mega : null, primal: exists(primal) ? primal : null };
 }
 
 module.exports = {
@@ -825,6 +874,7 @@ module.exports = {
   megaBaseOf,
   baseFormFolder,
   formWithoutHeldItem,
+  battleForms,
   formIsConsistent,
   itemForForm,
   revertToDefault,

@@ -191,6 +191,16 @@ const freshStages = () =>
  * @param {Array}  moves  from store.movesOf - {move, data}
  */
 function combatantFrom(row, moves) {
+  // Every battle starts in the ordinary form: a stored Mega or Gigantamax
+  // fights as its base form, and holding its stone gives it the chance to
+  // Mega Evolve (see megaEvolve). Groudon and Kyogre holding their orbs
+  // undergo Primal Reversion as they come out (see primalReversion).
+  const source = row;
+  const plan = row.species_id && row.id > 0
+    ? require('./items').battleForms(row, (moves || []).map((entry) => entry.move))
+    : null;
+  if (plan && plan.start !== row.form_folder) row = inForm(row, plan.start);
+
   // Weight and base Attack come from the form data (needed by Low Kick, Grass
   // Knot, Heavy Slam, Heat Crash and Beat Up). loadForm is cached.
   const form = row.species_id ? loadForm(row.species_id, row.form_folder) : null;
@@ -226,6 +236,15 @@ function combatantFrom(row, moves) {
 
     maxHp: row.stat_hp,
     hp: row.stat_hp,
+
+    // For the experience bar on the battle card.
+    exp: row.exp || 0,
+
+    // The stored row (its IVs, EVs, nature and level), the form it can Mega
+    // Evolve into, and the Primal form its orb gives it.
+    source,
+    megaForm: plan ? plan.mega : null,
+    primalForm: plan ? plan.primal : null,
 
     moves: known.map((entry) => {
       const base = entry.data.pp || 5;
@@ -337,13 +356,18 @@ function create({ player, opponent, seed = Date.now(), kind = 'wild' }) {
     openingEvents: [],
   };
 
-  // Both sides' switch-in effects trigger, player first.
+  // Abilities that depend on the weather read it through this link.
+  for (const side of sides) {
+    for (const mon of side.team) mon.arena = state.field;
+  }
+
+  // Both sides' switch-in effects trigger, player first: Primal Reversion,
+  // then Intimidate and the like, then weather and terrain.
   for (let index = 0; index < sides.length; index += 1) {
-    effects.onSendOut(
-      activeOf(sides[index]),
-      activeOf(sides[1 - index]),
-      state.openingEvents
-    );
+    const mon = activeOf(sides[index]);
+    primalReversion(mon, state.openingEvents);
+    effects.onSendOut(mon, activeOf(sides[1 - index]), state.openingEvents);
+    entryAbilities(state, mon, state.openingEvents);
   }
 
   settleEffects(state.openingEvents);
@@ -919,6 +943,9 @@ function useMove(attacker, defender, slot, rng, events, arena = null, turn = nul
 
     entry.pp -= 1;
     move = entry.data;
+
+    // Choice Band, Specs and Scarf lock the holder into this move.
+    cond.lockChoice(attacker, move.name);
   }
 
   attacker.previousMove = attacker.lastMove;
@@ -947,7 +974,21 @@ function performMove(attacker, defender, baseMove, options = {}) {
   const start = events.length;
   const outcome = { started: false, hits: 0, charging: false, continuing: Boolean(options.continuing) };
 
-  executeMove(attacker, defender, baseMove, { ...options, outcome });
+  // Mold Breaker: the target's ability is ignored for the length of the move.
+  const breaking = defender && defender !== attacker && effects.breaksMold(attacker) && !defender.abilityBroken;
+  if (breaking) defender.abilityBroken = true;
+
+  // Infiltrator and sound moves go straight past a Substitute.
+  const bypassing = defender && defender !== attacker && defender.substitute > 0 && !defender.subBypassed &&
+    (cond.abilityOf(attacker) === 'infiltrator' || cond.SOUND.has(baseMove.name));
+  if (bypassing) defender.subBypassed = true;
+
+  try {
+    executeMove(attacker, defender, baseMove, { ...options, outcome });
+  } finally {
+    if (breaking) defender.abilityBroken = false;
+    if (bypassing) defender.subBypassed = false;
+  }
 
   // Crash damage, Steel Beam's cost, the recharge, the rampage and the
   // consecutive-use counters (Utils/moverules.js).
@@ -992,6 +1033,15 @@ function executeMove(attacker, defender, baseMove, options = {}) {
     ruleCtx.move = move;
   }
 
+  // Aerilate, Pixilate, Refrigerate and Dragonize: Normal moves take their
+  // type (boosted 1.2x in Utils/battleeffects.js). Moves that pick their own
+  // type are left alone.
+  const ate = ATE_TYPES[cond.abilityOf(attacker)];
+  if (ate && !retyped && move === baseMove && lowerType(move.type) === 'normal' && !SETS_OWN_TYPE.has(move.name)) {
+    move = { ...move, type: ate, ateBoosted: true };
+    ruleCtx.move = move;
+  }
+
   // The first turn of a two-turn move only charges (Dig, Fly, Solar Beam),
   // and Bide starts storing energy.
   if (!options.continuing && state) {
@@ -1005,6 +1055,18 @@ function executeMove(attacker, defender, baseMove, options = {}) {
     if (rules.CHARGE[move.name] && move.name !== 'sky-drop' && rules.startCharge(ruleCtx)) {
       outcome.charging = true;
       return;
+    }
+  }
+
+  // Protean and Libero: the user becomes the move's type, once each time it
+  // comes in (Gen 9).
+  const shifter = cond.abilityOf(attacker);
+  if ((shifter === 'protean' || shifter === 'libero') && !av.protean && move.name !== 'struggle') {
+    const type = lowerType(move.type);
+    if (type && (attacker.types.length !== 1 || lowerType(attacker.types[0]) !== type)) {
+      av.protean = true;
+      attacker.types = [type];
+      events.push({ kind: 'retyped', name: attacker.name, types: attacker.types });
     }
   }
 
@@ -1023,6 +1085,14 @@ function executeMove(attacker, defender, baseMove, options = {}) {
     const hurt = Math.max(1, Math.floor(attacker.maxHp / 4));
     events.push({ kind: 'powder-blast', name: attacker.name });
     effects.chip(attacker, hurt, events, 'Powder', 'condition-damage');
+    return;
+  }
+
+  // Heavy rain puts out Fire moves; extremely harsh sunlight evaporates Water
+  // moves (Primal Kyogre and Groudon).
+  const strong = arena && arena.strongWeather ? fieldRules.strongWeatherRule(arena.strongWeather) : null;
+  if (strong && strong[1].stops && lowerType(move.type) === strong[1].stops && move.damageClass !== 'status') {
+    events.push({ kind: 'failed', name: attacker.name, text: strong[1].stopped });
     return;
   }
 
@@ -1154,7 +1224,8 @@ function executeMove(attacker, defender, baseMove, options = {}) {
   if (weather) {
     if (!arena) return;
 
-    if (arena.weather === weather) {
+    // The same weather, or a strong one nothing can replace.
+    if (arena.weather === weather || arena.strongWeather) {
       events.push({ kind: 'failed', name: attacker.name, text: 'But it failed!' });
       return;
     }
@@ -1217,9 +1288,16 @@ function executeMove(attacker, defender, baseMove, options = {}) {
 
     // Protect blocks everything below. Checked after accuracy, so a miss is
     // reported as a miss.
-    if (defender.protectedNow && !fieldRules.piercesProtect(move)) {
+    // Unseen Fist's contact moves go straight through; Piercing Drill's do
+    // too, for a quarter of the damage.
+    const throughProtect = effects.makesContact(move) &&
+      ['unseen-fist', 'piercing-drill'].includes(cond.abilityOf(attacker));
+    if (defender.protectedNow && !fieldRules.piercesProtect(move) && !throughProtect) {
       events.push({ kind: 'protected', name: defender.name });
       return;
+    }
+    if (defender.protectedNow && throughProtect && cond.abilityOf(attacker) === 'piercing-drill') {
+      options.protectPierced = true;
     }
 
     // Quick Guard, Wide Guard, Crafty Shield, Mat Block and Psychic Terrain.
@@ -1233,7 +1311,7 @@ function executeMove(attacker, defender, baseMove, options = {}) {
     }
 
     // A Substitute stops status moves aimed at the foe (not sound moves).
-    if (defender.substitute > 0 && cond.blockedBySubstitute(move)) {
+    if (fieldRules.behindSubstitute(defender) && cond.blockedBySubstitute(move)) {
       events.push({ kind: 'failed', name: attacker.name, text: 'But it failed!' });
       return;
     }
@@ -1258,7 +1336,7 @@ function executeMove(attacker, defender, baseMove, options = {}) {
   // Natural Gift takes the berry's type, which everything below must use.
   const movedType = verdict.type || move.type;
   const typeAgainst = (type) => (state
-    ? cond.effectiveness(type, defender, arena)
+    ? cond.effectiveness(type, defender, arena, attacker)
     : typechart.effectiveness(type, defender.types));
 
   // Freeze-Dry, Flying Press and Thousand Arrows bend the type chart.
@@ -1347,6 +1425,12 @@ function executeMove(attacker, defender, baseMove, options = {}) {
         : meta.minHits + Math.floor(rng() * (meta.maxHits - meta.minHits + 1));
     }
 
+    // Parental Bond (Mega Kangaskhan): single-hit moves strike twice, the
+    // second at a quarter of the power (Gen 7).
+    const parental = cond.abilityOf(attacker) === 'parental-bond' && hitCount === 1 && !powers &&
+      !NO_PARENTAL_BOND.has(move.name) && !USER_FAINTS.has(move.name);
+    if (parental) hitCount = 2;
+
     const critsAllowed = effects.critAllowed(defender);
     const critBonus = effects.critStage(attacker, move) + cond.critStageBonus(attacker);
     const critForced = state ? cond.critOverride(state, sideIndex, attacker) : null;
@@ -1377,8 +1461,10 @@ function executeMove(attacker, defender, baseMove, options = {}) {
       // Ability and item modifiers, grouped for Utils/damage.js. Power that
       // depends on the battle (Hex, Brine, Rollout...) is worked out first.
       const basePower = rules.powerFor(ruleCtx, powers ? powers[hit] : verdict.power || move.power, hit);
-      const thisPower = powerMultiplier !== 1 ? Math.floor(basePower * powerMultiplier) : basePower;
+      let thisPower = powerMultiplier !== 1 ? Math.floor(basePower * powerMultiplier) : basePower;
+      if (parental && hit === 1) thisPower = Math.max(1, Math.floor(thisPower / 4));
       const parts = effects.damageParts(attacker, defender, move, effectiveness, thisPower);
+      if (options.protectPierced) parts.extraModifiers.push(0.25);
 
       // Weather: rain boosts Water and weakens Fire, sun the reverse;
       // sandstorm boosts Rock Special Defence and snow Ice Defence.
@@ -1601,6 +1687,14 @@ function executeMove(attacker, defender, baseMove, options = {}) {
     settleEffects(events);
   }
 
+  // A knockout doesn't stop the user's own stat changes: Draco Meteor's
+  // Special Attack drop, Close Combat's defences, Flame Charge's Speed.
+  if (defender.fainted && !attacker.fainted && hitsLanded > 0 && move.damageClass !== 'status') {
+    const suppressed = effects.suppressesSecondaries(attacker, move);
+    applyMoveStatChanges({ move, meta, attacker, defender, state, sideIndex, rng, events, suppressed, onlyUser: true });
+    settleEffects(events);
+  }
+
   // Everything below only lands on something still standing.
   if (defender.fainted || attacker.fainted) return;
 
@@ -1715,20 +1809,44 @@ function executeMove(attacker, defender, baseMove, options = {}) {
     if (effects.flinchAllowed(defender)) defender.flinched = true;
   }
 
+  applyMoveStatChanges({ move, meta, attacker, defender, state, sideIndex, rng, events, suppressed });
+
+  settleEffects(events);
+}
+
+/**
+ * Is this stat change the price of the move rather than a bonus? Draco
+ * Meteor, Close Combat, Superpower and the like lower the user's own stats.
+ * They always happen: Sheer Force and Serene Grace leave them alone.
+ */
+const isDrawback = (move, change) =>
+  move.damageClass !== 'status' && change.change < 0 && statChangeTarget(move, change) === 'user';
+
+/**
+ * A move's stat changes, after it hits.
+ *
+ * For damaging moves a boost or a drop on the target is a secondary effect
+ * (removed by Sheer Force, doubled in chance by Serene Grace); a drop on the
+ * user is a drawback and always happens. For status moves the change is the
+ * move itself. `onlyUser` is for after a knockout, when only the user's own
+ * changes still apply.
+ */
+function applyMoveStatChanges({ move, meta, attacker, defender, state, sideIndex, rng, events, suppressed = false, onlyUser = false }) {
   const mist = state && (state.sides[1 - sideIndex].conditions || {}).mist;
 
   for (const change of move.statChanges || []) {
-    // For damaging moves the stat change is a secondary effect (removed by
-    // Sheer Force); for status moves it is the move itself. Uses the resolved
-    // power so variable-power moves are handled.
-    if (suppressed && move.damageClass !== 'status') continue;
+    const onUser = statChangeTarget(move, change) === 'user';
+    if (onlyUser && !onUser) continue;
+
+    const drawback = isDrawback(move, change);
+    if (suppressed && move.damageClass !== 'status' && !drawback) continue;
 
     const base = meta.statChance || (move.damageClass === 'status' ? 100 : 0);
-    const chance = move.damageClass === 'status' ? base : effects.secondaryChance(attacker, base);
+    const chance = move.damageClass === 'status' || drawback ? base : effects.secondaryChance(attacker, base);
 
     if (chance > 0 && rng() * 100 >= chance) continue;
 
-    const target = statChangeTarget(move, change) === 'user' ? attacker : defender;
+    const target = onUser ? attacker : defender;
 
     // Mist protects a side from the foe lowering its stats.
     if (target === defender && change.change < 0 && mist && cond.abilityOf(attacker) !== 'infiltrator') {
@@ -1738,8 +1856,6 @@ function executeMove(attacker, defender, baseMove, options = {}) {
 
     applyStage(target, change.stat, change.change, events, target === defender);
   }
-
-  settleEffects(events);
 }
 
 /** A type name in lower case. */
@@ -1844,6 +1960,9 @@ function swapIn(state, sideIndex, teamIndex, events, pass = null) {
   side.active = teamIndex;
   target.participated = true;
 
+  // A strong weather leaves with the Pokemon that brought it.
+  settleStrongWeather(state, events);
+
   // Reset the first-turn counter. The incoming Pokemon first acts next turn.
   target.turnsActive = 0;
   if (!(pass && pass.pass)) {
@@ -1856,8 +1975,11 @@ function swapIn(state, sideIndex, teamIndex, events, pass = null) {
 
   events.push({ kind: 'send-out', name: target.name, side: side.name });
 
-  // Intimidate on the way in, then hazards and Healing Wish.
+  // Primal Reversion, Intimidate and the weather and terrain abilities on
+  // the way in, then hazards and Healing Wish.
+  primalReversion(target, events);
   effects.onSendOut(target, activeOf(other), events);
+  entryAbilities(state, target, events);
   cond.onArrive(state, sideIndex, target, events);
   cond.refreshSuppression(state);
   settleEffects(events);
@@ -2115,6 +2237,17 @@ function runActions(state, events) {
   const { rng, actions, plans, moved } = t;
 
   while (t.queue.length) {
+    // Mega Evolution: after the switches and before any move. The new Speed
+    // counts this turn (Gen 7 onward), so the moves are put back in order.
+    if (!t.megaDone && actions[t.queue[0]].type !== 'switch') {
+      t.megaDone = true;
+      const evolved = actions.map((action, i) => action.type === 'move' && action.mega && megaEvolve(state, i, events));
+      if (evolved.some(Boolean)) {
+        const waiting = new Set(t.queue);
+        t.queue = order(state, actions, rng).filter((i) => waiting.has(i));
+      }
+    }
+
     const index = t.queue.shift();
     const side = state.sides[index];
     const other = state.sides[1 - index];
@@ -2393,8 +2526,10 @@ function endTurn(state, events) {
   });
   settleEffects(events);
 
-  // Count the weather down last, reporting turns remaining.
-  if (state.field.weather) {
+  // Count the weather down last, reporting turns remaining. A strong
+  // weather has no timer; it lasts while its Pokemon is out.
+  settleStrongWeather(state, events);
+  if (state.field.weather && !state.field.strongWeather) {
     state.field.weatherTurns -= 1;
 
     if (state.field.weatherTurns <= 0) {
@@ -2548,6 +2683,192 @@ function chooseMove(attacker, defender) {
   return best;
 }
 
+// ---------------------------------------------------------------------------
+// Forms in battle: Mega Evolution, Primal Reversion, entry abilities
+// ---------------------------------------------------------------------------
+
+/** Normal moves these abilities turn into their type. */
+const ATE_TYPES = { aerilate: 'flying', pixilate: 'fairy', refrigerate: 'ice', dragonize: 'dragon' };
+
+/** Moves that choose their own type, which the -ate abilities don't touch. */
+const SETS_OWN_TYPE = new Set([
+  'weather-ball', 'judgment', 'techno-blast', 'multi-attack', 'natural-gift', 'hidden-power',
+  'revelation-dance', 'terrain-pulse', 'tera-blast', 'struggle',
+]);
+
+/** Moves Parental Bond doesn't double: multi-turn and fixed-outcome moves. */
+const NO_PARENTAL_BOND = new Set([
+  'fling', 'endeavor', 'final-gambit', 'rollout', 'ice-ball', 'uproar', 'sky-drop',
+  'solar-beam', 'solar-blade', 'bide', 'dig', 'dive', 'fly', 'bounce', 'phantom-force', 'shadow-force',
+]);
+
+/** Abilities Trace can't copy, as in the games. */
+const TRACE_PROOF = new Set([
+  'trace', 'multitype', 'stance-change', 'schooling', 'comatose', 'shields-down', 'disguise', 'rks-system',
+  'battle-bond', 'power-construct', 'ice-face', 'gulp-missile', 'zero-to-hero', 'commander', 'tera-shift',
+  'as-one-glastrier', 'as-one-spectrier', 'imposter', 'illusion', 'flower-gift', 'forecast', 'zen-mode',
+  'power-of-alchemy', 'receiver', 'neutralizing-gas', 'hunger-switch', 'protosynthesis', 'quark-drive',
+  'poison-puppeteer', 'embody-aspect-teal', 'embody-aspect-hearthflame', 'embody-aspect-wellspring',
+  'embody-aspect-cornerstone',
+]);
+
+/** Abilities that set a terrain when their Pokemon comes out. */
+const ENTRY_TERRAIN = {
+  'electric-surge': 'electric',
+  'psychic-surge': 'psychic',
+  'grassy-surge': 'grassy',
+  'misty-surge': 'misty',
+};
+
+/**
+ * A stored row as it would be in another form of its species: that form's
+ * stats (same IVs, EVs, nature and level), types, name and ability.
+ */
+function inForm(row, folder) {
+  const evolution = require('./evolution');
+  const stats = pokemon.recalculateStats(row, { form_folder: folder });
+  const ability = evolution.remapAbility(row.species_id, folder, row.ability_slot || 1);
+  return { ...row, ...stats, form_folder: folder, ability: ability ? ability.name : row.ability };
+}
+
+/**
+ * Turn a fighter into another form of its species mid-battle. Stats come
+ * from its stored row; damage taken stays taken. Types, weight and ability
+ * change with the form, and keep it through switching out.
+ */
+function changeForm(mon, folder) {
+  const row = inForm(mon.source, folder);
+  const form = loadForm(row.species_id, folder);
+  const lost = mon.maxHp - mon.hp;
+
+  mon.form = folder;
+  mon.formName = row.display_name;
+  mon.types = String(row.types || '').split(',').map((t) => t.trim()).filter(Boolean);
+  mon.naturalTypes = [...mon.types];
+  mon.stats = {
+    hp: row.stat_hp,
+    attack: row.stat_attack,
+    defense: row.stat_defense,
+    specialAttack: row.stat_special_attack,
+    specialDefense: row.stat_special_defense,
+    speed: row.stat_speed,
+  };
+  mon.maxHp = row.stat_hp;
+  if (!mon.fainted) mon.hp = Math.max(1, mon.maxHp - lost);
+  if (form && form.physical && form.physical.weightKilograms) mon.weight = form.physical.weightKilograms;
+  if (form && form.stats && form.stats.base) mon.baseAttack = form.stats.base.attack;
+  effects.setAbility(mon, row.ability);
+}
+
+/**
+ * Can this side's Pokemon Mega Evolve right now? Once per battle per side:
+ * after one Mega Evolves, no other can, even if the first faints.
+ */
+function canMegaEvolve(state, sideIndex) {
+  const side = state.sides[sideIndex];
+  const mon = activeOf(side);
+  return Boolean(!side.megaUsed && mon && !mon.fainted && mon.megaForm && !mon.transformed && mon.form !== mon.megaForm);
+}
+
+/**
+ * Mega Evolve this side's Pokemon. Happens after switches and before any
+ * move; its new ability takes effect at once (Intimidate, Drought).
+ */
+function megaEvolve(state, sideIndex, events) {
+  if (!canMegaEvolve(state, sideIndex)) return false;
+
+  const side = state.sides[sideIndex];
+  const mon = activeOf(side);
+  // Rayquaza Mega Evolves through Dragon Ascent, not a stone.
+  const stone = mon.item && /ite(-[xyz])?$/.test(mon.item) ? effects.displayItem(mon.item) : null;
+
+  changeForm(mon, mon.megaForm);
+  side.megaUsed = true;
+  mon.megaEvolved = true;
+
+  events.push({ kind: 'mega', name: mon.name, into: mon.formName, stone });
+  effects.onSendOut(mon, activeOf(state.sides[1 - sideIndex]), events);
+  entryAbilities(state, mon, events);
+  settleEffects(events);
+  return true;
+}
+
+/** Groudon and Kyogre holding their orbs revert as they come out. */
+function primalReversion(mon, events) {
+  if (!mon || mon.fainted || !mon.primalForm || mon.form === mon.primalForm) return;
+  changeForm(mon, mon.primalForm);
+  events.push({ kind: 'primal', name: mon.name, into: mon.formName });
+}
+
+/**
+ * Abilities that act on the field as their Pokemon comes out (or Mega
+ * Evolves): Drought and the other weathers, the Surges, the Primal and Delta
+ * Stream strong weathers, and Mold Breaker's announcement.
+ */
+function entryAbilities(state, mon, events) {
+  if (!mon || mon.fainted) return;
+  const ability = cond.abilityOf(mon);
+  const field = state.field;
+
+  // Trace (Mega Alakazam): copy the foe's ability, which then acts as if it
+  // had just come out (a traced Intimidate or Drought goes off).
+  if (ability === 'trace') {
+    const foe = state.sides.map((side) => activeOf(side)).find((other) => other && other !== mon && !other.fainted);
+    const theirs = foe ? cond.abilityOf(foe) : null;
+    if (theirs && !TRACE_PROOF.has(theirs)) {
+      effects.setAbility(mon, theirs);
+      events.push({ kind: 'note', text: `${mon.name} traced ${foe.name}'s ${effects.displayAbility(theirs)}!` });
+      effects.onSendOut(mon, foe, events);
+      entryAbilities(state, mon, events);
+    }
+    return;
+  }
+
+  if (effects.MOLD_BREAKERS.has(ability)) events.push({ kind: 'note', text: `${mon.name} breaks the mold!` });
+
+  const strong = fieldRules.STRONG_WEATHER[ability];
+  if (strong) {
+    if (field.strongWeather !== strong.key) {
+      field.weather = strong.weather;
+      field.strongWeather = strong.key;
+      field.weatherTurns = Infinity;
+      field.setBy = mon.id;
+      events.push({ kind: 'weather-start', weather: strong.weather, text: strong.started });
+    }
+    return;
+  }
+
+  const weather = fieldRules.ENTRY_WEATHER[ability];
+  if (weather && !field.strongWeather && field.weather !== weather) setWeather(field, weather, mon, events);
+
+  const terrain = ENTRY_TERRAIN[ability];
+  if (terrain && field.terrain !== terrain) {
+    field.terrain = terrain;
+    field.terrainTurns = cond.itemOf(mon) === 'terrain-extender' ? 8 : cond.DURATION.terrain;
+    events.push({ kind: 'terrain-start', text: cond.TERRAINS[terrain].started });
+  }
+}
+
+/** End a strong weather once no Pokemon with its ability is out. */
+function settleStrongWeather(state, events) {
+  const field = state.field;
+  if (!field.strongWeather) return;
+
+  const rule = fieldRules.strongWeatherRule(field.strongWeather);
+  const ability = rule ? rule[0] : null;
+  const held = state.sides.some((side) => {
+    const mon = activeOf(side);
+    return mon && !mon.fainted && cond.abilityOf(mon) === ability;
+  });
+  if (held) return;
+
+  events.push({ kind: 'weather-end', weather: field.weather, text: rule ? rule[1].ended : 'The weather returned to normal.' });
+  field.weather = null;
+  field.strongWeather = null;
+  field.weatherTurns = 0;
+  field.setBy = null;
+}
+
 /**
  * Apply a level gained mid-battle to a Pokemon that is still fighting.
  *
@@ -2558,18 +2879,32 @@ function chooseMove(attacker, defender) {
 function applyLevelUp(mon, row) {
   if (!mon || !row) return;
 
-  const gained = row.stat_hp - mon.maxHp;
+  // The stored row is in its stored form (a Mega while it holds the stone);
+  // the fighter may be in another (its base form before Mega Evolving).
+  const now = mon.form && mon.form !== row.form_folder ? inForm(row, mon.form) : row;
+  const gained = now.stat_hp - mon.maxHp;
+  const stats = {
+    hp: now.stat_hp,
+    attack: now.stat_attack,
+    defense: now.stat_defense,
+    specialAttack: now.stat_special_attack,
+    specialDefense: now.stat_special_defense,
+    speed: now.stat_speed,
+  };
 
   mon.level = row.level;
-  mon.stats = {
-    hp: row.stat_hp,
-    attack: row.stat_attack,
-    defense: row.stat_defense,
-    specialAttack: row.stat_special_attack,
-    specialDefense: row.stat_special_defense,
-    speed: row.stat_speed,
-  };
-  mon.maxHp = row.stat_hp;
+  mon.exp = row.exp;
+  mon.source = row;
+
+  // A transformed Pokemon keeps the copied stats until it switches out; its
+  // own grow underneath. Its HP is its own either way.
+  if (mon.transformed && mon.untransformed) {
+    mon.untransformed.stats = stats;
+    mon.stats = { ...mon.stats, hp: stats.hp };
+  } else {
+    mon.stats = stats;
+  }
+  mon.maxHp = now.stat_hp;
 
   if (!mon.fainted) mon.hp = Math.max(1, Math.min(mon.maxHp, mon.hp + Math.max(0, gained)));
 }
@@ -2584,6 +2919,10 @@ module.exports = {
   hashSeed,
   combatantFrom,
   applyLevelUp,
+  canMegaEvolve,
+  megaEvolve,
+  changeForm,
+  inForm,
   create,
   activeOf,
   benchOf,

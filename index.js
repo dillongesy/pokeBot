@@ -19,6 +19,10 @@ const { loadCommands } = require('./Utils/commands');
 const { tryCatch } = require('./Commands/catch');
 const db = require('./Utils/db');
 const store = require('./Utils/store');
+const crashlog = require('./Utils/crashlog');
+
+// Every reported failure also goes to a file in Logs/ (see Utils/crashlog.js).
+crashlog.install();
 const reminders = require('./Utils/reminders');
 const channels = require('./Utils/channels');
 const livebuttons = require('./Utils/livebuttons');
@@ -117,6 +121,12 @@ client.on('messageCreate', async (message) => {
 
     if (await tryCatch(message)) store.noteGuild(message.author.id, message.guildId);
   } catch (err) {
+    crashlog.record('command', err, {
+      message: message.content,
+      userId: message.author && message.author.id,
+      guildId: message.guildId,
+      channelId: message.channelId,
+    });
     console.error('Message handler failed:', err);
     await message.channel.send('Something went wrong running that.').catch(() => {});
   }
@@ -149,6 +159,13 @@ client.on('interactionCreate', async (interaction) => {
     store.noteGuild(interaction.user.id, interaction.guildId);
     await command.execute(interaction);
   } catch (err) {
+    crashlog.record('command', err, {
+      command: `/${interaction.commandName}`,
+      options: interaction.options && interaction.options.data,
+      userId: interaction.user && interaction.user.id,
+      guildId: interaction.guildId,
+      channelId: interaction.channelId,
+    });
     console.error(`/${interaction.commandName} failed:`, err);
     const content = 'Something went wrong running that.';
     if (interaction.replied || interaction.deferred) {
@@ -164,7 +181,10 @@ client.on('error', (err) => console.error('Client error:', err));
 // Log stray errors and keep running, so one broken command can't take the
 // whole bot offline.
 process.on('unhandledRejection', (err) => console.error('Unhandled rejection:', err));
-process.on('uncaughtException', (err) => console.error('Uncaught exception:', err));
+process.on('uncaughtException', (err) => {
+  crashlog.record('crash', err, { what: 'uncaught exception' });
+  console.error('Uncaught exception:', err);
+});
 
 /**
  * Shut down cleanly. Closing the database checkpoints the WAL file back into

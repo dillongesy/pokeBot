@@ -5,17 +5,17 @@
  *
  * Opens on a board and lets the viewer move around with:
  *
- *   Category dropdown   Catches, Rarities, Battles & Trainer, Best Pokemon,
- *                       Wealth, Servers
- *   Sort dropdown       the boards in that category (Win rate, Total wins,
- *                       Prestiges, Trainer levels...)
+ *   Category dropdown   Catches, Battles, Rarities, Best Pokemon, Servers,
+ *                       Wealth
+ *   Sort dropdown       the boards in that category (Wins, Win rate,
+ *                       Trainer levels...)
  *   Buttons             page back and forward, highest or lowest first, and
  *                       everyone or just this server's players
  *
  * A board name or a Pokemon name still opens straight onto it:
  *
  *   .lb                     Pokemon caught
- *   .lb shiny | wins | winrate | prestige | trainer | coins | dex ...
+ *   .lb shiny | wins | winrate | trainer | coins | dex ...
  *   .lb <pokemonName>       who owns the most of one species
  *
  * Ranks are computed in SQL. Board names map to fixed queries and species keys
@@ -51,39 +51,27 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 const ALIASES = {
   caught: ['caught', 'catches', 'total'],
   coins: ['coins', 'currency', 'c', 'money', 'bal'],
-  gold: ['gold', 'g'],
   shinies: ['shinies', 'shiny', 's'],
   legendary: ['legendary', 'legendaries', 'l', 'legend'],
   mythical: ['mythical', 'mythicals', 'm', 'mythic'],
   ultrabeast: ['ultrabeast', 'ultrabeasts', 'ultra', 'ub'],
   pokedex: ['pokedex', 'dex', 'species', 'completion'],
   server: ['server', 'servers', 'guild', 'guilds'],
-  party: ['party', 'owned', 'size'],
-  level: ['level', 'lv', 'highest'],
   iv: ['iv', 'ivs', 'best'],
-  winRate: ['winrate', 'wr', 'win%', 'ratio', 'battles', 'battle', 'b'],
-  wins: ['wins', 'win', 'victories'],
-  prestige: ['prestige', 'prestiges', 'p'],
-  trainerLevels: ['trainer', 'trainerlevel', 'trainerlevels', 'tl', 'levels'],
+  wins: ['wins', 'win', 'victories', 'battles', 'battle', 'b'],
+  winRate: ['winrate', 'wr', 'win%', 'ratio'],
+  trainerLevels: ['trainer', 'trainerlevel', 'trainerlevels', 'tl', 'levels', 'prestige', 'prestiges', 'p'],
 };
 
 /** The category dropdown, and the boards each one sorts between. */
 const CATEGORIES = [
-  { id: 'catches', label: 'Catches', emoji: '📦', boards: ['caught', 'pokedex', 'party'] },
+  { id: 'catches', label: 'Catches', emoji: '📦', boards: ['caught', 'pokedex'] },
+  // Trainer levels counts prestiges too, and each row shows the split.
+  { id: 'battles', label: 'Battles', emoji: '⚔️', boards: ['wins', 'winRate', 'trainerLevels'] },
   { id: 'rarities', label: 'Rarities', emoji: '✨', boards: ['shinies', 'legendary', 'mythical', 'ultrabeast'] },
-  {
-    id: 'battles',
-    label: 'Battles & Trainer',
-    emoji: '⚔️',
-    boards: [
-      'winRate', 'winRateWild', 'winRateTrainer', 'winRateMilestone',
-      'wins', 'winsWild', 'winsTrainer', 'winsMilestone',
-      'trainerLevels', 'prestige',
-    ],
-  },
-  { id: 'pokemon', label: 'Best Pokemon', emoji: '⭐', boards: ['level', 'iv'] },
-  { id: 'wealth', label: 'Wealth', emoji: '💰', boards: ['coins', 'gold'] },
+  { id: 'pokemon', label: 'Best Pokemon', emoji: '⭐', boards: ['iv'] },
   { id: 'servers', label: 'Servers', emoji: '🌐', boards: ['server'] },
+  { id: 'wealth', label: 'Wealth', emoji: '💰', boards: ['coins'] },
 ];
 
 const plural = (n, word) => `${n.toLocaleString('en-US')} ${word}${n === 1 ? '' : 's'}`;
@@ -326,7 +314,6 @@ async function render(client, viewerId, state, disabled = false) {
   const page = Math.min(Math.max(0, state.page), pages - 1);
   const shown = rows.slice(page * TOP, page * TOP + TOP);
 
-  const where = state.scope === 'server' ? 'this server' : 'everyone';
   const embed = new EmbedBuilder().setTitle(`Leaderboard - ${title}`).setColor(color);
 
   if (!shown.length) {
@@ -364,12 +351,9 @@ async function render(client, viewerId, state, disabled = false) {
     }
   }
 
-  const footer = [`Page ${page + 1} of ${pages}`, `Showing ${where}`];
-  if (resolved.minBattles) footer.push(`At least ${resolved.minBattles} battles to appear`);
-  if (/Wild|Trainer|Milestone$/.test(state.board)) footer.push('Wild, trainer and milestone records started with this update');
-  if (state.board === 'trainerLevels') footer.push(`A prestige counts as ${store.LEVELS_PER_PRESTIGE} levels`);
-  if (state.board === 'species') footer.push('Any Pokemon name works: .lb <pokemon>');
-  embed.setFooter({ text: footer.join(' · ') });
+  const footer = [`Page ${page + 1} of ${pages}`];
+  if (resolved.minBattles) footer.push(`${resolved.minBattles} battles minimum`);
+  embed.setFooter({ text: footer.join(' - ') });
 
   return { embeds: [embed], components: buildComponents({ ...state, page }, resolved, pages, disabled) };
 }

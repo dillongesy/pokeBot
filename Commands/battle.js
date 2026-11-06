@@ -39,6 +39,7 @@ const {
 } = require('discord.js');
 
 const store = require('../Utils/store');
+const content = require('../Utils/content');
 const battle = require('../Utils/battle');
 const encounter = require('../Utils/encounter');
 const rewards = require('../Utils/rewards');
@@ -49,10 +50,14 @@ const movepower = require('../Utils/movepower');
 const { titleCase, capitalize, statName } = require('../Utils/display');
 const partylock = require('../Utils/partylock');
 const moveprompt = require('../Utils/moveprompt');
+const learnset = require('../Utils/learnset');
+const { loadSpecies, experienceForLevel, MAX_LEVEL } = require('../Utils/pokemon');
 const evolveprompt = require('../Utils/evolveprompt');
 const happiness = require('../Utils/happiness');
 const livebuttons = require('../Utils/livebuttons');
 const daily = require('../Utils/daily');
+const questengine = require('../Utils/questengine');
+const crashlog = require('../Utils/crashlog');
 const ai = require('../Utils/ai');
 const cond = require('../Utils/conditions');
 const rules = require('../Utils/moverules');
@@ -125,10 +130,38 @@ const statusTag = (mon) =>
 const teamDots = (side) =>
   side.team.map((mon) => (mon.fainted ? '○' : '●')).join('');
 
+/** Blocks in the experience bar. */
+const EXP_WIDTH = 10;
+
+/** "EXP ▰▰▰▰▱▱▱▱▱▱" - how far the player's Pokemon is to its next level. */
+function expBar(mon) {
+  if (mon.level >= MAX_LEVEL) return `EXP \`${'▰'.repeat(EXP_WIDTH)}\` max`;
+
+  const species = loadSpecies(mon.speciesId);
+  const growth = (species && species.breeding && species.breeding.growthRate) || 'medium';
+  const start = experienceForLevel(growth, mon.level);
+  const span = Math.max(1, experienceForLevel(growth, mon.level + 1) - start);
+  const filled = Math.max(0, Math.min(EXP_WIDTH, Math.floor((((mon.exp || 0) - start) / span) * EXP_WIDTH)));
+
+  return `EXP \`${'▰'.repeat(filled)}${'▱'.repeat(EXP_WIDTH - filled)}\``;
+}
+
+/**
+ * The name on the card. A Mega or Primal shows its form ("Mega Charizard X");
+ * a nicknamed one keeps its nickname with a 🧬.
+ */
+function cardName(mon) {
+  const changed = mon.megaEvolved || (mon.primalForm && mon.form === mon.primalForm);
+  if (!changed || !mon.formName) return mon.name;
+  return mon.source && mon.source.nickname ? `${mon.name} 🧬` : mon.formName;
+}
+
 function lineFor(mon, side) {
   return (
-    `${mon.shiny ? '✨ ' : ''}**${mon.name}** Lv.${mon.level}${statusTag(mon)}\n` +
+    `${mon.shiny ? '✨ ' : ''}**${cardName(mon)}** Lv.${mon.level}${statusTag(mon)}\n` +
     `${healthBar(mon)} ${mon.hp}/${mon.maxHp}\n` +
+    // Only your own Pokemon earn experience.
+    (side.isPlayer && mon.exp != null ? `${expBar(mon)}\n` : '') +
     `${teamDots(side)}`
   );
 }
@@ -270,6 +303,7 @@ const RESTRICTED = {
   disable: (n, m) => `${n}'s ${m} is disabled!`,
   torment: (n) => `${n} can't use the same move twice in a row due to the torment!`,
   'heal-block': (n, m) => `${n} can't use ${m} because of Heal Block!`,
+  choice: (n, m) => `${n} can't use ${m} - its Choice item locks it into one move!`,
   gravity: (n, m) => `${n} can't use ${m} because of gravity!`,
   imprison: (n, m) => `${n} can't use its sealed ${m}!`,
   'throat-chop': (n, m) => `${n} can't use ${m} because of Throat Chop!`,
@@ -455,6 +489,13 @@ function narrate(events) {
 
       // Field effects: weather, Protect, traps, Leech Seed and Substitute (see
       // Utils/field.js). Damage amounts are included.
+      case 'mega':
+        lines.push(
+          `🧬 ${event.stone ? `${event.name}'s ${event.stone} is reacting! ` : ''}` +
+            `**${event.name}** has Mega Evolved into **${event.into}**!`
+        );
+        break;
+      case 'primal': lines.push(`🔴 **${event.name}**'s Primal Reversion! It reverted to its primal form!`); break;
       case 'weather-start': lines.push(`🌦️ **${event.text}**`); break;
       case 'weather-end': lines.push(`${event.text}`); break;
       case 'weather-damage':
@@ -590,7 +631,7 @@ function buildCard(state, log) {
  * Move buttons are disabled at zero PP. When every move is out of PP, a
  * Struggle button is shown instead.
  */
-function buildControls(state) {
+function buildControls(state, { megaArmed = false } = {}) {
   const side = state.sides[0];
   const mine = battle.activeOf(side);
 
@@ -650,6 +691,17 @@ function buildControls(state) {
         .setCustomId('bt:switch')
         .setLabel(`Switch (${bench.length})`)
         .setStyle(ButtonStyle.Success)
+    );
+  }
+
+  // Mega Evolution, once per battle: pressed, it stays lit, and the move
+  // picked next goes with it.
+  if (battle.canMegaEvolve(state, 0)) {
+    extra.addComponents(
+      new ButtonBuilder()
+        .setCustomId('bt:mega')
+        .setLabel(megaArmed ? '🧬 Mega Evolving' : '🧬 Mega Evolve')
+        .setStyle(megaArmed ? ButtonStyle.Primary : ButtonStyle.Secondary)
     );
   }
 
@@ -782,7 +834,7 @@ function prepare(userId, wantsMilestone, rng = Math.random, memberName = null) {
         `**None of the ${brought} at the top of your party will listen to you.**\n` +
         `Trainer level ${standing.level} commands up to level ${cap}.\n\n${why}${more}\n\n` +
         (usable.length
-          ? 'Run `.party suggested` to see who will, then `.p swap <a> <b>` to move ' +
+          ? 'Run `.party suggested` to see who will, then `.swap <a> <b>` to move ' +
             `them into the first six. You have **${store.countParty(userId, {
               obeysAtCap: cap,
             }).toLocaleString()}** that would fight.`
@@ -922,6 +974,8 @@ function settle(userId, state, setup, outcome = null) {
       id: mon.id,
       from: startedAt.get(mon.id),
       fainted: Boolean(mon.fainted),
+      // Level-up moves up to here were already learned mid-battle.
+      movesFrom: setup.movesFrom ? setup.movesFrom.get(mon.id) : undefined,
       faintedBadly: Boolean(mon.fainted) && foeLevel >= mon.level + happiness.BAD_FAINT_GAP,
     }));
 
@@ -954,16 +1008,10 @@ function settle(userId, state, setup, outcome = null) {
   // Experience lines were already logged per knockout. Level-ups, and the
   // moves they taught, get their own message.
   for (const mon of applied.pokemon) {
-    // One line per Pokemon, with any move it learned into a free slot.
-    if (mon.levelledFrom) {
-      const grew = mon.level - mon.levelledFrom;
-      const learned = (mon.learned || []).length ? ` It learned ${mon.learned.join(', ')}.` : '';
-      levelUps.push(
-        `⬆️ **Level up!** ${mon.name} grew to level ${mon.level}` +
-          (grew > 1 ? ` (up ${grew} from ${mon.levelledFrom}).` : '.') +
-          learned
-      );
-    } else if ((mon.learned || []).length) {
+    // Level-ups were announced as they happened (see loop()); this is any
+    // move learned now, into a free slot - the last knockout's level-ups and
+    // evolution moves.
+    if ((mon.learned || []).length) {
       levelUps.push(`📘 **New move!** ${mon.name} learned ${mon.learned.join(', ')}.`);
     }
 
@@ -1093,12 +1141,23 @@ function settle(userId, state, setup, outcome = null) {
     }
   }
 
+  // Quests: wins count toward the battle quests, and an evolution changes
+  // which species are owned. Only says anything when one completes.
+  const questNotices = [];
+  try {
+    const line = questengine.announce(questengine.sync(userId).completed);
+    if (line) questNotices.push(line);
+  } catch (err) {
+    console.error('Quest sync failed after a battle:', err);
+  }
+
   const announcements = [
     ...(levelUps.length ? [levelUps.join('\n')] : []),
     ...stopsObeying,
     ...evolving,
     ...extras,
     ...dailyNotices,
+    ...questNotices,
     ...progress,
     ...(lootboxMessage ? [lootboxMessage] : []),
     ...unlocks,
@@ -1169,6 +1228,9 @@ async function run(message, args) {
   try {
     await loop({ userId, state, setup, card, log });
   } catch (err) {
+    // Written to Logs/ with both teams, the field and the last button
+    // pressed, so it can be rebuilt and fixed.
+    crashlog.battle({ error: err, userId, state, setup, log });
     console.error('Battle failed:', err);
     await card.edit({ content: 'The battle broke. Nothing was lost.', components: [] }).catch(() => {});
   } finally {
@@ -1193,6 +1255,9 @@ async function run(message, args) {
 async function loop({ userId, state, setup, card, log }) {
   let mode = 'moves';
 
+  // Whether the Mega Evolve button is pressed for the coming turn.
+  let megaArmed = false;
+
   // Opponents already paid out (so no knockout pays twice), and each of the
   // player's Pokemon's starting levels (used by settle()).
   const paid = new Set();
@@ -1201,11 +1266,62 @@ async function loop({ userId, state, setup, card, log }) {
   setup.paid = paid;
   setup.startedAt = startedAt;
 
+  // Level-ups waiting to be announced, and how far each Pokemon's level-up
+  // moves have been dealt with (settle() leaves those out).
+  const growth = [];
+  setup.movesFrom = new Map();
+
+  /**
+   * Learn the moves this turn's level-ups earned, as in the games: into a
+   * free slot straight away, and usable at once. A full moveset is asked
+   * about by settleGrowth. Once the battle is over, settle() does it instead.
+   */
+  const learnGrowth = () =>
+    growth.splice(0).map((grown) => {
+      let learned = [];
+      let offered = [];
+      const row = store.getOwnedPokemon(userId, grown.id);
+
+      if (row && !state.finished) {
+        ({ learned, offered } = store.learnMoves(row.id, learnset.movesOnGrowth({ ...row, level: grown.from }, row)));
+        setup.movesFrom.set(grown.id, row.level);
+        refreshMoves(state.sides[0].team.find((m) => m.id === grown.id), userId);
+      }
+
+      return { ...grown, learned, offered };
+    });
+
+  /** Post the level-ups below the card, then ask about any full movesets. */
+  const settleGrowth = async (grown) => {
+    if (!grown.length || !card.channel || typeof card.channel.send !== 'function') return;
+    const send = (payload) => card.channel.send(payload);
+
+    for (const g of grown) await send({ content: growthText(g) }).catch(() => {});
+
+    for (const g of grown.filter((x) => x.offered.length)) {
+      await moveprompt.askAll({ send, userId, pokemonId: g.id, moves: g.offered });
+      refreshMoves(state.sides[0].team.find((m) => m.id === g.id), userId);
+    }
+  };
+
+  /**
+   * Show the card after a turn, then the level-ups. While a move question is
+   * open the card's buttons are disabled, so nothing can be pressed mid-way.
+   */
+  const showWithGrowth = async (choice, embeds) => {
+    const grown = learnGrowth();
+    const asking = grown.some((g) => g.offered.length);
+
+    await show(choice, { embeds, components: asking ? frozen(componentsFor()) : componentsFor() });
+    await settleGrowth(grown);
+    if (asking) await card.edit({ embeds: [buildCard(state, log)], components: componentsFor() }).catch(() => {});
+  };
+
   // 'midturn' is a switch the player must pick in the middle of a turn
   // (after their U-turn, Baton Pass or Teleport); like 'replace', there is no
   // going back.
   const componentsFor = () =>
-    mode === 'moves' ? buildControls(state) : buildSwitchRow(state, mode === 'replace' || mode === 'midturn');
+    mode === 'moves' ? buildControls(state, { megaArmed }) : buildSwitchRow(state, mode === 'replace' || mode === 'midturn');
 
   // Answer the button press when there is one; turns that play out on their
   // own edit the card directly.
@@ -1221,12 +1337,12 @@ async function loop({ userId, state, setup, card, log }) {
     log.push(...narrate(events));
 
     // Pay out experience for knockouts this turn.
-    log.push(...payKnockouts({ userId, state, cap: setup.cap, paid }));
+    log.push(...payKnockouts({ userId, state, cap: setup.cap, paid, growth }));
 
     // Paused for the player to pick who comes in.
     if (state.awaitingSwitch === 0) {
       mode = 'midturn';
-      await show(choice, { embeds: [buildCard(state, log)], components: componentsFor() });
+      await showWithGrowth(choice, [buildCard(state, log)]);
       return false;
     }
 
@@ -1254,7 +1370,8 @@ async function loop({ userId, state, setup, card, log }) {
 
     if (state.finished) {
       // Roar, Whirlwind or Teleport ending a wild battle counts as getting away.
-      await conclude({ userId, state, setup, card, log, edit: choice, outcome: state.fled ? 'fled' : null });
+      // The last level-ups are announced with the result.
+      await conclude({ userId, state, setup, card, log, edit: choice, outcome: state.fled ? 'fled' : null, grown: learnGrowth() });
       return true;
     }
 
@@ -1264,7 +1381,7 @@ async function loop({ userId, state, setup, card, log }) {
     const mustSwitch = battle.activeOf(mine).fainted || (mine.pendingSwitch && battle.benchOf(mine).length);
     mode = mustSwitch && !battle.wipedOut(mine) ? 'replace' : 'moves';
 
-    await show(choice, { embeds: [buildCard(state, log)], components: componentsFor() });
+    await showWithGrowth(choice, [buildCard(state, log)]);
     return false;
   };
 
@@ -1289,6 +1406,9 @@ async function loop({ userId, state, setup, card, log }) {
 
     const [, verb, value] = choice.customId.split(':');
 
+    // What was pressed, and the battle just before it, for a failure log.
+    setup.lastAction = { verb, value, mode, megaArmed, battleBefore: crashlog.battleSnapshot(state) };
+
     if (verb === 'log') {
       await choice.reply(fullLog(log)).catch(() => {});
       continue;
@@ -1297,6 +1417,13 @@ async function loop({ userId, state, setup, card, log }) {
 
     if (verb === 'switch') {
       mode = 'switch';
+      await choice.update({ components: componentsFor() });
+      continue;
+    }
+
+    // Toggles; the move picked next carries it (see below).
+    if (verb === 'mega') {
+      megaArmed = !megaArmed && battle.canMegaEvolve(state, 0);
       await choice.update({ components: componentsFor() });
       continue;
     }
@@ -1352,10 +1479,13 @@ async function loop({ userId, state, setup, card, log }) {
       }
       events = battle.continueTurn(state, Number(value));
     } else {
+      // A Pokemon switching in can't Mega Evolve this turn; it takes the
+      // foe's move as it is.
       const action =
         verb === 'send'
           ? { type: 'switch', index: Number(value) }
-          : { type: 'move', slot: Number(value) };
+          : { type: 'move', slot: Number(value), mega: megaArmed };
+      megaArmed = false;
 
       // The opponent chooses from the same pre-turn state as the player
       // (Utils/ai.js: attacks, status, boosts, healing and, for trainers, the
@@ -1386,6 +1516,66 @@ async function loop({ userId, state, setup, card, log }) {
   await conclude({ userId, state, setup, card, log, edit: null });
 }
 
+/** A fighter's own stats: under Transform, the ones it will go back to. */
+const ownStats = (mon) => (mon.transformed && mon.untransformed ? mon.untransformed.stats : mon.stats);
+
+const GROWTH_STATS = [
+  ['hp', 'HP'],
+  ['attack', 'Attack'],
+  ['defense', 'Defense'],
+  ['specialAttack', 'Sp. Atk'],
+  ['specialDefense', 'Sp. Def'],
+  ['speed', 'Speed'],
+];
+
+/**
+ * The level-up message, as the games show it: the new level, each stat with
+ * what it gained, and any move learned.
+ */
+function growthText(grown) {
+  const rows = GROWTH_STATS.map(([key, label]) => {
+    const now = grown.after[key];
+    const gain = now - grown.before[key];
+    return `${label.padEnd(8)}${String(now).padStart(4)}  ${gain >= 0 ? '+' : ''}${gain}`;
+  });
+
+  const levels = grown.to - grown.from;
+  return (
+    `⬆️ **${grown.name}** grew to **Lv.${grown.to}**!${levels > 1 ? ` (up ${levels})` : ''}\n` +
+    '```\n' + rows.join('\n') + '\n```' +
+    ((grown.learned || []).length ? `\n📘 It learned **${grown.learned.join('**, **')}**!` : '')
+  );
+}
+
+/**
+ * Bring a fighter's moves up to date with what it now knows (it learned or
+ * forgot one mid-battle). Moves it kept keep their PP; a new one is full.
+ * Under Transform, its own moves are the ones changed.
+ */
+function refreshMoves(fighter, userId) {
+  if (!fighter) return;
+  const holder = fighter.transformed && fighter.untransformed ? fighter.untransformed : fighter;
+  const before = holder.moves || [];
+
+  holder.moves = store.movesOf(fighter.id)
+    .map((slot) => ({ name: slot.move, data: slot.data || content.move(slot.move), ppUp: slot.ppUp || 0 }))
+    .filter((entry) => entry.data)
+    .map((entry) => {
+      const kept = before.find((m) => m.name === entry.name);
+      if (kept) return kept;
+      const base = entry.data.pp || 5;
+      const max = base + entry.ppUp * Math.floor(base / 5);
+      return { name: entry.name, data: entry.data, pp: max, maxPp: max };
+    });
+}
+
+/** The same components, all disabled (while a question is open). */
+const frozen = (rows) =>
+  rows.map((row) => {
+    const json = typeof row.toJSON === 'function' ? row.toJSON() : row;
+    return { ...json, components: json.components.map((c) => ({ ...c, disabled: true })) };
+  });
+
 /**
  * Pay for every opponent that has gone down and not yet been paid for.
  *
@@ -1401,7 +1591,7 @@ async function loop({ userId, state, setup, card, log }) {
  *
  * @returns {string[]} lines for the battle log
  */
-function payKnockouts({ userId, state, cap, paid }) {
+function payKnockouts({ userId, state, cap, paid, growth = null }) {
   const [playerSide, foeSide] = state.sides;
   const lines = [];
 
@@ -1422,14 +1612,24 @@ function payKnockouts({ userId, state, cap, paid }) {
     }
 
     for (const mon of applied) {
+      // Named as in the battle: a stored Mega that hasn't Mega Evolved yet is
+      // just "Venusaur" here.
+      const fighter = playerSide.team.find((m) => m.id === mon.id);
+      const name = fighter ? cardName(fighter) : mon.name;
+
       // A Pokemon at the obedience limit earns nothing (it may still have
       // gained EVs), so only real experience is logged.
-      if (mon.exp > 0) lines.push(`${mon.name} gained **${mon.exp.toLocaleString()}** exp.`);
+      if (mon.exp > 0) lines.push(`${name} gained **${mon.exp.toLocaleString()}** exp.`);
+
+      const row = store.getOwnedPokemon(userId, mon.id);
+      if (fighter && row) fighter.exp = row.exp;
 
       // Grow it in the fight too, so its new level and stats count from now.
-      if (mon.levelledFrom) {
-        const fighter = playerSide.team.find((m) => m.id === mon.id);
-        battle.applyLevelUp(fighter, store.getOwnedPokemon(userId, mon.id));
+      // `growth` collects it for the level-up message (see loop()).
+      if (mon.levelledFrom && fighter && row) {
+        const before = { ...ownStats(fighter) };
+        battle.applyLevelUp(fighter, row);
+        if (growth) growth.push({ id: mon.id, name, from: mon.levelledFrom, to: row.level, before, after: ownStats(fighter) });
       }
     }
   }
@@ -1463,7 +1663,7 @@ function keepLogOpen(card, log) {
  * `edit` is the button interaction to answer, when there is one. A timeout has
  * none, so the card is edited directly.
  */
-async function conclude({ userId, state, setup, card, log, outcome = null, edit = null }) {
+async function conclude({ userId, state, setup, card, log, outcome = null, edit = null, grown = [] }) {
   const { lines, announcements, offers, choices } = settle(userId, state, setup, outcome);
 
   const heading = state.endedBy
@@ -1495,8 +1695,9 @@ async function conclude({ userId, state, setup, card, log, outcome = null, edit 
   // Post level-ups, warnings, evolutions, the Lootbox and milestone unlocks as
   // separate messages, in that order (see settle()). Best-effort: rewards are
   // already saved, and the headless test driver has no channel.
-  if (announcements.length && card && card.channel && typeof card.channel.send === 'function') {
-    for (const text of announcements) {
+  const texts = [...grown.map(growthText), ...announcements];
+  if (texts.length && card && card.channel && typeof card.channel.send === 'function') {
+    for (const text of texts) {
       await card.channel.send({ content: text }).catch(() => {});
     }
   }

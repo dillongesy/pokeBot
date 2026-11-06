@@ -114,9 +114,6 @@ function spawnExtra(userId, speciesId, level = 20) {
   return store.grantPokemon(userId, mon, { gender: 'genderless', method: 'evolution' });
 }
 
-/** Maximum lootboxes opened per command. */
-const MAX_OPENS = 20;
-
 /**
  * Open lootboxes.
  *
@@ -133,7 +130,7 @@ function openLootbox(userId, rawCount) {
     ? held
     : Math.max(1, parseInt(rawCount, 10) || 1);
 
-  const wanted = Math.min(asked, held, MAX_OPENS);
+  const wanted = Math.min(asked, held);
 
   // removeItem checks the quantity inside the UPDATE, so this is race-safe.
   if (!store.removeItem(userId, lootbox.LOOTBOX, wanted)) {
@@ -141,18 +138,19 @@ function openLootbox(userId, rawCount) {
   }
 
   const got = [];
+  let unopened = 0;
   for (let i = 0; i < wanted; i += 1) {
     const prize = lootbox.roll();
-
-    // No prize available: return the box.
-    if (!prize) {
-      store.addItem(userId, lootbox.LOOTBOX, 1);
-      continue;
-    }
-
-    store.addItem(userId, prize.item, 1);
-    got.push(prize);
+    if (prize) got.push(prize);
+    else unopened += 1;
   }
+
+  // One write per kind of prize, however many boxes were opened. Boxes with
+  // no prize available go back in the bag.
+  const prizeCounts = new Map();
+  for (const prize of got) prizeCounts.set(prize.item, (prizeCounts.get(prize.item) || 0) + 1);
+  for (const [item, n] of prizeCounts) store.addItem(userId, item, n);
+  if (unopened) store.addItem(userId, lootbox.LOOTBOX, unopened);
 
   if (!got.length) {
     return { content: 'Nothing in the shop can come out of a Lootbox right now, so it stayed shut.' };
@@ -202,9 +200,7 @@ function openLootbox(userId, rawCount) {
 
   const left = store.itemQuantity(userId, lootbox.LOOTBOX);
   embed.setFooter({
-    text:
-      (left ? `${left} Lootbox${left === 1 ? '' : 'es'} left` : 'No Lootboxes left') +
-      (asked > wanted ? `. Opened ${wanted}, the most in one go is ${MAX_OPENS}` : ''),
+    text: left ? `${left} Lootbox${left === 1 ? '' : 'es'} left` : 'No Lootboxes left',
   });
 
   return { embeds: [embed] };
@@ -482,5 +478,4 @@ module.exports = {
   equipConsumable,
   clearSlot,
   openLootbox,
-  MAX_OPENS,
 };

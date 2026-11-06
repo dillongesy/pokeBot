@@ -100,6 +100,8 @@ function startCharge(ctx) {
   for (const [stat, delta] of rule.stat || []) ctx.engine.applyStage(attacker, stat, delta, events);
 
   if ((rule.skipIn || []).includes(weatherOf(ctx))) return false;
+  // Mega Sol fights as if in harsh sunlight: Solar Beam fires at once.
+  if ((rule.skipIn || []).includes('sun') && cond.abilityOf(attacker) === 'mega-sol') return false;
 
   if (itemOf(attacker) === 'power-herb') {
     note(events, `${attacker.name} became fully charged due to its Power Herb!`);
@@ -237,7 +239,9 @@ const THAWS_USER = new Set([
 const THAWS_TARGET = new Set(['scald', 'steam-eruption', 'scorching-sands', 'matcha-gotcha']);
 
 /** Items that can't be knocked off, stolen or burned. */
-const fixedItem = (item) => !item || /ite(-[xyz])?$/.test(item) && item !== 'eviolite' || /-(plate|memory|drive)$/.test(item) || item.endsWith('-mask');
+// Mega Stones, the Primal orbs and other form items can't be taken or swapped.
+const fixedItem = (item) => !item || /ite(-[xyz])?$/.test(item) && item !== 'eviolite' || /-(plate|memory|drive)$/.test(item) || item.endsWith('-mask') ||
+  ['red-orb', 'blue-orb', 'dragon-ascent'].includes(item);
 const isBerry = (item) => /-berry$/.test(item || '');
 
 /**

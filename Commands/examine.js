@@ -90,7 +90,7 @@ const EXPLAIN = {
       // Dragon Ascent is a move, not an item, so there is nothing to return.
       return what.returnable === false
         ? `Give it to ${who} to Mega Evolve. One way: it is used up, and reverting does not return it.`
-        : `Hold it on ${who} to Mega Evolve. Take it off to revert, and you get the stone back.`;
+        : `Hold it on ${who} to show its Mega form. In battle it starts as normal, and a Mega Evolve button lets it change once per battle. Take it off to revert, and you get the stone back.`;
     },
     usage: (slug) => `.useitem <pokemon> ${slug}`,
   },

@@ -278,6 +278,9 @@ const { IDLE_MS, MAX_MS } = pager;
 /** Discord's limit on dropdown options. */
 const MAX_FORM_OPTIONS = 25;
 
+/** Dropdowns that fit beside the button row (Discord allows five rows). */
+const MAX_FORM_MENUS = 4;
+
 const CUSTOM = { prev: 'dexPrev', next: 'dexNext', shiny: 'dexShiny', form: 'dexForm' };
 
 /** The default form of a species, used when stepping with ◀ and ▶. */
@@ -325,31 +328,35 @@ function buildComponents(state, disabled = false) {
 
   if (forms.length < 2) return [buttons];
 
-  // Some species have more than 25 forms (Alcremie has 63), so show a window
-  // around the current form.
-  let shown = forms;
-  if (forms.length > MAX_FORM_OPTIONS) {
-    const at = Math.max(0, forms.findIndex((f) => f.folder === state.formFolder));
-    const from = Math.min(Math.max(0, at - Math.floor(MAX_FORM_OPTIONS / 2)), forms.length - MAX_FORM_OPTIONS);
-    shown = forms.slice(from, from + MAX_FORM_OPTIONS);
+  // A dropdown holds 25 options, so species with more forms (Unown has 28,
+  // Alcremie 64) get one dropdown per 25. Discord allows four beside the
+  // buttons.
+  const groups = [];
+  for (let from = 0; from < forms.length && groups.length < MAX_FORM_MENUS; from += MAX_FORM_OPTIONS) {
+    groups.push(forms.slice(from, from + MAX_FORM_OPTIONS));
   }
 
-  const menu = new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId(CUSTOM.form)
-      .setPlaceholder(clip(`Forms - showing ${state.formFolder}`, 150))
-      .setDisabled(disabled)
-      .addOptions(
-        shown.map((f) => ({
-          label: clip(f.folder, 100),
-          value: clip(f.folder, 100),
-          description: clip(f.percentage > 0 ? `drops ${f.percentage}%` : 'never drops', 100),
-          default: f.folder === state.formFolder,
-        }))
-      )
-  );
+  const menus = groups.map((group, i) => {
+    const showing = group.some((f) => f.folder === state.formFolder);
+    const range = groups.length > 1 ? ` ${i * MAX_FORM_OPTIONS + 1}-${i * MAX_FORM_OPTIONS + group.length}` : '';
 
-  return [buttons, menu];
+    return new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId(`${CUSTOM.form}:${i}`)
+        .setPlaceholder(clip(`Forms${range}${showing ? ` - showing ${state.formFolder}` : ''}`, 150))
+        .setDisabled(disabled)
+        .addOptions(
+          group.map((f) => ({
+            label: clip(f.folder, 100),
+            value: clip(f.folder, 100),
+            description: clip(f.percentage > 0 ? `drops ${f.percentage}%` : 'never drops', 100),
+            default: f.folder === state.formFolder,
+          }))
+        )
+    );
+  });
+
+  return [buttons, ...menus];
 }
 
 /** What a press does to the state. Returns a new one rather than mutating. */
@@ -363,7 +370,7 @@ function applyPress(state, customId, values = []) {
   }
 
   // Validate the form, since renderCard trusts the state.
-  if (customId === CUSTOM.form && values[0]) {
+  if (String(customId).startsWith(CUSTOM.form) && values[0]) {
     const has = index().forms.some(
       (f) => f.speciesId === state.speciesId && f.folder === values[0]
     );

@@ -75,6 +75,67 @@ const WEATHER = {
     // Gen 9 snow: no chip damage, boosts Ice-type Defence.
     defenceFor: { ice: 1.5 },
   },
+
+  // Delta Stream (Mega Rayquaza). Only ever a strong weather (see below).
+  'strong-winds': {
+    name: 'Strong winds',
+    started: 'Mysterious strong winds are protecting Flying-type Pokemon!',
+    ongoing: 'The mysterious strong winds blow on regardless.',
+    ended: 'The mysterious strong winds have dissipated!',
+  },
+};
+
+/**
+ * The strong weathers of Primal Groudon, Primal Kyogre and Mega Rayquaza.
+ *
+ * They count as their ordinary weather (`weather` is 'sun' or 'rain', so
+ * everything that checks for sun or rain still works) and add
+ * `field.strongWeather`: the opposite type's attacks fail, ordinary weather
+ * can't replace them, and they last exactly as long as a Pokemon with the
+ * ability is out (Utils/battle.js settles that).
+ */
+const STRONG_WEATHER = {
+  'desolate-land': {
+    key: 'harsh-sun',
+    weather: 'sun',
+    started: 'The sunlight turned extremely harsh!',
+    ended: 'The extremely harsh sunlight faded!',
+    stops: 'water',
+    stopped: 'The Water-type attack evaporated in the extremely harsh sunlight!',
+  },
+  'primordial-sea': {
+    key: 'heavy-rain',
+    weather: 'rain',
+    started: 'A heavy rain began to fall!',
+    ended: 'The heavy rain has lifted!',
+    stops: 'fire',
+    stopped: 'The Fire-type attack fizzled out in the heavy rain!',
+  },
+  'delta-stream': {
+    key: 'strong-winds',
+    weather: 'strong-winds',
+    started: WEATHER['strong-winds'].started,
+    ended: WEATHER['strong-winds'].ended,
+    stops: null,
+  },
+};
+
+/** The ability behind a strong weather, by its key ('harsh-sun' -> Desolate Land). */
+const strongWeatherRule = (key) => Object.entries(STRONG_WEATHER).find(([, rule]) => rule.key === key) || null;
+
+/** Abilities that start a weather when their Pokemon comes out. */
+const ENTRY_WEATHER = {
+  drought: 'sun',
+  drizzle: 'rain',
+  'sand-stream': 'sandstorm',
+  // Gen 9: Snow Warning brings snow, not hail.
+  'snow-warning': 'snow',
+};
+
+/** Abilities that keep a Pokemon out of the weather's chip damage. */
+const WEATHER_PROOF = {
+  sandstorm: ['sand-force', 'sand-veil', 'sand-rush', 'overcoat'],
+  hail: ['ice-body', 'snow-cloak', 'overcoat'],
 };
 
 /** Which move starts which weather. */
@@ -150,6 +211,9 @@ function weatherChip(field, mon) {
 
   const types = (mon.types || []).map((type) => String(type).toLowerCase());
   if ((rules.immune || []).some((type) => types.includes(type))) return 0;
+
+  const ability = mon.abilitySuppressed ? null : mon.ability;
+  if ((WEATHER_PROOF[field.weather] || []).includes(ability)) return 0;
 
   return Math.max(1, Math.floor(mon.maxHp * rules.chip));
 }
@@ -257,9 +321,15 @@ function substituteCost(mon) {
 }
 
 /** A Substitute takes damage instead of its owner, and status never lands. */
-const behindSubstitute = (mon) => Boolean(mon && mon.substitute > 0);
+// `subBypassed`: set while an Infiltrator or a sound move attacks it, which
+// go straight past the Substitute (Utils/battle.js performMove).
+const behindSubstitute = (mon) => Boolean(mon && mon.substitute > 0 && !mon.subBypassed);
 
 module.exports = {
+  STRONG_WEATHER,
+  strongWeatherRule,
+  ENTRY_WEATHER,
+  WEATHER_PROOF,
   WEATHER,
   WEATHER_MOVES,
   WEATHER_ROCKS,

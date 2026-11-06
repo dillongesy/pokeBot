@@ -12,20 +12,17 @@
  * Around eighty abilities and sixty held items are implemented. Not yet
  * supported:
  *
- *   weather/terrain abilities  Drizzle, Chlorophyll, Sand Force, Surge Surfer
- *                              and others. Weather itself is handled by
- *                              Utils/field.js.
- *   move flags                 The imported move data has no punch, bite,
- *                              sound or bullet flags, so Iron Fist, Strong
- *                              Jaw, Punk Rock, Bulletproof and Soundproof do
- *                              nothing. Contact is approximated (see
- *                              makesContact).
- *   choice locking             Choice items give their boost but don't lock
- *                              the holder into one move.
- *   copying and swapping       Trace, Imposter, Transform, Skill Swap.
- *   Cute Charm                 Infatuation exists (Attract), but Cute Charm
- *                              doesn't cause it yet. Own Tempo and Oblivious
- *                              are checked in Utils/conditions.js.
+ *   some weather/terrain ones  Rain Dish, Ice Body, Surge Surfer and others.
+ *                              (Drought, Drizzle, Sand Stream, Snow Warning,
+ *                              the Surges and the Primal weathers are set by
+ *                              the engine; Swift Swim, Chlorophyll, Sand
+ *                              Force, Solar Power and friends are here.)
+ *   sound moves                No sound flag, so Punk Rock and Soundproof do
+ *                              nothing. Punching, biting, pulse and ball
+ *                              moves are listed below (PUNCHING and friends);
+ *                              contact is approximated (see makesContact).
+ *   copying abilities          Trace and Imposter. (Transform and Skill
+ *                              Swap are moves, in Utils/statusmoves.js.)
  *
  * Reading hooks (damage, speed, accuracy) only return numbers. Reacting hooks
  * (afterHitTaken, endOfTurn) mutate the combatant and push events, as the
@@ -165,6 +162,53 @@ function makesContact(move) {
   if (move.damageClass !== 'physical') return false;
   return !NON_CONTACT_PHYSICAL.has(move.name);
 }
+
+// The imported move data has no punch, bite, pulse or bullet flags, so the
+// abilities that need them (Iron Fist, Strong Jaw, Mega Launcher,
+// Bulletproof) read these lists, taken from the games.
+
+const PUNCHING = new Set([
+  'bullet-punch', 'comet-punch', 'dizzy-punch', 'double-iron-bash', 'drain-punch', 'dynamic-punch',
+  'fire-punch', 'focus-punch', 'hammer-arm', 'headlong-rush', 'ice-hammer', 'ice-punch', 'jet-punch',
+  'mach-punch', 'mega-punch', 'meteor-mash', 'plasma-fists', 'power-up-punch', 'rage-fist',
+  'shadow-punch', 'sky-uppercut', 'surging-strikes', 'thunder-punch', 'wicked-blow',
+]);
+
+const BITING = new Set([
+  'bite', 'crunch', 'fire-fang', 'fishious-rend', 'hyper-fang', 'ice-fang', 'jaw-lock',
+  'poison-fang', 'psychic-fangs', 'thunder-fang',
+]);
+
+const PULSES = new Set([
+  'aura-sphere', 'dark-pulse', 'dragon-pulse', 'origin-pulse', 'terrain-pulse', 'water-pulse',
+]);
+
+const BULLETS = new Set([
+  'acid-spray', 'aura-sphere', 'barrage', 'beak-blast', 'bullet-seed', 'egg-bomb', 'electro-ball',
+  'energy-ball', 'focus-blast', 'gyro-ball', 'ice-ball', 'magnet-bomb', 'mist-ball', 'mud-bomb',
+  'octazooka', 'pollen-puff', 'pyro-ball', 'rock-blast', 'rock-wrecker', 'searing-shot',
+  'seed-bomb', 'shadow-ball', 'sludge-bomb', 'syrup-bomb', 'weather-ball', 'zap-cannon',
+]);
+
+/**
+ * Mold Breaker: while it attacks, the target's abilities that would stop or
+ * soften the move are ignored (Levitate, Sturdy, Multiscale, Filter...).
+ * Reactions to being hit (Rough Skin, Static) still happen, as in the games.
+ * The engine sets `abilityBroken` on the target for the length of the move.
+ */
+const BREAKABLE_HOOKS = new Set([
+  'absorbs', 'survives', 'damageIn', 'defenceMultiplier', 'blocksCrits', 'blocksStatus',
+  'blocksStatDrop', 'blocksOneHitKo',
+]);
+
+const MOLD_BREAKERS = new Set(['mold-breaker', 'teravolt', 'turboblaze']);
+
+/** Does this attacker ignore the target's ability? */
+const breaksMold = (attacker) =>
+  !attacker.abilitySuppressed && MOLD_BREAKERS.has(attacker.ability);
+
+/** The weather a Pokemon is fighting in (the engine links each one to the field). */
+const weatherAround = (mon) => (mon && mon.arena ? mon.arena.weather : null);
 
 // ---------------------------------------------------------------------------
 // Ability records
@@ -542,9 +586,146 @@ const ABILITIES = {
   intimidate: {
     onSendOut: ({ foe, events }) => {
       if (!foe || foe.fainted) return;
+      // Since Gen 8 these shrug it off.
+      if (!foe.abilitySuppressed && INTIMIDATE_PROOF.has(foe.ability)) return;
       requestStage(foe, 'attack', -1, events, 'ability', true);
     },
   },
+
+  // Eelevate (Mega Eelektross): floats like Levitate, and a knockout raises
+  // its highest stat like Beast Boost. Hazards are handled with Levitate in
+  // Utils/conditions.js.
+  eelevate: {
+    absorbs: ({ move }) => (lower(move.type) === 'ground' ? { kind: 'blocked' } : null),
+    onKnockout: ({ attacker, events }) => {
+      const order = ['attack', 'defense', 'specialAttack', 'specialDefense', 'speed'];
+      const best = order.reduce((top, stat) => (attacker.stats[stat] > attacker.stats[top] ? stat : top));
+      requestStage(attacker, best, 1, events, 'ability');
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // Mega abilities and the rest of their kind
+  // -------------------------------------------------------------------------
+
+  // Contact moves hit 30% harder.
+  'tough-claws': { damageOut: ({ contact }) => (contact ? 1.3 : 1) },
+  'iron-fist': { damageOut: ({ move }) => (PUNCHING.has(move.name) ? 1.2 : 1) },
+  'strong-jaw': { damageOut: ({ move }) => (BITING.has(move.name) ? 1.5 : 1) },
+  'mega-launcher': { damageOut: ({ move }) => (PULSES.has(move.name) ? 1.5 : 1) },
+  'fire-mane': typeBoost('fire', 1.5),
+
+  // Aerilate, Pixilate, Refrigerate and Dragonize turn Normal moves into
+  // their type (done by the engine, which marks the move) and boost them.
+  aerilate: { damageOut: ({ move }) => (move.ateBoosted ? 1.2 : 1) },
+  pixilate: { damageOut: ({ move }) => (move.ateBoosted ? 1.2 : 1) },
+  refrigerate: { damageOut: ({ move }) => (move.ateBoosted ? 1.2 : 1) },
+  dragonize: { damageOut: ({ move }) => (move.ateBoosted ? 1.2 : 1) },
+
+  // Ball and bomb moves don't touch it.
+  bulletproof: {
+    absorbs: ({ move }) => (BULLETS.has(move.name) ? { kind: 'blocked' } : null),
+  },
+
+  // Fairy moves from either side hit a third harder.
+  'fairy-aura': {
+    damageOut: ({ move }) => (lower(move.type) === 'fairy' ? 4 / 3 : 1),
+    damageIn: ({ move }) => (lower(move.type) === 'fairy' ? 4 / 3 : 1),
+  },
+
+  // Sand Force: Rock, Ground and Steel moves 30% harder in a sandstorm.
+  // Like Sand Veil and Sand Rush, it is never hurt by the sand
+  // (Utils/battle.js checks SAND_PROOF).
+  'sand-force': {
+    damageOut: ({ attacker, move }) =>
+      weatherAround(attacker) === 'sandstorm' && ['rock', 'ground', 'steel'].includes(lower(move.type)) ? 1.3 : 1,
+  },
+
+  // Solar Power: Special Attack x1.5 in sun, at 1/8 of its health a turn.
+  'solar-power': {
+    attackMultiplier: ({ attacker, move }) =>
+      weatherAround(attacker) === 'sun' && move.damageClass === 'special' ? 1.5 : 1,
+    endOfTurn: ({ mon, events }) => {
+      if (weatherAround(mon) === 'sun') chip(mon, chunk(mon, 8), events, 'Solar Power');
+    },
+  },
+
+  // Swift Swim: Speed doubles in rain.
+  'swift-swim': { speedMultiplier: ({ mon }) => (weatherAround(mon) === 'rain' ? 2 : 1) },
+
+  // Mega Sol (Mega Meganium): its moves act as if the sun were harsh, unless
+  // it already is (then the weather has done it).
+  'mega-sol': {
+    damageOut: ({ attacker, move }) => {
+      if (weatherAround(attacker) === 'sun') return 1;
+      const type = lower(move.type);
+      return type === 'fire' ? 1.5 : type === 'water' ? 0.5 : 1;
+    },
+  },
+
+  // Berserk: dropping below half health from a hit raises Special Attack.
+  berserk: {
+    onHitTaken: ({ defender, dealt, events }) => {
+      if (!dealt || defender.fainted) return;
+      const before = defender.hp + dealt;
+      if (before > defender.maxHp / 2 && defender.hp <= defender.maxHp / 2) {
+        requestStage(defender, 'specialAttack', 1, events, 'ability');
+      }
+    },
+  },
+
+  // Spicy Spray (Mega Scovillain): taking damage burns the attacker.
+  'spicy-spray': {
+    onHitTaken: ({ attacker, defender, dealt, events }) => {
+      if (!dealt || attacker.fainted || attacker === defender) return;
+      requestStatus(attacker, 'burn', events, { by: defender.name, source: 'ability' });
+    },
+  },
+
+  // Innards Out: fainting to a hit deals the attacker the health it had left.
+  'innards-out': {
+    onHitTaken: ({ attacker, defender, dealt, events }) => {
+      if (!dealt || !defender.fainted || attacker.fainted || attacker === defender) return;
+      chip(attacker, dealt, events, 'Innards Out');
+    },
+  },
+
+  // Read by name elsewhere: Mold Breaker (the engine), Magic Bounce, Shadow
+  // Tag, Scrappy, Infiltrator, Protean, Parental Bond, Unseen Fist and
+  // Piercing Drill (Utils/battle.js and Utils/conditions.js), and the weather
+  // and terrain setters (Utils/battle.js's entry abilities). Listed so the
+  // coverage report counts them.
+  trace: {},
+  'mold-breaker': {},
+  teravolt: {},
+  turboblaze: {},
+  'magic-bounce': {},
+  'shadow-tag': {},
+  scrappy: {},
+  infiltrator: {},
+  protean: {},
+  libero: {},
+  'parental-bond': {},
+  'unseen-fist': {},
+  'piercing-drill': {},
+  drought: {},
+  drizzle: {},
+  'sand-stream': {},
+  'snow-warning': {},
+  'electric-surge': {},
+  'psychic-surge': {},
+  'grassy-surge': {},
+  'misty-surge': {},
+  'desolate-land': {},
+  'primordial-sea': {},
+  'delta-stream': {},
+  'sand-rush': { speedMultiplier: ({ mon }) => (weatherAround(mon) === 'sandstorm' ? 2 : 1) },
+  chlorophyll: { speedMultiplier: ({ mon }) => (weatherAround(mon) === 'sun' ? 2 : 1) },
+  'slush-rush': { speedMultiplier: ({ mon }) => (['hail', 'snow'].includes(weatherAround(mon)) ? 2 : 1) },
+
+  // Doubles only (they work on an ally); nothing to do in a single battle.
+  stalwart: {},
+  healer: {},
 
   // -------------------------------------------------------------------------
   // Status and stages
@@ -930,8 +1111,11 @@ function itemEffectFor(slug) {
 /** The two definitions a combatant is carrying, ability first. */
 // Gastro Acid switches the ability off; Embargo and Magic Room the item
 // (Utils/conditions.js keeps the flags up to date).
-const definitionsOf = (mon) =>
-  [mon.abilitySuppressed ? null : mon.abilityEffect, mon.itemsSuppressed ? null : mon.itemEffect].filter(Boolean);
+const definitionsOf = (mon, hook = null) =>
+  [
+    mon.abilitySuppressed || (mon.abilityBroken && BREAKABLE_HOOKS.has(hook)) ? null : mon.abilityEffect,
+    mon.itemsSuppressed ? null : mon.itemEffect,
+  ].filter(Boolean);
 
 /**
  * Make `target` fall for `source` (Attract, Cute Charm).
@@ -980,7 +1164,7 @@ function setItem(mon, slug) {
 function product(mon, hook, context) {
   let total = 1;
 
-  for (const definition of definitionsOf(mon)) {
+  for (const definition of definitionsOf(mon, hook)) {
     const fn = definition[hook];
     if (typeof fn === 'function') total *= fn(context);
     else if (typeof fn === 'number') total *= fn;
@@ -991,7 +1175,7 @@ function product(mon, hook, context) {
 
 /** Is this hook switched on for either of them? */
 function flag(mon, hook, context) {
-  for (const definition of definitionsOf(mon)) {
+  for (const definition of definitionsOf(mon, hook)) {
     const value = definition[hook];
     if (typeof value === 'function' ? value(context) : value) return true;
   }
@@ -1002,7 +1186,7 @@ function flag(mon, hook, context) {
 function highest(mon, hook, context) {
   let best = 0;
 
-  for (const definition of definitionsOf(mon)) {
+  for (const definition of definitionsOf(mon, hook)) {
     const value = definition[hook];
     const got = typeof value === 'function' ? value(context) : value || 0;
     if (got > best) best = got;
@@ -1013,7 +1197,7 @@ function highest(mon, hook, context) {
 
 /** Run a reacting hook on both definitions, in order. */
 function run(mon, hook, context) {
-  for (const definition of definitionsOf(mon)) {
+  for (const definition of definitionsOf(mon, hook)) {
     if (typeof definition[hook] === 'function') definition[hook](context);
   }
 }
@@ -1115,7 +1299,7 @@ function damageParts(attacker, defender, move, effectiveness, power = null) {
 function absorbs(defender, move, effectiveness) {
   if (move.damageClass === 'status') return null;
 
-  for (const definition of definitionsOf(defender)) {
+  for (const definition of definitionsOf(defender, 'absorbs')) {
     if (typeof definition.absorbs !== 'function') continue;
     const answer = definition.absorbs({ defender, move, effectiveness, mon: defender });
     if (answer) return answer;
@@ -1169,7 +1353,7 @@ function applyAbsorb(defender, absorb, move, events) {
 function survives(defender, incoming, rng) {
   if (defender.hp - incoming > 0) return null;
 
-  for (const definition of definitionsOf(defender)) {
+  for (const definition of definitionsOf(defender, 'survives')) {
     if (typeof definition.survives !== 'function') continue;
 
     const answer = definition.survives({ defender, incoming, rng, mon: defender });
@@ -1327,7 +1511,16 @@ const isHeldEffect = (slug) => Boolean(itemEffectFor(slug));
 /** Has this Pokemon's ability got a definition? For .view and the reports. */
 const isImplementedAbility = (slug) => Boolean(ABILITIES[slug]);
 
+/** Abilities that Intimidate doesn't work on (Gen 8 onward). */
+const INTIMIDATE_PROOF = new Set(['scrappy', 'inner-focus', 'oblivious', 'own-tempo']);
+
 module.exports = {
+  PUNCHING,
+  BITING,
+  PULSES,
+  BULLETS,
+  MOLD_BREAKERS,
+  breaksMold,
   priorityBonus,
   bracketShift,
   setAbility,
@@ -1393,7 +1586,12 @@ function hasSecondary(move) {
   const meta = move.meta || {};
   if (meta.flinchChance > 0) return true;
   if (meta.ailmentChance > 0) return true;
-  if (meta.statChance > 0) return true;
+
+  // A drop on the user (Draco Meteor, Close Combat) is a drawback, not a
+  // secondary effect, so Sheer Force doesn't boost those moves.
+  const selfDropOnly =
+    meta.category === 'damage-raise' && (move.statChanges || []).every((change) => change.change < 0);
+  if (meta.statChance > 0 && !selfDropOnly) return true;
   return false;
 }
 

@@ -98,7 +98,7 @@ function buildTeam(owner, mine) {
       value:
         `Trainer level commands up to **level ${cap}**.\n` +
         (mine
-          ? '`.party suggested` shows who will fight; `.p swap <a> <b>` moves them up here.'
+          ? '`.party suggested` shows who will fight; `.swap <a> <b>` moves them up here.'
           : 'They would go into a battle short-handed.'),
     });
   }

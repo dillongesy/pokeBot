@@ -19,6 +19,7 @@
  *                total-caught   Pokemon caught, ever
  *                type-caught    caught of one type, needs `type`
  *                coins-spent    coins spent, ever
+ *                battles-won    battles won, ever
  *                shiny-caught   shinies caught. With withoutIncense: true
  *                               only natural shinies count.
  *
@@ -1845,6 +1846,26 @@ module.exports = [
     description: "Spend 100000 Coins",
     goal: {"kind":"coins-spent","count":100000},
     reward: {"gold":20,"coins":0,"items":[]},
+  },
+
+  {
+    id: "battle-veteran",
+    kind: "achievement",
+    region: "Achievements",
+    collection: "Battle Veteran",
+    description: "Win 100 battles",
+    goal: {"kind":"battles-won","count":100},
+    reward: {"gold":1,"coins":0,"items":[]},
+  },
+
+  {
+    id: "battle-legend",
+    kind: "achievement",
+    region: "Achievements",
+    collection: "Battle Legend",
+    description: "Win 1000 battles",
+    goal: {"kind":"battles-won","count":1000},
+    reward: {"gold":3,"coins":0,"items":[]},
   },
 
 ];

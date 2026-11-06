@@ -94,7 +94,8 @@ const SCREEN_BREAKERS = new Set(['brick-break', 'psychic-fangs', 'raging-bull'])
 
 const lower = (text) => String(text || '').toLowerCase();
 const hasType = (mon, type) => (mon.types || []).some((t) => lower(t) === type);
-const abilityOf = (mon) => (mon.abilitySuppressed ? null : mon.ability);
+// `abilityBroken`: ignored while a Mold Breaker attacks it (Utils/battle.js).
+const abilityOf = (mon) => (mon.abilitySuppressed || mon.abilityBroken ? null : mon.ability);
 const itemOf = (mon) => (mon.itemsSuppressed ? null : mon.item);
 const vol = (mon) => {
   if (!mon.volatiles) mon.volatiles = {};
@@ -127,7 +128,7 @@ function grounded(mon, field = {}) {
   if (v.ingrain || v.smackedDown) return true;
   if (v.magnetRise || v.telekinesis) return false;
   if (hasType(mon, 'flying')) return false;
-  if (abilityOf(mon) === 'levitate') return false;
+  if (abilityOf(mon) === 'levitate' || abilityOf(mon) === 'eelevate') return false;
   if (itemOf(mon) === 'air-balloon') return false;
   return true;
 }
@@ -159,12 +160,14 @@ function refreshSuppression(state) {
  *   grounded Flying types     Ground moves hit them (Gravity, Smack Down...)
  *   Magnet Rise, Telekinesis  Ground moves miss
  */
-function effectiveness(type, defender, field = {}) {
+function effectiveness(type, defender, field = {}, attacker = null) {
   const t = lower(type);
   const v = vol(defender);
   let types = (defender.types || []).map(lower);
 
-  if ((t === 'normal' || t === 'fighting') && v.foresight) types = types.filter((x) => x !== 'ghost');
+  // Foresight and Scrappy let Normal and Fighting moves hit Ghosts.
+  const scrappy = attacker && abilityOf(attacker) === 'scrappy';
+  if ((t === 'normal' || t === 'fighting') && (v.foresight || scrappy)) types = types.filter((x) => x !== 'ghost');
   if (t === 'psychic' && v.miracleEye) types = types.filter((x) => x !== 'dark');
 
   if (t === 'ground') {
@@ -177,6 +180,13 @@ function effectiveness(type, defender, field = {}) {
   }
 
   if (!types.length) return 1;
+
+  // Delta Stream's strong winds: nothing is super effective on Flying.
+  if (field && field.weather === 'strong-winds' && types.includes('flying')) {
+    const againstFlying = typechart.effectiveness(type, ['flying']);
+    if (againstFlying > 1) return typechart.effectiveness(type, types) / againstFlying;
+  }
+
   return typechart.effectiveness(type, types);
 }
 
@@ -260,7 +270,7 @@ function confuse(state, sideIndex, mon, events, rng, { attacker = null, viaStatu
     events.push({ kind: 'status-blocked', name: mon.name, status: 'confus', by: 'Own Tempo' });
     return false;
   }
-  if (viaStatusMove && mon.substitute > 0) {
+  if (viaStatusMove && mon.substitute > 0 && !mon.subBypassed) {
     events.push({ kind: 'failed', name: mon.name, text: 'But it failed!' });
     return false;
   }
@@ -355,10 +365,34 @@ function restriction(state, sideIndex, mon, slot) {
   if (v.throatChop && SOUND.has(move.name)) return 'throat-chop';
   // Gigaton Hammer and Blood Moon can't be used twice in a row.
   if (NO_REPEAT.has(move.name) && mon.lastMove === move.name) return 'repeat';
+  // Choice Band, Specs and Scarf: only the move it is locked into.
+  const locked = choiceLock(mon);
+  if (locked && locked !== move.name) return 'choice';
   return null;
 }
 
 const NO_REPEAT = new Set(['gigaton-hammer', 'blood-moon']);
+
+/** Held items that lock their holder into the first move it uses. */
+const CHOICE_ITEMS = new Set(['choice-band', 'choice-specs', 'choice-scarf']);
+
+/**
+ * The move a Choice item has locked this Pokemon into, or null.
+ *
+ * The lock lasts until it switches out (clearVolatiles), and only while it
+ * still holds the item: Knock Off, Trick or Embargo free it.
+ */
+function choiceLock(mon) {
+  const locked = vol(mon).choiceLock;
+  return locked && CHOICE_ITEMS.has(itemOf(mon)) ? locked : null;
+}
+
+/** Called when a move is used: a Choice item holder is now locked into it. */
+function lockChoice(mon, moveName) {
+  if (!CHOICE_ITEMS.has(itemOf(mon)) || moveName === 'struggle') return;
+  const v = vol(mon);
+  if (!v.choiceLock) v.choiceLock = moveName;
+}
 
 /** The move slot an Encore forces, or null. */
 function encoreSlot(mon) {
@@ -377,6 +411,12 @@ function switchBlocked(state, mon) {
   if (v.ingrain) return 'Ingrain';
   if (v.meanLook) return v.meanLook;
   if (state.field.fairyLock) return 'Fairy Lock';
+
+  // Shadow Tag (Mega Gengar) holds the foe, unless it has Shadow Tag too.
+  const foe = state.sides
+    .map((side) => side.team[side.active])
+    .find((other) => other && other !== mon && !other.fainted);
+  if (foe && abilityOf(foe) === 'shadow-tag' && abilityOf(mon) !== 'shadow-tag') return 'Shadow Tag';
   return null;
 }
 
@@ -746,6 +786,9 @@ module.exports = {
   isHealingMove,
   restriction,
   encoreSlot,
+  choiceLock,
+  lockChoice,
+  CHOICE_ITEMS,
   switchBlocked,
   damageModifiers,
   critStageBonus,

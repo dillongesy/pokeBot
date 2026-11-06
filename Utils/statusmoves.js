@@ -957,8 +957,9 @@ function itemSwap() {
     fails: (ctx) => {
       if (!ctx.attacker.item && !ctx.defender.item) return FAIL;
       if (abilityOf(ctx.defender) === 'sticky-hold') return FAIL;
-      // Mega Stones and the like can't be moved.
-      return [ctx.attacker.item, ctx.defender.item].some((i) => /ite(-[xyz])?$/.test(i || '') && i !== 'eviolite') ? FAIL : null;
+      // Mega Stones, the Primal orbs and the like can't be moved.
+      return [ctx.attacker.item, ctx.defender.item].some((i) =>
+        (/ite(-[xyz])?$/.test(i || '') && i !== 'eviolite') || ['red-orb', 'blue-orb', 'dragon-ascent'].includes(i)) ? FAIL : null;
     },
     run: (ctx) => {
       const mine = ctx.attacker.item;
