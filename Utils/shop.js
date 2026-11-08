@@ -56,12 +56,6 @@ function formItemEntries() {
       ? entry.who
       : (species ? species.displayName : `#${entry.species}`);
 
-    const lasts = {
-      consumed: 'Used up.',
-      keep: 'Keeps working, so you only ever need one.',
-      held: 'Held, so the form lasts as long as it does. `.take` gives it back.',
-    }[entry.reuse];
-
     // Family items get their own description.
     const what = entry.describe || `Changes ${who} into its ${entry.form} form.`;
 
@@ -79,7 +73,7 @@ function formItemEntries() {
       define: {
         displayName: entry.name,
         category: 'form-change',
-        shortEffect: `${what} ${lasts}`,
+        shortEffect: entry.reuse === 'consumed' ? `${what} Used up.` : what,
 
         // Mark held form items as holdable so .take and the party card treat
         // them correctly.
@@ -129,8 +123,7 @@ function tmEntries() {
       displayName: tm.displayName,
       category: 'tm',
       shortEffect:
-        `Teaches ${tm.moveDisplayName} to any Pokemon that can learn it. ` +
-        'Reusable - teaching does not use it up.',
+        `Teaches ${tm.moveDisplayName} to any Pokemon that can learn it.`,
       attributes: [],
       effect: { kind: 'tm', move: tm.move },
     },
@@ -210,7 +203,7 @@ module.exports = {
             displayName: 'Dragon Ascent',
             category: 'special-moves',
             shortEffect:
-              'Teaches Dragon Ascent to Rayquaza, letting it Mega Evolve. Not returned if it reverts.',
+              'Teaches Rayquaza Dragon Ascent, allowing it to Mega Evolve.',
             attributes: ['holdable'],
             effect: {
               kind: 'mega',
@@ -468,8 +461,8 @@ module.exports = {
     {
       name: 'TMs',
       description:
-        'Every TM there has ever been, 340 of them, and each one is REUSABLE - ' +
-        'teaching a move does not spend it. `.tm <pokemon>` lists what one can learn; ' +
+        'Every TM there has ever been, 340 of them. Teaching a move never uses one up. ' +
+        '`.tm <pokemon>` lists what one can learn; ' +
         '`.tm <pokemon> <move>` teaches it.',
       items: tmEntries(),
     },

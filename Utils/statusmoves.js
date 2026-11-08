@@ -129,7 +129,7 @@ function fieldCondition(key, label, { toggle = false } = {}) {
         }
       }
       cond.refreshSuppression(ctx.state);
-      ctx.events.push({ kind: 'field-start', what: key, label });
+      ctx.events.push({ kind: 'field-start', name: ctx.attacker.name, what: key, label });
     },
   };
 }
@@ -204,7 +204,7 @@ const MOVES = {
   reflect: ownSide('reflect', 'Reflect', 5),
   'light-screen': ownSide('lightScreen', 'Light Screen', 5),
   'aurora-veil': ownSide('auroraVeil', 'Aurora Veil', 5, {
-    requires: (ctx) => ['snow', 'hail'].includes(ctx.state.field.weather),
+    requires: (ctx) => ['snow', 'hail'].includes(fieldRules.weatherNow(ctx.state.field)),
   }),
   safeguard: ownSide('safeguard', 'Safeguard', 5),
   mist: ownSide('mist', 'Mist', 5),
@@ -297,6 +297,72 @@ const MOVES = {
     fails: (ctx) => (['burn', 'poison', 'paralysis'].includes(ctx.attacker.status) ? null : FAIL),
     run: (ctx) => { ctx.events.push({ kind: 'cured', name: ctx.attacker.name, status: ctx.attacker.status }); ctx.attacker.status = null; ctx.attacker.toxicCounter = 0; },
   },
+  // Jungle Healing: a quarter of its health back, and any status cured.
+  'jungle-healing': {
+    fails: (ctx) => (ctx.attacker.hp >= ctx.attacker.maxHp && !ctx.attacker.status ? FAIL : null),
+    run: (ctx) => {
+      const a = ctx.attacker;
+      if (a.hp < a.maxHp && !vol(a).healBlock) {
+        const before = a.hp;
+        a.hp = Math.min(a.maxHp, a.hp + Math.floor(a.maxHp / 4));
+        ctx.events.push({ kind: 'heal', name: a.name, amount: a.hp - before, hp: a.hp });
+      }
+      if (a.status) {
+        ctx.events.push({ kind: 'cured', name: a.name, status: a.status });
+        a.status = null;
+        a.statusTurns = 0;
+        a.toxicCounter = 0;
+      }
+    },
+  },
+
+  // Purify: cures the target's status, and heals the user by half for it.
+  purify: {
+    fails: (ctx) => (ctx.defender.status ? null : FAIL),
+    run: (ctx) => {
+      const d = ctx.defender;
+      const a = ctx.attacker;
+      ctx.events.push({ kind: 'cured', name: d.name, status: d.status });
+      d.status = null;
+      d.statusTurns = 0;
+      d.toxicCounter = 0;
+      if (a.hp < a.maxHp && !vol(a).healBlock) {
+        const before = a.hp;
+        a.hp = Math.min(a.maxHp, a.hp + Math.floor(a.maxHp / 2));
+        ctx.events.push({ kind: 'heal', name: a.name, amount: a.hp - before, hp: a.hp });
+      }
+    },
+  },
+
+  // Flower Shield: every Grass type out raises its Defense.
+  'flower-shield': {
+    fails: (ctx) => ([ctx.attacker, ctx.defender].some((mon) => mon && !mon.fainted && hasType(mon, 'grass')) ? null : FAIL),
+    run: (ctx) => {
+      for (const mon of [ctx.attacker, ctx.defender]) {
+        if (mon && !mon.fainted && hasType(mon, 'grass')) ctx.engine.applyStage(mon, 'defense', 1, ctx.events);
+      }
+    },
+  },
+
+  // Strength Sap: heals by the target's Attack (with its stages), then lowers
+  // it. Liquid Ooze makes it hurt instead; a Big Root heals 30% more.
+  'strength-sap': {
+    fails: (ctx) => ((ctx.defender.stages.attack || 0) <= -6 ? FAIL : null),
+    run: (ctx) => {
+      const a = ctx.attacker;
+      const d = ctx.defender;
+      const amount = Math.max(1, Math.floor(d.stats.attack * require('./damage').stageMultiplier(d.stages.attack)));
+      if (abilityOf(d) === 'liquid-ooze') {
+        effects.chip(a, amount, ctx.events, `${a.name} sucked up the liquid ooze!`, 'hurt');
+      } else if (a.hp < a.maxHp && !vol(a).healBlock) {
+        const before = a.hp;
+        a.hp = Math.min(a.maxHp, a.hp + Math.floor(amount * (itemOf(a) === 'big-root' ? 1.3 : 1)));
+        ctx.events.push({ kind: 'heal', name: a.name, amount: a.hp - before, hp: a.hp });
+      }
+      ctx.engine.applyStage(d, 'attack', -1, ctx.events, true, ctx.sideIndex);
+    },
+  },
+
   'heal-bell': teamCure(),
   aromatherapy: teamCure(),
   'take-heart': {
@@ -981,7 +1047,7 @@ function phaze() {
   return {
     fails: (ctx) => {
       if (vol(ctx.defender).ingrain) return `${ctx.defender.name} anchored itself with its roots!`;
-      if (abilityOf(ctx.defender) === 'suction-cups') return `${ctx.defender.name} anchors itself!`;
+      if (['suction-cups', 'guard-dog'].includes(abilityOf(ctx.defender))) return `${ctx.defender.name} anchors itself!`;
       if (ctx.state.kind !== 'wild' && !benchOf(sideOf(ctx, false)).length) return FAIL;
       return null;
     },

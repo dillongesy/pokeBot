@@ -11,6 +11,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const store = require('../Utils/store');
 const content = require('../Utils/content');
+const itemtext = require('../Utils/itemtext');
 const questengine = require('../Utils/questengine');
 const { titleCase } = require('../Utils/display');
 
@@ -177,7 +178,7 @@ function purchase(userId, rawId, rawQuantity) {
   const embed = new EmbedBuilder()
     .setTitle(`Bought ${quantity > 1 ? `${quantity}x ` : ''}${name}`)
     .setColor(0xf7d02c)
-    .setDescription(item && item.shortEffect ? item.shortEffect : null)
+    .setDescription(itemtext.describe(listing.id) || (item && item.shortEffect) || null)
     .addFields(
       { name: 'Cost', value: `${money(total)} coins`, inline: true },
       { name: 'You now have', value: `${store.itemQuantity(userId, listing.id)}`, inline: true },

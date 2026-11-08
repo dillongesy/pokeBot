@@ -143,38 +143,36 @@ const categoryOf = (board) => CATEGORIES.find((c) => c.boards.includes(board)) |
  * rather than disappearing from the board.
  */
 async function resolveNames(client, ids) {
-  const resolved = new Map();
+  // All at once rather than one after another: a page of ten unknown users
+  // fetched in turn could take longer than Discord waits for an answer.
+  const names = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const user = client && (client.users.cache.get(id) || (await client.users.fetch(id)));
+        return user ? user.username : null;
+      } catch {
+        return null;
+      }
+    })
+  );
 
-  for (const id of ids) {
-    let name = null;
-    try {
-      const user = client && (client.users.cache.get(id) || (await client.users.fetch(id)));
-      if (user) name = user.username;
-    } catch {
-      name = null;
-    }
-    resolved.set(id, name || `Trainer ${String(id).slice(-4)}`);
-  }
-
-  return resolved;
+  return new Map(ids.map((id, i) => [id, names[i] || `Trainer ${String(id).slice(-4)}`]));
 }
 
 /** The same, for the one board whose rows are servers. */
 async function resolveGuilds(client, ids) {
-  const resolved = new Map();
+  const names = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const guild = client && (client.guilds.cache.get(id) || (await client.guilds.fetch(id)));
+        return guild ? guild.name : null;
+      } catch {
+        return null;
+      }
+    })
+  );
 
-  for (const id of ids) {
-    let name = null;
-    try {
-      const guild = client && (client.guilds.cache.get(id) || (await client.guilds.fetch(id)));
-      if (guild) name = guild.name;
-    } catch {
-      name = null;
-    }
-    resolved.set(id, name || `Server ${String(id).slice(-4)}`);
-  }
-
-  return resolved;
+  return new Map(ids.map((id, i) => [id, names[i] || `Server ${String(id).slice(-4)}`]));
 }
 
 /**
@@ -419,7 +417,10 @@ async function show({ send, client, viewerId, guildId, query }) {
   collector.on('collect', async (interaction) => {
     state = wrapPage(applyPress(state, interaction.customId, interaction.values || []));
     try {
-      await interaction.update(await render(client, viewerId, state));
+      // Answered first: looking up names can take a moment, and Discord
+      // only waits 3 seconds.
+      await interaction.deferUpdate();
+      await interaction.editReply(await render(client, viewerId, state));
     } catch (err) {
       if (err.code !== 10008) console.error('Leaderboard update failed:', err);
     }

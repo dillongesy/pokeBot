@@ -32,7 +32,7 @@ const { vol, abilityOf, itemOf } = cond;
 const lower = (text) => String(text || '').toLowerCase();
 const hasType = (mon, type) => (mon.types || []).some((t) => lower(t) === type);
 const note = (events, text) => events.push({ kind: 'note', text });
-const weatherOf = (ctx) => (ctx.state && ctx.state.field ? ctx.state.field.weather : null);
+const weatherOf = (ctx) => (ctx.state && ctx.state.field ? require('./field').weatherNow(ctx.state.field) : null);
 const terrainOf = (ctx) => (ctx.state && ctx.state.field ? ctx.state.field.terrain : null);
 const STAGES = ['attack', 'defense', 'specialAttack', 'specialDefense', 'speed', 'accuracy', 'evasion'];
 
@@ -383,8 +383,16 @@ function statSources(ctx, attacker, defender, move) {
       return { attacker: swap(attacker, { attack: defender.stats.attack }, { attack: defender.stages.attack || 0 }), defender, move };
     case 'body-press':
       return { attacker: swap(attacker, { attack: attacker.stats.defense }, { attack: attacker.stages.defense || 0 }), defender, move };
+    // Shell Side Arm: physical when that would hit harder, counting the
+    // target's Defense and Sp. Def too.
+    case 'shell-side-arm': {
+      const physicalRatio = (attacker.stats.attack * stageValue(attacker.stages.attack)) /
+        Math.max(1, defender.stats.defense * stageValue(defender.stages.defense));
+      const specialRatio = (attacker.stats.specialAttack * stageValue(attacker.stages.specialAttack)) /
+        Math.max(1, defender.stats.specialDefense * stageValue(defender.stages.specialDefense));
+      return { attacker, defender, move: physicalRatio > specialRatio ? { ...move, damageClass: 'physical' } : move };
+    }
     case 'photon-geyser':
-    case 'shell-side-arm':
     case 'tera-blast': {
       const physical = attacker.stats.attack * stageValue(attacker.stages.attack) >
         attacker.stats.specialAttack * stageValue(attacker.stages.specialAttack);
@@ -794,6 +802,9 @@ function afterHit(ctx, { dealt, standing }) {
 
 /** Eat a berry taken with Bug Bite or Pluck: its healing or cure applies to the eater. */
 function eatBerry(mon, berry, events) {
+  // The ones a Pokemon can hold work as they do when held (with Ripen and
+  // Cheek Pouch); the rest are below.
+  if (effects.eatBerry(mon, berry, events, { forced: true })) return;
   mon.ateBerry = true;
   const heal = (amount) => {
     const before = mon.hp;

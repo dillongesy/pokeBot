@@ -25,6 +25,7 @@ const content = require('../Utils/content');
 const pager = require('../Utils/pager');
 const menu = require('../Utils/menu');
 const { describeItem } = require('./examine');
+const itemtext = require('../Utils/itemtext');
 const names = require('../Utils/names');
 const evolution = require('../Utils/evolution');
 const itemRules = require('../Utils/items');
@@ -36,7 +37,7 @@ const money = (amount) => amount.toLocaleString('en-US');
 const duration = (hours) => (hours == null ? 'permanent' : `${hours}h`);
 
 /** Maximum length of an item's effect line. */
-const EFFECT_CHARS = 96;
+const EFFECT_CHARS = 160;
 
 /**
  * Shorten text that may contain `code`, never leaving a code span open.
@@ -71,9 +72,8 @@ function itemLine(entry, width, coins) {
   // Bold the prices the player can afford.
   const shown = `\`${price.padStart(width)}\``;
 
-  // Use PokeAPI's short effect where available; otherwise fall back to the
-  // .examine description (Mega Stones have no PokeAPI text).
-  const blurb = (item && item.shortEffect) || describeItem(entry.item);
+  // The bot's own line (Utils/itemtext.js), then PokeAPI's, then .examine's.
+  const blurb = itemtext.describe(entry.item) || (item && item.shortEffect) || describeItem(entry.item);
   const effect = blurb ? clipMarkdown(blurb, EFFECT_CHARS) : null;
 
   return (
@@ -334,7 +334,7 @@ function itemsForSpecies(species) {
     if (!effect) continue;
 
     if (effect.speciesId === species.id) {
-      add(slug, entry.define.shortEffect || 'Changes its form');
+      add(slug, itemtext.describe(slug) || entry.define.shortEffect || 'Changes its form');
       continue;
     }
 

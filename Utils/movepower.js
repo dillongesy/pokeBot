@@ -45,7 +45,11 @@ function banded(value, bands, fallback) {
 }
 
 /** How heavy something is, in kilograms. Zero is not a legal weight. */
-const weightOf = (mon) => Math.max(0.1, (mon && mon.weight) || 1);
+const weightOf = (mon) => {
+  const ability = mon && !mon.abilitySuppressed && !mon.abilityBroken ? mon.ability : null;
+  const scale = ability === 'heavy-metal' ? 2 : ability === 'light-metal' ? 0.5 : 1;
+  return Math.max(0.1, ((mon && mon.weight) || 1) * scale);
+};
 
 /** Current Speed including stages, which is what the two ball moves compare. */
 function speedOf(mon, context) {

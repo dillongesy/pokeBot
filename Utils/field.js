@@ -130,6 +130,8 @@ const ENTRY_WEATHER = {
   'sand-stream': 'sandstorm',
   // Gen 9: Snow Warning brings snow, not hail.
   'snow-warning': 'snow',
+  // Koraidon: Orichalcum Pulse turns the sunlight harsh.
+  'orichalcum-pulse': 'sun',
 };
 
 /** Abilities that keep a Pokemon out of the weather's chip damage. */
@@ -169,8 +171,24 @@ function weatherDuration(kind, holder) {
   return rock === kind ? EXTENDED_WEATHER_TURNS : WEATHER_TURNS;
 }
 
-/** The current weather's rules, or null when the sky is clear. */
-const weatherRules = (field) => (field && field.weather ? WEATHER[field.weather] || null : null);
+/** Air Lock and Cloud Nine: while one is out, the weather has no effect. */
+const WEATHER_LOCKS = new Set(['air-lock', 'cloud-nine']);
+
+/** Is an Air Lock or Cloud Nine Pokemon out? (The field links to its battle.) */
+function weatherLocked(field) {
+  const state = field && field.battle;
+  if (!state) return false;
+  return state.sides.some((side) => {
+    const mon = side.team[side.active];
+    return mon && !mon.fainted && !mon.abilitySuppressed && WEATHER_LOCKS.has(mon.ability);
+  });
+}
+
+/** The weather in effect: none while Air Lock or Cloud Nine is out. */
+const weatherNow = (field) => (field && field.weather && !weatherLocked(field) ? field.weather : null);
+
+/** The current weather's rules, or null when the sky is clear (or locked). */
+const weatherRules = (field) => (weatherNow(field) ? WEATHER[field.weather] || null : null);
 
 /**
  * What the weather does to a move's damage.
@@ -326,6 +344,9 @@ function substituteCost(mon) {
 const behindSubstitute = (mon) => Boolean(mon && mon.substitute > 0 && !mon.subBypassed);
 
 module.exports = {
+  WEATHER_LOCKS,
+  weatherLocked,
+  weatherNow,
   STRONG_WEATHER,
   strongWeatherRule,
   ENTRY_WEATHER,

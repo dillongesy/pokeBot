@@ -356,17 +356,24 @@ function create({ player, opponent, seed = Date.now(), kind = 'wild' }) {
     openingEvents: [],
   };
 
-  // Abilities that depend on the weather read it through this link.
+  // Abilities that depend on the weather read it through this link, and the
+  // field links back to the battle (not enumerable, so logs stay small).
   for (const side of sides) {
     for (const mon of side.team) mon.arena = state.field;
   }
+  Object.defineProperty(state.field, 'battle', { value: state, enumerable: false, configurable: true, writable: true });
+  current = state;
 
   // Both sides' switch-in effects trigger, player first: Primal Reversion,
   // then Intimidate and the like, then weather and terrain.
+  for (const side of sides) putOnIllusion(side, activeOf(side));
   for (let index = 0; index < sides.length; index += 1) {
     const mon = activeOf(sides[index]);
+    arrivalForms(state, mon, activeOf(sides[1 - index]), state.openingEvents);
     primalReversion(mon, state.openingEvents);
     effects.onSendOut(mon, activeOf(sides[1 - index]), state.openingEvents);
+    // Each one's Intimidate lands before the other's is announced.
+    settleEffects(state.openingEvents);
     entryAbilities(state, mon, state.openingEvents);
   }
 
@@ -387,20 +394,250 @@ function create({ player, opponent, seed = Date.now(), kind = 'wild' }) {
 function settleEffects(events) {
   for (let pass = 0; pass < 8; pass += 1) {
     const pending = effects.drain();
-    if (!pending.length) return;
+    if (!pending.length) break;
 
     for (const request of pending) {
+      if (request.what === 'act') {
+        if (request.target.fainted && !request.evenFainted) continue;
+        const state = effects.battleOf(request.target) || current;
+        if (state) request.fn(hookEngine(state, events));
+        continue;
+      }
+
       if (request.target.fainted) continue;
 
       if (request.what === 'stage') {
         applyStage(request.target, request.stat, request.delta, events, request.fromFoe);
       } else if (request.what === 'status') {
         // No rng available here; only sleep needs one and no ability causes it.
-        applyStatus(request.target, request.status, events);
+        // Toxic Orb and Toxic Chain badly poison, like the move Toxic.
+        applyStatus(request.target, request.status, events, null, request.from || null, { badly: Boolean(request.badly) });
       }
     }
   }
+
+  // Abilities that follow the field: Forecast, Flower Gift, Mimicry,
+  // Protosynthesis, Quark Drive, Neutralizing Gas.
+  if (current) fieldAbilities(current, events);
 }
+
+/**
+ * The battle being worked on. Every engine entry point (create, resolveTurn,
+ * continueTurn, sendOut) sets it, and the engine never waits in between, so
+ * settleEffects can reach the battle without being handed it.
+ */
+let current = null;
+
+/** What a hook's deferred action (effects.requestAct) may do. */
+function hookEngine(state, events) {
+  return {
+    state,
+    events,
+    applyStage: (target, stat, delta, fromFoe = false) => applyStage(target, stat, delta, events, fromFoe),
+    applyStatus: (target, status, by = null) => applyStatus(target, status, events, null, by),
+    setWeather: (weather, setter) => {
+      const field = state.field;
+      if (field.strongWeather || field.weather === weather) return false;
+      setWeather(field, weather, setter, events);
+      return true;
+    },
+    setTerrain: (terrain, setter) => setTerrain(state, terrain, setter, events),
+    changeForm: (mon, folder, text) => formChange(mon, folder, events, text),
+    switchOut: (mon) => hookSwitchOut(state, mon, events),
+    sideOf: (mon) => state.sides.findIndex((side) => side.team.includes(mon)),
+    activeOf,
+    benchOf,
+  };
+}
+
+/** Start a terrain (the Surges, Seed Sower, Hadron Engine). */
+function setTerrain(state, terrain, setter, events) {
+  const field = state.field;
+  if (field.terrain === terrain) return false;
+  field.terrain = terrain;
+  field.terrainTurns = setter && cond.itemOf(setter) === 'terrain-extender' ? 8 : cond.DURATION.terrain;
+  events.push({ kind: 'terrain-start', text: cond.TERRAINS[terrain].started });
+  return true;
+}
+
+/** A form change from an ability (Zen Mode, Disguise, Schooling...), with its line. */
+function formChange(mon, folder, events, text = null) {
+  if (!mon || !mon.source || mon.transformed || mon.form === folder) return false;
+  if (!loadForm(mon.source.species_id, folder)) return false;
+  // Without a nickname its name follows the form ("Blade Aegislash").
+  const named = !mon.illusion && !mon.source.nickname && mon.name === (mon.formName || mon.source.display_name);
+  changeForm(mon, folder);
+  if (named && mon.formName) mon.name = mon.formName;
+  if (text !== '') events.push({ kind: 'note', text: text || `${mon.name} transformed!` });
+  return true;
+}
+
+/**
+ * Emergency Exit and Wimp Out: out straight away. A wild Pokemon runs; a
+ * trainer's Pokemon is replaced (the turn pauses for the player to choose).
+ */
+function hookSwitchOut(state, mon, events) {
+  const index = state.sides.findIndex((side) => side.team.includes(mon));
+  if (index < 0 || mon.fainted) return;
+  const side = state.sides[index];
+  if (side.team[side.active] !== mon) return;
+
+  if (state.kind === 'wild' && index === 1) {
+    flee(state, index, mon, events);
+    const said = events.map((e) => e.kind).lastIndexOf('teleported');
+    if (said >= 0) events[said] = { kind: 'note', text: `The wild ${mon.name} fled!` };
+    return;
+  }
+  if (benchOf(side).length && !wipedOut(state.sides[1 - index])) side.pendingSwitch = {};
+}
+
+/** Moves that ignore the target's ability, like Mold Breaker. */
+const MOLD_MOVES = new Set([
+  'sunsteel-strike', 'moongeist-beam', 'photon-geyser', 'searing-sunraze-smash', 'menacing-moonraze-maelstrom',
+  'light-that-burns-the-sky',
+]);
+
+/**
+ * Illusion (Zoroark): it comes out looking like the last Pokemon in its
+ * party that can still fight, until a hit does damage.
+ */
+function putOnIllusion(side, mon) {
+  if (!mon || mon.fainted || mon.illusion || cond.abilityOf(mon) !== 'illusion') return;
+  const cover = [...side.team].reverse().find((other) => other !== mon && !other.fainted);
+  if (!cover) return;
+  mon.illusion = { name: mon.name, appearance: mon.appearance || null, shiny: mon.shiny };
+  mon.name = cover.name;
+  mon.appearance = { speciesId: (cover.appearance || cover).speciesId, form: (cover.appearance || cover).form };
+  mon.shiny = cover.shiny;
+}
+
+/** The Illusion ends: its own name and looks come back. */
+function dropIllusion(mon, events) {
+  const real = mon.illusion;
+  if (!real) return;
+  mon.illusion = null;
+  mon.name = real.name;
+  mon.appearance = real.appearance;
+  mon.shiny = real.shiny;
+  if (events) events.push({ kind: 'note', text: `${mon.name}'s illusion wore off!` });
+}
+
+/**
+ * Abilities that act on a Pokemon's own form or copy the foe as it comes out:
+ * Tera Shift, Zero to Hero's announcement, Imposter.
+ */
+function arrivalForms(state, mon, foe, events) {
+  if (!mon || mon.fainted) return;
+  const ability = cond.abilityOf(mon);
+
+  if (ability === 'tera-shift' && mon.form === 'Default') {
+    formChange(mon, 'Terastal', events, `${mon.name} transformed!`);
+  }
+
+  if (mon.heroic) {
+    mon.heroic = false;
+    events.push({ kind: 'note', text: `${mon.name} underwent a heroic transformation!` });
+  }
+
+  if (ability === 'neutralizing-gas') events.push({ kind: 'note', text: 'Neutralizing gas filled the area!' });
+
+  // Imposter: it transforms into the foe at once (not through a Substitute
+  // or an Illusion).
+  if (ability === 'imposter' && foe && !foe.fainted && !foe.substitute && !foe.illusion && !foe.transformed && !mon.transformed) {
+    const transform = statusMoves.MOVES.transform;
+    const index = state.sides.findIndex((side) => side.team.includes(mon));
+    transform.run({ state, sideIndex: index, attacker: mon, defender: foe, move: content.move('transform'), rng: Math.random, events, engine: engineFor(state, Math.random, events, null) });
+  }
+}
+
+/**
+ * Abilities that follow the field, checked whenever something settles:
+ *
+ *   Forecast (Castform) and Flower Gift (Cherrim) change form with the weather
+ *   Mimicry takes the terrain's type
+ *   Protosynthesis and Quark Drive boost the highest stat in sun or on
+ *   Electric Terrain (or once with Booster Energy)
+ *   Neutralizing Gas lifting, and Air Lock and Cloud Nine
+ */
+let checkingField = false;
+function fieldAbilities(state, events) {
+  if (checkingField || !state || !state.sides) return;
+  checkingField = true;
+  try {
+    cond.refreshSuppression(state);
+    const weather = fieldRules.weatherNow(state.field);
+    const terrain = state.field.terrain;
+
+    // Neutralizing Gas leaving: the others' abilities come back.
+    const gas = state.sides.some((side) => {
+      const mon = activeOf(side);
+      return mon && !mon.fainted && mon.ability === 'neutralizing-gas';
+    });
+    if (state.field.gas && !gas) events.push({ kind: 'note', text: 'The effects of the neutralizing gas wore off!' });
+    state.field.gas = gas;
+
+    for (const side of state.sides) {
+      const mon = activeOf(side);
+      if (!mon || mon.fainted || mon.transformed) continue;
+      const ability = cond.abilityOf(mon);
+
+      if (ability === 'forecast') {
+        const form = { sun: 'Sunny', rain: 'Rainy', hail: 'Snowy', snow: 'Snowy' }[weather] || 'Default';
+        if (mon.form !== form) formChange(mon, form, events, `${mon.name} transformed!`);
+      } else if (mon.speciesId === 351 && mon.form !== 'Default' && ability !== 'forecast') {
+        formChange(mon, 'Default', events, `${mon.name} transformed!`);
+      }
+
+      if (ability === 'flower-gift') {
+        const form = weather === 'sun' ? 'Sunshine' : 'Overcast';
+        if (mon.form !== form) formChange(mon, form, events, `${mon.name} transformed!`);
+      }
+
+      if (ability === 'mimicry') {
+        const type = { electric: 'electric', grassy: 'grass', misty: 'fairy', psychic: 'psychic' }[terrain];
+        const wanted = type ? [type] : [...(mon.naturalTypes || mon.types)];
+        if (wanted.join('/') !== mon.types.map((t) => lowerType(t)).join('/')) {
+          mon.types = wanted;
+          events.push(type
+            ? { kind: 'retyped', name: mon.name, types: mon.types }
+            : { kind: 'note', text: `${mon.name} returned to its original type!` });
+        }
+      }
+
+      if (ability === 'protosynthesis' || ability === 'quark-drive') {
+        const v = mon.volatiles || (mon.volatiles = {});
+        const fieldOn = ability === 'protosynthesis' ? weather === 'sun' : terrain === 'electric';
+        if (!fieldOn && !v.boosterEnergy && cond.itemOf(mon) === 'booster-energy') {
+          v.boosterEnergy = true;
+          events.push({ kind: 'note', text: `${mon.name} used its Booster Energy to activate ${effects.displayAbility(ability)}!` });
+          effects.consumeItem(mon, events);
+        }
+        const on = fieldOn || v.boosterEnergy;
+        if (on && !v.paradox) {
+          const order = ['attack', 'defense', 'specialAttack', 'specialDefense', 'speed'];
+          v.paradox = order.reduce((best, stat) =>
+            mon.stats[stat] * damage.stageMultiplier(mon.stages[stat]) > mon.stats[best] * damage.stageMultiplier(mon.stages[best]) ? stat : best);
+          if (fieldOn) {
+            events.push({ kind: 'note', text: ability === 'protosynthesis'
+              ? `The harsh sunlight activated ${mon.name}'s Protosynthesis!`
+              : `The Electric Terrain activated ${mon.name}'s Quark Drive!` });
+          }
+          events.push({ kind: 'note', text: `${mon.name}'s ${STAT_LABELS[v.paradox]} was heightened!` });
+        } else if (!on && v.paradox) {
+          delete v.paradox;
+          events.push({ kind: 'note', text: `The effects of ${mon.name}'s ${effects.displayAbility(ability)} wore off!` });
+        }
+      }
+    }
+  } finally {
+    checkingField = false;
+  }
+}
+
+const STAT_LABELS = {
+  attack: 'Attack', defense: 'Defense', specialAttack: 'Sp. Atk', specialDefense: 'Sp. Def', speed: 'Speed',
+};
+
 
 /**
  * Clear volatile state when a Pokemon leaves or enters the field.
@@ -493,7 +730,7 @@ function order(state, actions, rng) {
     return {
       index,
       priority: ((data && data.priority) || 0) + effects.priorityBonus(mon, data),
-      bracket: effects.bracketShift(mon, rng),
+      bracket: effects.bracketShift(mon, rng, data),
       // Tailwind doubles speed for its side.
       speed: effectiveSpeed(mon) * cond.speedMultiplier(state, index),
     };
@@ -543,7 +780,8 @@ function canAct(mon, rng, events, foe = null, chosen = null) {
       return true;
     }
 
-    mon.statusTurns -= 1;
+    // Early Bird wakes twice as fast.
+    mon.statusTurns -= cond.abilityOf(mon) === 'early-bird' ? 2 : 1;
     events.push({ kind: 'asleep', name: mon.name });
 
     // Sleep Talk and Snore are the moves you can use asleep.
@@ -560,6 +798,17 @@ function canAct(mon, rng, events, foe = null, chosen = null) {
     }
     events.push({ kind: 'frozen', name: mon.name });
     return false;
+  }
+
+  // Truant: it loafs around every other turn.
+  if (cond.abilityOf(mon) === 'truant') {
+    const tv = mon.volatiles || (mon.volatiles = {});
+    if (tv.truant) {
+      delete tv.truant;
+      events.push({ kind: 'note', text: `${mon.name} is loafing around!` });
+      return false;
+    }
+    tv.truant = true;
   }
 
   // Confusion: a third of the time it hits itself instead.
@@ -630,7 +879,7 @@ function residualDamage(mon, events) {
  * Only one status at a time, and type immunities apply (Fire types can't be
  * burned, Electric types can't be paralysed).
  */
-function applyStatus(target, status, events, rng = null) {
+function applyStatus(target, status, events, rng = null, by = null, { badly = false } = {}) {
   if (!STATUSES.includes(status)) return false;
   if (target.status || target.fainted) return false;
 
@@ -650,7 +899,9 @@ function applyStatus(target, status, events, rng = null) {
     poison: ['poison', 'steel'],
   }[status];
 
-  if (immune && target.types.some((type) => immune.includes(type.toLowerCase()))) {
+  // Corrosion poisons even Poison and Steel types.
+  const corroding = status === 'poison' && by && cond.abilityOf(by) === 'corrosion';
+  if (immune && !corroding && target.types.some((type) => immune.includes(type.toLowerCase()))) {
     return false;
   }
 
@@ -669,8 +920,22 @@ function applyStatus(target, status, events, rng = null) {
 
   // Sleep lasts 1-3 turns.
   target.statusTurns = status === 'sleep' ? 1 + Math.floor((rng ? rng() : Math.random()) * 3) : 0;
+  if (status === 'poison') target.toxicCounter = badly ? 1 : 0;
 
-  events.push({ kind: 'status', name: target.name, status });
+  events.push({ kind: 'status', name: target.name, status: status === 'poison' && badly ? 'badly poison' : status });
+
+  if (by && by !== target && !by.fainted) {
+    // Synchronize passes a burn, poison or paralysis back.
+    if (cond.abilityOf(target) === 'synchronize' && ['burn', 'poison', 'paralysis'].includes(status)) {
+      events.push({ kind: 'note', text: `${target.name}'s Synchronize!` });
+      applyStatus(by, status, events, rng, null, { badly });
+    }
+    // Poison Puppeteer: poisoned by Pecharunt, confused too.
+    if (status === 'poison' && cond.abilityOf(by) === 'poison-puppeteer' && current) {
+      const index = current.sides.findIndex((side) => side.team.includes(target));
+      if (index >= 0) cond.confuse(current, index, target, events, rng || Math.random, { attacker: by });
+    }
+  }
 
   // Status-curing berries trigger immediately.
   effects.healthChanged(target, events);
@@ -687,6 +952,21 @@ function applyStage(target, stat, delta, events, fromFoe = false) {
   const key = STAT_ALIASES[stat] || stat;
   if (!STAT_KEYS.includes(key)) return;
   if (target.fainted) return;
+
+  // Mirror Armor sends a drop from the foe back where it came from.
+  if (delta < 0 && fromFoe && !target.mirroring && cond.abilityOf(target) === 'mirror-armor') {
+    const foe = effects.foeOf(target);
+    if (foe && !foe.fainted) {
+      events.push({ kind: 'note', text: `${target.name}'s Mirror Armor!` });
+      target.mirroring = true;
+      try {
+        applyStage(foe, key, delta, events, true);
+      } finally {
+        target.mirroring = false;
+      }
+      return;
+    }
+  }
 
   // Apply Contrary, Simple, Clear Body and similar. Zero means blocked.
   const wanted = effects.stageDelta(target, key, delta, fromFoe);
@@ -723,7 +1003,24 @@ function applyStage(target, stat, delta, events, fromFoe = false) {
   else target.statsDroppedThisTurn = true;
 
   if (after < before) effects.afterStatLowered(target, key, fromFoe, events);
+
+  // Opportunist copies a foe's boost.
+  if (after > before && !copyingBoost) {
+    const foe = effects.foeOf(target);
+    if (foe && !foe.fainted && cond.abilityOf(foe) === 'opportunist') {
+      copyingBoost = true;
+      try {
+        events.push({ kind: 'note', text: `${foe.name}'s Opportunist!` });
+        applyStage(foe, key, after - before, events, false);
+      } finally {
+        copyingBoost = false;
+      }
+    }
+  }
 }
+
+/** Set while Opportunist copies a boost, so two of them don't copy forever. */
+let copyingBoost = false;
 
 // ---------------------------------------------------------------------------
 // Using a move
@@ -756,6 +1053,22 @@ function landHit(attacker, defender, move, amount, detail, rng, events) {
 
     if (defender.substitute <= 0) defender.substitute = 0;
     return 0;
+  }
+
+  // Disguise (Mimikyu) and Ice Face (Eiscue, physical moves only) take the
+  // first hit whole. Mold Breaker gets past them.
+  if (attacker !== defender && amount > 0 && !defender.transformed) {
+    const ability = cond.abilityOf(defender);
+    if (ability === 'disguise' && /Disguised$/.test(defender.form || '')) {
+      events.push({ kind: 'note', text: 'Its disguise served it as a decoy!' });
+      formChange(defender, defender.form.replace('Disguised', 'Busted'), events, `${defender.name}'s disguise was busted!`);
+      effects.chip(defender, Math.max(1, Math.floor(defender.maxHp / 8)), events, 'Disguise');
+      return 0;
+    }
+    if (ability === 'ice-face' && defender.form === 'Ice' && move.damageClass === 'physical') {
+      formChange(defender, 'Noice', events, `${defender.name} transformed!`);
+      return 0;
+    }
   }
 
   // Sturdy and Focus Sash: only checked when the hit would knock the Pokemon
@@ -793,6 +1106,9 @@ function landHit(attacker, defender, move, amount, detail, rng, events) {
     critical,
     effectiveness,
   });
+
+  // Illusion ends with the first hit that does damage.
+  if (landed > 0 && defender.illusion) dropIllusion(defender, events);
 
   // Rage Fist counts every hit taken; Bide stores the damage; Rage gets
   // angrier; Beak Blast burns whoever touches the heated beak.
@@ -944,6 +1260,12 @@ function useMove(attacker, defender, slot, rng, events, arena = null, turn = nul
     entry.pp -= 1;
     move = entry.data;
 
+    // Pressure: a move aimed at it costs an extra PP.
+    if (defender && defender !== attacker && !defender.fainted && cond.abilityOf(defender) === 'pressure' &&
+        aimedAtFoe(move)) {
+      entry.pp = Math.max(0, entry.pp - 1);
+    }
+
     // Choice Band, Specs and Scarf lock the holder into this move.
     cond.lockChoice(attacker, move.name);
   }
@@ -974,8 +1296,21 @@ function performMove(attacker, defender, baseMove, options = {}) {
   const start = events.length;
   const outcome = { started: false, hits: 0, charging: false, continuing: Boolean(options.continuing) };
 
-  // Mold Breaker: the target's ability is ignored for the length of the move.
-  const breaking = defender && defender !== attacker && effects.breaksMold(attacker) && !defender.abilityBroken;
+  // Mold Breaker (and Sunsteel Strike, Moongeist Beam, Photon Geyser, and
+  // Mycelium Might's status moves): the target's ability is ignored for the
+  // length of the move.
+  const ignores = effects.breaksMold(attacker) || MOLD_MOVES.has(baseMove.name) ||
+    (cond.abilityOf(attacker) === 'mycelium-might' && baseMove.damageClass === 'status');
+  const breaking = defender && defender !== attacker && ignores && !defender.abilityBroken;
+
+  // Stance Change: Blade Forme to attack, Shield Forme for King's Shield.
+  if (cond.abilityOf(attacker) === 'stance-change' && !attacker.transformed) {
+    if (baseMove.damageClass !== 'status' && attacker.form === 'Shield') {
+      formChange(attacker, 'Blade', events, 'Changed to Blade Forme!');
+    } else if (baseMove.name === 'kings-shield' && attacker.form === 'Blade') {
+      formChange(attacker, 'Shield', events, 'Changed to Shield Forme!');
+    }
+  }
   if (breaking) defender.abilityBroken = true;
 
   // Infiltrator and sound moves go straight past a Substitute.
@@ -988,6 +1323,24 @@ function performMove(attacker, defender, baseMove, options = {}) {
   } finally {
     if (breaking) defender.abilityBroken = false;
     if (bypassing) defender.subBypassed = false;
+  }
+
+  // Gulp Missile: Surf or Dive catches something to spit back.
+  if (outcome.started && ['surf', 'dive'].includes(baseMove.name) && cond.abilityOf(attacker) === 'gulp-missile' &&
+      attacker.form === 'Default' && !attacker.fainted) {
+    formChange(attacker, attacker.hp > attacker.maxHp / 2 ? 'Gulping' : 'Gorging', events, '');
+  }
+
+  // Dancer: a dance makes the other Pokemon dance too.
+  if (outcome.started && effects.DANCES.has(baseMove.name) && !options.dancing && state) {
+    const sideIndex = turn ? turn.index : 0;
+    const dancer = activeOf(state.sides[1 - sideIndex]);
+    if (dancer && dancer !== attacker && !dancer.fainted && cond.abilityOf(dancer) === 'dancer') {
+      events.push({ kind: 'note', text: `${dancer.name}'s Dancer!` });
+      performMove(dancer, attacker, baseMove, {
+        rng, events, entry: null, called: true, dancing: true, turn: { ...turn, index: 1 - sideIndex },
+      });
+    }
   }
 
   // Crash damage, Steel Beam's cost, the recharge, the rampage and the
@@ -1042,6 +1395,17 @@ function executeMove(attacker, defender, baseMove, options = {}) {
     ruleCtx.move = move;
   }
 
+  // Normalize: every move is Normal (and 20% stronger); Liquid Voice: sound
+  // moves are Water.
+  const typing = cond.abilityOf(attacker);
+  if (typing === 'normalize' && move.name !== 'struggle' && !SETS_OWN_TYPE.has(move.name)) {
+    move = { ...move, type: 'normal', normalized: true };
+    ruleCtx.move = move;
+  } else if (typing === 'liquid-voice' && effects.SOUND_MOVES.has(move.name)) {
+    move = { ...move, type: 'water' };
+    ruleCtx.move = move;
+  }
+
   // The first turn of a two-turn move only charges (Dig, Fly, Solar Beam),
   // and Bide starts storing energy.
   if (!options.continuing && state) {
@@ -1090,7 +1454,9 @@ function executeMove(attacker, defender, baseMove, options = {}) {
 
   // Heavy rain puts out Fire moves; extremely harsh sunlight evaporates Water
   // moves (Primal Kyogre and Groudon).
-  const strong = arena && arena.strongWeather ? fieldRules.strongWeatherRule(arena.strongWeather) : null;
+  const strong = arena && arena.strongWeather && !fieldRules.weatherLocked(arena)
+    ? fieldRules.strongWeatherRule(arena.strongWeather)
+    : null;
   if (strong && strong[1].stops && lowerType(move.type) === strong[1].stops && move.damageClass !== 'status') {
     events.push({ kind: 'failed', name: attacker.name, text: strong[1].stopped });
     return;
@@ -1258,7 +1624,8 @@ function executeMove(attacker, defender, baseMove, options = {}) {
   if (atFoe) {
     const aim = effects.accuracy(attacker, defender, move);
     const extra = state ? cond.accuracyModifiers(state, attacker, defender) : { multiplier: 1, sure: false, ignoreEvasion: false };
-    const evasion = extra.ignoreEvasion ? Math.min(0, defender.stages.evasion || 0) : defender.stages.evasion;
+    const evasion = extra.ignoreEvasion || aim.ignoreEvasion ? Math.min(0, defender.stages.evasion || 0) : defender.stages.evasion;
+    const accuracyStage = aim.ignoreAccuracy ? 0 : attacker.stages.accuracy;
 
     // A Poison type's Toxic never misses, nor does a move Magic Coat sent
     // back, nor one aimed at a Minimized target or a Glaive Rush user.
@@ -1275,12 +1642,16 @@ function executeMove(attacker, defender, baseMove, options = {}) {
 
     // One-hit KO moves use their own accuracy rule. Thunder and Hurricane are
     // only 50% accurate in sun.
-    const aimed = weatherAim && weatherAim !== Infinity ? { ...move, accuracy: weatherAim } : move;
+    let aimed = weatherAim && weatherAim !== Infinity ? { ...move, accuracy: weatherAim } : move;
+    // Wonder Skin: status moves that can miss are at most 50% accurate.
+    if (move.damageClass === 'status' && aimed.accuracy > 50 && cond.abilityOf(defender) === 'wonder-skin') {
+      aimed = { ...aimed, accuracy: 50 };
+    }
     if (
       verdict.kind !== 'ohko' &&
       !aim.never &&
       !sure &&
-      !damage.hits(aimed, rng(), attacker.stages.accuracy, evasion, aim.multiplier * extra.multiplier)
+      !damage.hits(aimed, rng(), accuracyStage, evasion, aim.multiplier * extra.multiplier)
     ) {
       events.push({ kind: 'miss', name: defender.name });
       return;
@@ -1298,6 +1669,13 @@ function executeMove(attacker, defender, baseMove, options = {}) {
     }
     if (defender.protectedNow && throughProtect && cond.abilityOf(attacker) === 'piercing-drill') {
       options.protectPierced = true;
+    }
+
+    // Armor Tail, Dazzling and Queenly Majesty: no priority move touches it.
+    if (state && (move.priority || 0) + effects.priorityBonus(attacker, move) > 0 &&
+        ['armor-tail', 'dazzling', 'queenly-majesty'].includes(cond.abilityOf(defender))) {
+      events.push({ kind: 'failed', name: attacker.name, text: `${attacker.name} cannot use ${move.displayName}!` });
+      return;
     }
 
     // Quick Guard, Wide Guard, Crafty Shield, Mat Block and Psychic Terrain.
@@ -1340,7 +1718,14 @@ function executeMove(attacker, defender, baseMove, options = {}) {
     : typechart.effectiveness(type, defender.types));
 
   // Freeze-Dry, Flying Press and Thousand Arrows bend the type chart.
-  const effectiveness = rules.adjustEffectiveness(ruleCtx, typeAgainst(movedType), typeAgainst);
+  let effectiveness = rules.adjustEffectiveness(ruleCtx, typeAgainst(movedType), typeAgainst);
+
+  // Tera Shell: at full health every hit is not very effective.
+  if (effectiveness > 0.5 && move.damageClass !== 'status' && defender.hp >= defender.maxHp &&
+      cond.abilityOf(defender) === 'tera-shell') {
+    effectiveness = 0.5;
+    events.push({ kind: 'note', text: `${defender.name} made its shell gleam! It's distorting type matchups!` });
+  }
   ruleCtx.effectiveness = effectiveness;
   ruleCtx.movedType = movedType;
 
@@ -1419,7 +1804,9 @@ function executeMove(attacker, defender, baseMove, options = {}) {
     let powers = verdict.powers || null;
     let hitCount = powers ? powers.length : 1;
 
-    if (!powers && meta.minHits && meta.maxHits) {
+    // Dragon Darts strikes twice (once at each target, in doubles).
+    if (!powers && move.name === 'dragon-darts') hitCount = 2;
+    else if (!powers && meta.minHits && meta.maxHits) {
       hitCount = effects.multiHitAlwaysMax(attacker)
         ? meta.maxHits
         : meta.minHits + Math.floor(rng() * (meta.maxHits - meta.minHits + 1));
@@ -1456,7 +1843,7 @@ function executeMove(attacker, defender, baseMove, options = {}) {
       }
 
       const critical = critsAllowed && critForced !== false &&
-        (critForced === true || damage.crits(move, rng(), critBonus));
+        (critForced === true || effects.forcesCrit(attacker, defender) || damage.crits(move, rng(), critBonus));
 
       // Ability and item modifiers, grouped for Utils/damage.js. Power that
       // depends on the battle (Hex, Brine, Rollout...) is worked out first.
@@ -1482,6 +1869,15 @@ function executeMove(attacker, defender, baseMove, options = {}) {
       // Psyshock hits Defense, Foul Play uses the target's Attack, Body Press
       // the user's Defense, Sacred Sword ignores the target's stat changes.
       const src = rules.statSources(ruleCtx, attacker, target, move);
+
+      // Unaware: the attacker ignores the target's defensive boosts, or the
+      // target ignores the attacker's offensive ones.
+      if (cond.abilityOf(attacker) === 'unaware' && src.defender.stages) {
+        src.defender = { ...src.defender, stages: { ...src.defender.stages, defense: 0, specialDefense: 0 } };
+      }
+      if (cond.abilityOf(defender) === 'unaware' && src.attacker.stages) {
+        src.attacker = { ...src.attacker, stages: { ...src.attacker.stages, attack: 0, specialAttack: 0 } };
+      }
 
       const result = damage.calculate({
         attacker: src.attacker,
@@ -1589,7 +1985,10 @@ function executeMove(attacker, defender, baseMove, options = {}) {
         : Math.max(1, Math.floor((dealt * Math.abs(meta.drain)) / 100));
 
     if (meta.drain > 0) {
-      if (!av.healBlock) {
+      // Liquid Ooze: draining it hurts instead.
+      if (cond.abilityOf(defender) === 'liquid-ooze') {
+        effects.chip(attacker, change, events, `${attacker.name} sucked up the liquid ooze!`, 'hurt');
+      } else if (!av.healBlock) {
         attacker.hp = Math.min(attacker.maxHp, attacker.hp + change);
         events.push({ kind: 'drain', name: attacker.name, amount: change, hp: attacker.hp });
       }
@@ -1700,7 +2099,7 @@ function executeMove(attacker, defender, baseMove, options = {}) {
 
   // Dragon Tail and Circle Throw drag the target out.
   if (state && PHAZING_ATTACKS.has(move.name) && dealt > 0) {
-    if (!dv.ingrain && cond.abilityOf(defender) !== 'suction-cups') phaze(state, 1 - sideIndex, events, rng);
+    if (!dv.ingrain && !['suction-cups', 'guard-dog'].includes(cond.abilityOf(defender))) phaze(state, 1 - sideIndex, events, rng);
     return;
   }
 
@@ -1749,8 +2148,10 @@ function executeMove(attacker, defender, baseMove, options = {}) {
     return;
   }
 
-  // Sheer Force removes secondary effects (ailment, flinch and stat changes).
-  const suppressed = effects.suppressesSecondaries(attacker, move);
+  // Sheer Force removes secondary effects (ailment, flinch and stat changes);
+  // Shield Dust keeps them off the target.
+  const shielded = move.damageClass !== 'status' && cond.abilityOf(defender) === 'shield-dust';
+  const suppressed = effects.suppressesSecondaries(attacker, move) || shielded;
   const ailment = normaliseAilment(meta.ailment);
 
   if (!suppressed && meta.ailment && meta.ailment !== 'none' && (STATUSES.includes(ailment) || ailment === 'confusion')) {
@@ -1776,13 +2177,8 @@ function executeMove(attacker, defender, baseMove, options = {}) {
 
         if (blocked) {
           if (move.damageClass === 'status') events.push({ kind: 'protected-by', name: defender.name, by: blocked });
-        } else if (applyStatus(defender, ailment, events, rng)) {
-          if (ailment === 'poison' && BADLY_POISONS.has(move.name)) {
-            defender.toxicCounter = 1;
-            // Say "badly poisoned".
-            const said = events.slice(before).find((e) => e.kind === 'status' && e.name === defender.name);
-            if (said) said.status = 'badly poison';
-          }
+        } else if (applyStatus(defender, ailment, events, rng, attacker, { badly: ailment === 'poison' && BADLY_POISONS.has(move.name) })) {
+          // Landed (Synchronize and Poison Puppeteer are in applyStatus).
         } else if (move.damageClass === 'status' && events.length === before) {
           // Nothing said why: already statused, or immune by type (Toxic on
           // a Steel type, Will-O-Wisp on a Fire type).
@@ -1801,7 +2197,7 @@ function executeMove(attacker, defender, baseMove, options = {}) {
   const flinchFrom = suppressed ? 0 : meta.flinchChance || 0;
   const flinchChance = Math.max(
     flinchFrom > 0 ? effects.secondaryChance(attacker, flinchFrom) : 0,
-    dealt > 0 ? effects.addedFlinchChance(attacker) : 0
+    dealt > 0 && !shielded ? effects.addedFlinchChance(attacker) : 0
   );
 
   if (flinchChance > 0 && rng() * 100 < flinchChance) {
@@ -1809,7 +2205,13 @@ function executeMove(attacker, defender, baseMove, options = {}) {
     if (effects.flinchAllowed(defender)) defender.flinched = true;
   }
 
-  applyMoveStatChanges({ move, meta, attacker, defender, state, sideIndex, rng, events, suppressed });
+  // Shield Dust only stops what happens to the target; the user's own
+  // changes (Flame Charge's Speed) still happen.
+  if (shielded && !effects.suppressesSecondaries(attacker, move)) {
+    applyMoveStatChanges({ move, meta, attacker, defender, state, sideIndex, rng, events, suppressed: false, onlyUser: true });
+  } else {
+    applyMoveStatChanges({ move, meta, attacker, defender, state, sideIndex, rng, events, suppressed });
+  }
 
   settleEffects(events);
 }
@@ -1936,7 +2338,14 @@ function swapIn(state, sideIndex, teamIndex, events, pass = null) {
 
     // Switch-out effects (Natural Cure, Regenerator).
     effects.onWithdraw(leaving, events);
+
+    // Aegislash goes back to its shield; Palafin comes back a hero.
+    if (cond.abilityOf(leaving) === 'stance-change' && leaving.form === 'Blade') formChange(leaving, 'Shield', events, '');
+    if (cond.abilityOf(leaving) === 'zero-to-hero' && leaving.form === 'Zero' && formChange(leaving, 'Hero', events, '')) {
+      leaving.heroic = true;
+    }
   }
+  if (leaving && leaving.illusion) dropIllusion(leaving, null);
 
   if (pass && pass.pass && leaving) cond.batonPass(leaving, target);
 
@@ -1959,6 +2368,8 @@ function swapIn(state, sideIndex, teamIndex, events, pass = null) {
 
   side.active = teamIndex;
   target.participated = true;
+  // Speed Boost skips the turn it came in; Stakeout hits it twice as hard.
+  target.switchedInTurn = state.turn;
 
   // A strong weather leaves with the Pokemon that brought it.
   settleStrongWeather(state, events);
@@ -1973,10 +2384,14 @@ function swapIn(state, sideIndex, teamIndex, events, pass = null) {
   // Shed Tail leaves a Substitute for the one coming in.
   if (pass && pass.shedTail) target.substitute = pass.shedTail;
 
+  // Illusion: it comes out looking like the last Pokemon in the party.
+  putOnIllusion(side, target);
+
   events.push({ kind: 'send-out', name: target.name, side: side.name });
 
   // Primal Reversion, Intimidate and the weather and terrain abilities on
   // the way in, then hazards and Healing Wish.
+  arrivalForms(state, target, activeOf(other), events);
   primalReversion(target, events);
   effects.onSendOut(target, activeOf(other), events);
   entryAbilities(state, target, events);
@@ -2056,6 +2471,7 @@ function normaliseAilment(ailment) {
  */
 function resolveTurn(state, actions, options = {}) {
   if (state.finished) return [];
+  current = state;
 
   const rng = rngFrom(`${state.seed}:${state.turn}`);
   const events = [];
@@ -2162,6 +2578,7 @@ function continueTurn(state, teamIndex) {
   const t = state.turnContext;
   if (!t || t.waitingFor == null) return [];
 
+  current = state;
   const sideIndex = t.waitingFor;
   t.waitingFor = null;
   state.awaitingSwitch = null;
@@ -2360,6 +2777,17 @@ function runActions(state, events) {
 
     // U-turn, Baton Pass and the rest: out now, before the foe moves.
     if (midTurnSwitch(state, index, events)) return events;
+
+    // Emergency Exit and Wimp Out on the side that was hit: it leaves at
+    // once, and if it hadn't moved yet it doesn't.
+    const foeIndex = 1 - index;
+    if (state.sides[foeIndex].pendingSwitch) {
+      if (!moved[foeIndex]) {
+        moved[foeIndex] = true;
+        t.queue = t.queue.filter((i) => i !== foeIndex);
+      }
+      if (midTurnSwitch(state, foeIndex, events)) return events;
+    }
   }
 
   return endTurn(state, events);
@@ -2369,12 +2797,12 @@ function runActions(state, events) {
  * End-of-turn effects from moves: Future Sight and Doom Desire landing, Salt
  * Cure, Syrup Bomb, and letting go of a Sky Drop target whose carrier is gone.
  */
-function delayedEffects(state, events, rng) {
+function delayedEffects(state, events, rng, phase = 'all') {
   state.sides.forEach((side, index) => {
     const c = side.conditions || {};
     const mon = activeOf(side);
 
-    if (c.futureSight) {
+    if (c.futureSight && phase !== 'later') {
       c.futureSight.turns -= 1;
       if (c.futureSight.turns <= 0) {
         const { attacker, move } = c.futureSight;
@@ -2396,7 +2824,7 @@ function delayedEffects(state, events, rng) {
       }
     }
 
-    if (mon.fainted) return;
+    if (mon.fainted || phase === 'future') return;
     const v = mon.volatiles || {};
 
     if (v.saltCure) {
@@ -2446,57 +2874,51 @@ function endTurn(state, events) {
     for (const mon of side.team) mon.flinched = false;
   }
 
-  // End of turn, in the games' order: item and ability effects first
-  // (Leftovers, Speed Boost, Shed Skin, the orbs), then burn and poison.
-  for (const side of state.sides) {
-    if (over()) break;
-    const mon = activeOf(side);
-    if (mon.fainted) continue;
+  // The end of the turn, in the games' order (Scarlet and Violet).
+  const each = (fn) => {
+    for (const side of state.sides) {
+      if (over()) return;
+      const mon = activeOf(side);
+      if (!mon.fainted) fn(mon);
+    }
+  };
+  const conditions = (phase) => {
+    if (over()) return;
+    cond.endOfTurn(state, events, rng, {
+      applyStatus: (target, status, evts, r) => applyStatus(target, status, evts, r),
+      chip: effects.chip,
+    }, phase);
+    settleEffects(events);
+  };
 
+  // 1. The weather: sandstorm and hail, then Rain Dish, Dry Skin, Ice Body
+  //    and Solar Power.
+  each((mon) => {
+    const bite = fieldRules.weatherChip(state.field, mon);
+    // chip() handles Magic Guard and fainting.
+    if (bite > 0) effects.chip(mon, bite, events, fieldRules.WEATHER[state.field.weather].name, 'weather-damage');
+  });
+  each((mon) => {
+    effects.weatherEndOfTurn(mon, rng, events);
+    settleEffects(events);
+  });
+
+  // 2. Future Sight and Doom Desire land.
+  if (!over()) delayedEffects(state, events, rng, 'future');
+
+  // 3. Wish and Grassy Terrain.
+  conditions('wish');
+
+  // 4. Shed Skin, Hydration, Leftovers, Black Sludge.
+  each((mon) => {
     effects.endOfTurn(mon, rng, events);
     settleEffects(events);
-  }
+  });
 
-  for (const side of state.sides) {
-    if (over()) break;
-    const mon = activeOf(side);
-    if (!mon.fainted) residualDamage(mon, events);
-  }
+  // 5. Aqua Ring and Ingrain.
+  conditions('rings');
 
-  // Then weather, traps and Leech Seed, in that order.
-  for (const side of state.sides) {
-    if (over()) break;
-    const mon = activeOf(side);
-    if (mon.fainted) continue;
-
-    const bite = fieldRules.weatherChip(state.field, mon);
-
-    // chip() handles Magic Guard and fainting.
-    if (bite > 0) {
-      effects.chip(mon, bite, events, fieldRules.WEATHER[state.field.weather].name, 'weather-damage');
-    }
-  }
-
-  for (const side of state.sides) {
-    if (over()) break;
-    const mon = activeOf(side);
-    if (mon.fainted || !mon.trapped) continue;
-
-    mon.trapped.turns -= 1;
-
-    if (mon.trapped.turns <= 0) {
-      events.push({ kind: 'freed', name: mon.name, source: mon.trapped.move });
-      mon.trapped = null;
-      continue;
-    }
-
-    effects.chip(mon, fieldRules.trapChip(mon, null), events, mon.trapped.move, 'trap-damage');
-  }
-
-  // Future Sight and Doom Desire land, Salt Cure stings, Syrup Bomb slows.
-  if (!over()) delayedEffects(state, events, rng);
-
-  // Leech Seed heals whoever planted it.
+  // 6. Leech Seed heals whoever planted it.
   for (let index = 0; index < 2; index += 1) {
     if (over()) break;
     const mon = activeOf(state.sides[index]);
@@ -2518,13 +2940,42 @@ function endTurn(state, events) {
     }
   }
 
-  // Conditions: Wish, Aqua Ring, Ingrain, Grassy Terrain, Nightmare, Curse,
-  // Yawn, Perish Song, then every timer (Utils/conditions.js).
-  if (!over()) cond.endOfTurn(state, events, rng, {
-    applyStatus: (target, status, evts, r) => applyStatus(target, status, evts, r),
-    chip: effects.chip,
+  // 7. Burn and poison.
+  each((mon) => residualDamage(mon, events));
+
+  // 8. Nightmare, Curse and Octolock.
+  conditions('damage');
+
+  // 9. Wrap, Fire Spin and the other binding moves.
+  for (const side of state.sides) {
+    if (over()) break;
+    const mon = activeOf(side);
+    if (mon.fainted || !mon.trapped) continue;
+
+    mon.trapped.turns -= 1;
+
+    if (mon.trapped.turns <= 0) {
+      events.push({ kind: 'freed', name: mon.name, source: mon.trapped.move });
+      mon.trapped = null;
+      continue;
+    }
+
+    effects.chip(mon, fieldRules.trapChip(mon, null), events, mon.trapped.move, 'trap-damage');
+  }
+
+  // 10. Salt Cure and Syrup Bomb.
+  if (!over()) delayedEffects(state, events, rng, 'later');
+
+  // 11. Taunt, Encore and the other timers, Yawn, Perish Song, the screens,
+  //     rooms and terrain.
+  conditions('timers');
+
+  // 12. Speed Boost, Moody, Harvest, Bad Dreams, the Orbs and the abilities
+  //     that change form.
+  each((mon) => {
+    effects.lateEndOfTurn(mon, rng, events);
+    settleEffects(events);
   });
-  settleEffects(events);
 
   // Count the weather down last, reporting turns remaining. A strong
   // weather has no timer; it lasts while its Pokemon is out.
@@ -2587,6 +3038,7 @@ function endTurn(state, events) {
  * Intimidate) are pushed onto `extra` if provided.
  */
 function sendOut(state, sideIndex, teamIndex, extra = []) {
+  current = state;
   const side = state.sides[sideIndex];
   const target = side.team[teamIndex];
 
@@ -2714,6 +3166,8 @@ const TRACE_PROOF = new Set([
 
 /** Abilities that set a terrain when their Pokemon comes out. */
 const ENTRY_TERRAIN = {
+  // Miraidon: Hadron Engine lays Electric Terrain.
+  'hadron-engine': 'electric',
   'electric-surge': 'electric',
   'psychic-surge': 'psychic',
   'grassy-surge': 'grassy',
@@ -2726,7 +3180,11 @@ const ENTRY_TERRAIN = {
  */
 function inForm(row, folder) {
   const evolution = require('./evolution');
-  const stats = pokemon.recalculateStats(row, { form_folder: folder });
+  // Wild Pokemon have no effort values stored; they count as none.
+  const filled = {
+    ev_hp: 0, ev_attack: 0, ev_defense: 0, ev_special_attack: 0, ev_special_defense: 0, ev_speed: 0, ...row,
+  };
+  const stats = pokemon.recalculateStats(filled, { form_folder: folder });
   const ability = evolution.remapAbility(row.species_id, folder, row.ability_slot || 1);
   return { ...row, ...stats, form_folder: folder, ability: ability ? ability.name : row.ability };
 }
@@ -2842,11 +3300,7 @@ function entryAbilities(state, mon, events) {
   if (weather && !field.strongWeather && field.weather !== weather) setWeather(field, weather, mon, events);
 
   const terrain = ENTRY_TERRAIN[ability];
-  if (terrain && field.terrain !== terrain) {
-    field.terrain = terrain;
-    field.terrainTurns = cond.itemOf(mon) === 'terrain-extender' ? 8 : cond.DURATION.terrain;
-    events.push({ kind: 'terrain-start', text: cond.TERRAINS[terrain].started });
-  }
+  if (terrain) setTerrain(state, terrain, mon, events);
 }
 
 /** End a strong weather once no Pokemon with its ability is out. */

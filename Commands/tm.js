@@ -84,7 +84,7 @@ function listFor(userId, row, showAll) {
   );
 
   embed.setFooter({
-    text: `.tm ${row.party_number || row.id} <move> to teach one. TMs are never used up.`,
+    text: `.tm ${row.party_number || row.id} <move> to teach one.`,
   });
 
   return { embeds: [embed] };
@@ -180,7 +180,7 @@ function teach(userId, row, query, rawSlot) {
     },
     {
       name: 'Your TM',
-      value: `**${tm.displayName}** is still in your bag. TMs are never used up.`,
+      value: `**${tm.displayName}** is still in your bag.`,
     }
   );
 

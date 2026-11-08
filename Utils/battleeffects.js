@@ -9,20 +9,16 @@
  * engine. `node Utils/battleeffects.js` prints which abilities and items are
  * implemented.
  *
- * Around eighty abilities and sixty held items are implemented. Not yet
- * supported:
+ * Every ability a Pokemon in the data can have is here, along with every
+ * held item the shops sell. A few are read by name in the engine instead
+ * (Mold Breaker, Disguise, Illusion, Imposter, Neutralizing Gas, the
+ * weather and terrain setters, the form changes); those are listed here
+ * with an empty entry and a note saying where. Abilities that only help an
+ * ally (Plus, Friend Guard, Battery...) do nothing in a single battle, as in
+ * the games.
  *
- *   some weather/terrain ones  Rain Dish, Ice Body, Surge Surfer and others.
- *                              (Drought, Drizzle, Sand Stream, Snow Warning,
- *                              the Surges and the Primal weathers are set by
- *                              the engine; Swift Swim, Chlorophyll, Sand
- *                              Force, Solar Power and friends are here.)
- *   sound moves                No sound flag, so Punk Rock and Soundproof do
- *                              nothing. Punching, biting, pulse and ball
- *                              moves are listed below (PUNCHING and friends);
- *                              contact is approximated (see makesContact).
- *   copying abilities          Trace and Imposter. (Transform and Skill
- *                              Swap are moves, in Utils/statusmoves.js.)
+ * The data has no contact, sound, punch, bite, pulse, ball, slicing, wind
+ * or dance flags, so those are lists below, taken from the games.
  *
  * Reading hooks (damage, speed, accuracy) only return numbers. Reacting hooks
  * (afterHitTaken, endOfTurn) mutate the combatant and push events, as the
@@ -98,11 +94,19 @@ function chip(mon, amount, events, source, kind = 'chip') {
 /** Use a held item up. Berries and Focus Sashes are one-shot. */
 function consumeItem(mon, events) {
   const used = mon.item;
+  const state = battleOf(mon);
   mon.item = null;
   mon.itemEffect = null;
   mon.consumedItem = used;
-  // Belch needs a berry eaten first.
-  if (/-berry$/.test(used || '')) mon.ateBerry = true;
+  // Pickup can take an item used up this turn.
+  mon.consumedTurn = state ? state.turn : null;
+  // Unburden doubles its Speed now it holds nothing.
+  if (used) vols(mon).unburden = true;
+  // Belch needs a berry eaten first; Cud Chew eats it again next turn.
+  if (/-berry$/.test(used || '')) {
+    mon.ateBerry = true;
+    if (abilityNow(mon) === 'cud-chew' && !vols(mon).cudChew) vols(mon).cudChew = { berry: used, turn: state ? state.turn : 0 };
+  }
   events.push({ kind: 'item-used', name: mon.name, item: displayItem(used) });
 }
 
@@ -131,29 +135,30 @@ const displayAbility = (slug) => {
 const NON_CONTACT_PHYSICAL = new Set([
   // Ground and rock, thrown rather than swung
   'earthquake', 'fissure', 'magnitude', 'bulldoze', 'bone-club', 'bonemerang',
-  'bone-rush', 'rock-throw', 'rock-slide', 'rockslide', 'stone-edge',
-  'rock-blast', 'rock-wrecker', 'rock-tomb', 'ancient-power', 'diamond-storm',
-  'sand-tomb', 'precipice-blades', 'thousand-arrows', 'thousand-waves',
-  'accelerock', 'meteor-beam', 'salt-cure', 'stone-axe',
+  'bone-rush', 'shadow-bone', 'rock-throw', 'rock-slide', 'stone-edge',
+  'rock-blast', 'rock-wrecker', 'rock-tomb', 'diamond-storm',
+  'sand-tomb', 'precipice-blades', 'thousand-arrows', 'thousand-waves', 'lands-wrath',
+  'salt-cure', 'gigaton-hammer',
 
   // Projectiles
   'pin-missile', 'poison-sting', 'spike-cannon', 'twineedle', 'barrage',
-  'egg-bomb', 'seed-bomb', 'gyro-ball', 'magnet-bomb', 'aura-sphere',
-  'bullet-seed', 'icicle-spear', 'icicle-crash', 'ice-shard', 'razor-leaf',
-  'leaf-blade', 'sacred-fire', 'smack-down', 'gear-grind', 'rock-smash',
-  'attack-order', 'fell-stinger', 'spirit-shackle', 'pyro-ball',
-  'triple-arrows', 'population-bomb', 'ivy-cudgel',
+  'egg-bomb', 'seed-bomb', 'magnet-bomb', 'bullet-seed', 'icicle-spear',
+  'icicle-crash', 'ice-shard', 'razor-leaf', 'sacred-fire', 'smack-down',
+  'attack-order', 'spirit-shackle', 'pyro-ball', 'triple-arrows', 'ivy-cudgel',
+  'scale-shot', 'dragon-darts', 'grav-apple', 'mountain-gale', 'glacial-lance',
+  'aqua-cutter', 'barb-barrage', 'flower-trick', 'order-up', 'petal-blizzard',
+  'drum-beating', 'sappy-seed', 'poltergeist', 'psycho-cut', 'aura-wheel',
+
+  // Charged and launched
+  'freeze-shock', 'fusion-bolt', 'sky-attack', 'beak-blast', 'secret-power',
+  'feint', 'tera-blast', 'blazing-torque', 'wicked-torque', 'noxious-torque',
+  'combat-torque', 'magical-torque',
 
   // Explosions and self-destruction
   'self-destruct', 'explosion', 'mind-blown', 'misty-explosion',
 
-  // Wind, breath and sound made physical
-  'aeroblast', 'razor-wind', 'gust', 'whirlwind', 'hyper-fang', 'bite',
-
   // Money, hazards and oddities
-  'pay-day', 'spikes', 'toxic-spikes', 'stealth-rock', 'sticky-web',
-  'present', 'natural-gift', 'beat-up', 'fling', 'metal-burst', 'counter',
-  'psycho-cut', 'sacred-sword', 'secret-sword', 'aura-wheel',
+  'pay-day', 'present', 'natural-gift', 'beat-up', 'fling', 'metal-burst',
 ]);
 
 function makesContact(move) {
@@ -198,7 +203,7 @@ const BULLETS = new Set([
  */
 const BREAKABLE_HOOKS = new Set([
   'absorbs', 'survives', 'damageIn', 'defenceMultiplier', 'blocksCrits', 'blocksStatus',
-  'blocksStatDrop', 'blocksOneHitKo',
+  'blocksStatDrop', 'blocksOneHitKo', 'evasionMultiplier',
 ]);
 
 const MOLD_BREAKERS = new Set(['mold-breaker', 'teravolt', 'turboblaze']);
@@ -207,8 +212,41 @@ const MOLD_BREAKERS = new Set(['mold-breaker', 'teravolt', 'turboblaze']);
 const breaksMold = (attacker) =>
   !attacker.abilitySuppressed && MOLD_BREAKERS.has(attacker.ability);
 
-/** The weather a Pokemon is fighting in (the engine links each one to the field). */
-const weatherAround = (mon) => (mon && mon.arena ? mon.arena.weather : null);
+/**
+ * The weather a Pokemon is fighting in (the engine links each one to the
+ * field). None while Air Lock or Cloud Nine is out.
+ */
+const weatherAround = (mon) => (mon && mon.arena ? require('./field').weatherNow(mon.arena) : null);
+
+/** The terrain a Pokemon is fighting on. */
+const terrainAround = (mon) => (mon && mon.arena ? mon.arena.terrain || null : null);
+
+/** The battle a Pokemon is in: Utils/battle.js links it through the field. */
+const battleOf = (mon) => (mon && mon.arena && mon.arena.battle) || null;
+
+/** Which side a Pokemon is on, or -1 outside a battle. */
+function sideIndexOf(mon) {
+  const state = battleOf(mon);
+  return state ? state.sides.findIndex((side) => side.team.includes(mon)) : -1;
+}
+
+/** The Pokemon facing this one, or null. */
+function foeOf(mon) {
+  const state = battleOf(mon);
+  const index = sideIndexOf(mon);
+  if (!state || index < 0) return null;
+  const other = state.sides[1 - index];
+  return other.team[other.active] || null;
+}
+
+/** Its ability, unless it is switched off (Gastro Acid) or ignored (Mold Breaker). */
+const abilityNow = (mon) => (mon && !mon.abilitySuppressed && !mon.abilityBroken ? mon.ability : null);
+
+/** Its volatile state (cleared when it leaves the field). */
+const vols = (mon) => mon.volatiles || (mon.volatiles = {});
+
+/** A line in the battle log. */
+const note = (events, text) => events.push({ kind: 'note', text });
 
 // ---------------------------------------------------------------------------
 // Ability records
@@ -269,7 +307,7 @@ const contactStatus = (status, chance = 30) => ({
   onHitTaken: ({ attacker, contact, rng, events, defender }) => {
     if (!contact || attacker.fainted) return;
     if (rng() * 100 >= chance) return;
-    requestStatus(attacker, status, events, { by: defender.name, source: 'ability' });
+    requestStatus(attacker, status, events, { by: defender.name, source: 'ability', from: defender });
   },
 });
 
@@ -324,6 +362,240 @@ const typeBoost = (type, multiplier) => ({
 const resistTypes = (multiplier, ...types) => ({
   damageIn: ({ move }) => (types.includes(lower(move.type)) ? multiplier : 1),
 });
+
+// ---------------------------------------------------------------------------
+// Move lists the data has no flags for, taken from the games
+// ---------------------------------------------------------------------------
+
+/** Sound moves: Soundproof, Punk Rock and Liquid Voice (and a Substitute) care. */
+const SOUND_MOVES = new Set([
+  'growl', 'roar', 'sing', 'supersonic', 'screech', 'snore', 'uproar', 'metal-sound',
+  'grass-whistle', 'hyper-voice', 'perish-song', 'heal-bell', 'bug-buzz', 'chatter',
+  'round', 'echoed-voice', 'relic-song', 'snarl', 'noble-roar', 'disarming-voice',
+  'parting-shot', 'boomburst', 'confide', 'sparkling-aria', 'clanging-scales',
+  'clangorous-soul', 'overdrive', 'eerie-spell', 'torch-song', 'alluring-voice',
+  'psychic-noise',
+]);
+
+/** Slicing moves, for Sharpness. */
+const SLICING = new Set([
+  'aerial-ace', 'air-cutter', 'air-slash', 'aqua-cutter', 'behemoth-blade', 'bitter-blade', 'ceaseless-edge',
+  'cross-poison', 'cut', 'fury-cutter', 'kowtow-cleave', 'leaf-blade', 'night-slash', 'population-bomb',
+  'psycho-cut', 'psyblade', 'razor-leaf', 'razor-shell', 'sacred-sword', 'secret-sword', 'slash',
+  'solar-blade', 'stone-axe', 'x-scissor', 'tachyon-cutter', 'mighty-cleave',
+]);
+
+/** Wind moves, for Wind Rider and Wind Power. */
+const WIND = new Set([
+  'aeroblast', 'air-cutter', 'bleakwind-storm', 'blizzard', 'fairy-wind', 'gust', 'heat-wave', 'hurricane',
+  'icy-wind', 'petal-blizzard', 'sandsear-storm', 'sandstorm', 'springtide-storm', 'tailwind', 'twister',
+  'whirlwind', 'wildbolt-storm',
+]);
+
+/** Dance moves, which Dancer copies. */
+const DANCES = new Set([
+  'aqua-step', 'clangorous-soul', 'dragon-dance', 'feather-dance', 'fiery-dance', 'lunar-dance', 'petal-dance',
+  'quiver-dance', 'revelation-dance', 'swords-dance', 'teeter-dance', 'victory-dance',
+]);
+
+/** Abilities that can't be overwritten or swapped (Mummy, Wandering Spirit, Entrainment). */
+const UNCHANGEABLE = new Set([
+  'multitype', 'stance-change', 'schooling', 'comatose', 'shields-down', 'disguise', 'rks-system',
+  'battle-bond', 'power-construct', 'ice-face', 'gulp-missile', 'zero-to-hero', 'commander', 'tera-shift',
+  'as-one-glastrier', 'as-one-spectrier', 'protosynthesis', 'quark-drive', 'poison-puppeteer', 'mummy',
+  'lingering-aroma',
+]);
+
+/** Items that can't be taken or swapped: Mega Stones, plates, memories, drives, masks, orbs. */
+const lockedItem = (item) =>
+  !item || (/ite(-[xyz])?$/.test(item) && item !== 'eviolite') || /-(plate|memory|drive)$/.test(item) ||
+  item.endsWith('-mask') || ['red-orb', 'blue-orb', 'griseous-core', 'adamant-crystal', 'lustrous-globe',
+    'rusted-sword', 'rusted-shield', 'booster-energy'].includes(item);
+
+const isBerry = (slug) => /-berry$/.test(slug || '');
+
+/** What a stat stage is worth (as Utils/damage.js has it). */
+const stageWorth = (stage) => {
+  const s = Math.max(-6, Math.min(6, Math.round(stage || 0)));
+  return s >= 0 ? (2 + s) / 2 : 2 / (2 - s);
+};
+
+/** Did this hit take it from above half health to half or below? */
+function crossedHalf(mon, dealt) {
+  if (!dealt || mon.fainted) return false;
+  const before = mon.hp + dealt;
+  return before > mon.maxHp / 2 && mon.hp <= mon.maxHp / 2;
+}
+
+/** Emergency Exit and Wimp Out: dropping to half health sends it out. */
+function halfExit() {
+  return {
+    onHitTaken: ({ defender, attacker, dealt }) => {
+      if (attacker === defender || !crossedHalf(defender, dealt)) return;
+      requestAct(defender, (e) => e.switchOut(defender));
+    },
+  };
+}
+
+/** Mummy and Lingering Aroma: touching it passes the ability on. */
+function spreadAbility(slug) {
+  return {
+    onHitTaken: ({ attacker, defender, contact, events }) => {
+      if (!contact || attacker.fainted || attacker === defender) return;
+      if (UNCHANGEABLE.has(attacker.ability) || attacker.ability === slug) return;
+      setAbility(attacker, slug);
+      note(events, slug === 'mummy' ? `${attacker.name}'s Ability became Mummy!` : `A lingering aroma clings to ${attacker.name}!`);
+    },
+  };
+}
+
+/** An entry effect that only happens once a battle (Intrepid Sword, Dauntless Shield). */
+function oncePerBattle(key, fn) {
+  return {
+    onSendOut: ({ mon, events }) => {
+      const flags = mon.flags || (mon.flags = {});
+      if (flags[key]) return;
+      flags[key] = true;
+      fn(mon, events);
+    },
+  };
+}
+
+/** Protosynthesis and Quark Drive, once the engine has picked the stat (vols(mon).paradox). */
+function paradoxBoost() {
+  return {
+    attackMultiplier: ({ attacker, move }) => {
+      const stat = vols(attacker).paradox;
+      return (stat === 'attack' && move.damageClass === 'physical') ||
+        (stat === 'specialAttack' && move.damageClass === 'special') ? 1.3 : 1;
+    },
+    defenceMultiplier: ({ mon, move }) => {
+      const stat = vols(mon).paradox;
+      return (stat === 'defense' && move.damageClass === 'physical') ||
+        (stat === 'specialDefense' && move.damageClass === 'special') ? 1.3 : 1;
+    },
+    speedMultiplier: ({ mon }) => (vols(mon).paradox === 'speed' ? 1.5 : 1),
+  };
+}
+
+/** Darmanitan: Zen Mode at half health or below. */
+function zenCheck(mon) {
+  if (mon.fainted || mon.transformed || !mon.form) return;
+  const galar = /^Galar/.test(mon.form);
+  const zen = /Zen$/.test(mon.form);
+  if (share(mon) <= 0.5 && !zen) requestAct(mon, (e) => e.changeForm(mon, galar ? 'Galar Zen' : 'Zen', 'Zen Mode triggered!'));
+  else if (share(mon) > 0.5 && zen) requestAct(mon, (e) => e.changeForm(mon, galar ? 'Galar Standard' : 'Standard', 'Zen Mode ended!'));
+}
+
+/** Wishiwashi: a school above a quarter health, from level 20. */
+function schoolCheck(mon) {
+  if (mon.fainted || mon.transformed || mon.level < 20) return;
+  if (share(mon) > 0.25 && mon.form !== 'School') requestAct(mon, (e) => e.changeForm(mon, 'School', `${mon.name} formed a school!`));
+  else if (share(mon) <= 0.25 && mon.form === 'School') requestAct(mon, (e) => e.changeForm(mon, 'Solo', `${mon.name} stopped schooling!`));
+}
+
+/** Minior: its shell above half health, its core below. */
+function shieldsCheck(mon) {
+  if (mon.fainted || mon.transformed) return;
+  if (!mon.coreForm) mon.coreForm = mon.source && mon.source.form_folder && mon.source.form_folder !== 'Meteor' ? mon.source.form_folder : 'Red';
+  if (share(mon) > 0.5 && mon.form !== 'Meteor') requestAct(mon, (e) => e.changeForm(mon, 'Meteor', 'Shields Down deactivated!'));
+  else if (share(mon) <= 0.5 && mon.form === 'Meteor') requestAct(mon, (e) => e.changeForm(mon, mon.coreForm, 'Shields Down activated!'));
+}
+
+/** Who Unnerve frightens, as the games say it. */
+const nervousTeam = (mon) => (sideIndexOf(mon) === 1 ? 'Your team' : 'The opposing team');
+
+/** Is this Pokemon kept from eating Berries (Unnerve, As One)? */
+function unnerved(mon) {
+  const foe = foeOf(mon);
+  return Boolean(foe && !foe.fainted && ['unnerve', 'as-one-glastrier', 'as-one-spectrier'].includes(abilityNow(foe)));
+}
+
+// ---------------------------------------------------------------------------
+// Berries
+// ---------------------------------------------------------------------------
+
+/** HP berries go off at half health; Gluttony makes the quarter ones go off at half too. */
+const pinchShare = (mon) => (abilityNow(mon) === 'gluttony' ? 0.5 : 0.25);
+
+/**
+ * What each held berry does: when it is eaten, and what eating it does.
+ * `x` is 2 under Ripen. Berry Juice isn't a berry but works the same way.
+ */
+const cureStatus = (status) => ({
+  when: (mon) => mon.status === status,
+  eat: (mon, events, x, slug) => {
+    if (mon.status !== status) return;
+    events.push({ kind: 'cured', name: mon.name, status: mon.status, source: displayItem(slug) });
+    mon.status = null;
+    mon.statusTurns = 0;
+    mon.toxicCounter = 0;
+  },
+});
+const pinchStat = (stat) => ({
+  when: (mon) => share(mon) <= pinchShare(mon),
+  eat: (mon, events, x) => requestStage(mon, stat, x, events, 'item'),
+});
+
+const BERRIES = {
+  'sitrus-berry': { when: (mon) => share(mon) <= 0.5, eat: (mon, events, x) => heal(mon, chunk(mon, 4) * x, events, 'Sitrus Berry') },
+  'oran-berry': { when: (mon) => share(mon) <= 0.5, eat: (mon, events, x) => heal(mon, 10 * x, events, 'Oran Berry') },
+  'berry-juice': { when: (mon) => share(mon) <= 0.5, eat: (mon, events) => heal(mon, 20, events, 'Berry Juice') },
+  'lum-berry': {
+    when: (mon) => Boolean(mon.status) || Boolean(vols(mon).confusion),
+    eat: (mon, events) => {
+      if (mon.status) {
+        events.push({ kind: 'cured', name: mon.name, status: mon.status, source: 'Lum Berry' });
+        mon.status = null;
+        mon.statusTurns = 0;
+        mon.toxicCounter = 0;
+      }
+      if (vols(mon).confusion) {
+        delete vols(mon).confusion;
+        events.push({ kind: 'confusion-cured', name: mon.name, source: 'Lum Berry' });
+      }
+    },
+  },
+  'persim-berry': {
+    when: (mon) => Boolean(vols(mon).confusion),
+    eat: (mon, events) => {
+      if (!vols(mon).confusion) return;
+      delete vols(mon).confusion;
+      events.push({ kind: 'confusion-cured', name: mon.name, source: 'Persim Berry' });
+    },
+  },
+  'cheri-berry': cureStatus('paralysis'),
+  'chesto-berry': cureStatus('sleep'),
+  'pecha-berry': cureStatus('poison'),
+  'rawst-berry': cureStatus('burn'),
+  'aspear-berry': cureStatus('freeze'),
+  'liechi-berry': pinchStat('attack'),
+  'ganlon-berry': pinchStat('defense'),
+  'petaya-berry': pinchStat('specialAttack'),
+  'apicot-berry': pinchStat('specialDefense'),
+  'salac-berry': pinchStat('speed'),
+};
+
+/**
+ * Eat a berry: its effect, doubled by Ripen, and Cheek Pouch's heal.
+ * `forced` eats it whatever the situation (Cud Chew, Bug Bite).
+ *
+ * @returns {boolean} whether it is a berry this knows
+ */
+function eatBerry(mon, slug, events, { forced = false } = {}) {
+  const berry = BERRIES[slug];
+  if (!berry || mon.fainted) return false;
+  if (!forced && !berry.when(mon)) return false;
+
+  const x = isBerry(slug) && abilityNow(mon) === 'ripen' ? 2 : 1;
+  berry.eat(mon, events, x, slug);
+
+  if (isBerry(slug)) {
+    mon.ateBerry = true;
+    if (abilityNow(mon) === 'cheek-pouch' && !vols(mon).healBlock) heal(mon, chunk(mon, 3), events, 'Cheek Pouch');
+  }
+  return true;
+}
 
 const ABILITIES = {
   // -------------------------------------------------------------------------
@@ -492,6 +764,12 @@ const ABILITIES = {
   },
 
   'dry-skin': {
+    // Rain heals an eighth; sun takes an eighth.
+    weatherEndOfTurn: ({ mon, events }) => {
+      const weather = weatherAround(mon);
+      if (weather === 'rain') heal(mon, chunk(mon, 8), events, 'Dry Skin');
+      else if (weather === 'sun') chip(mon, chunk(mon, 8), events, 'Dry Skin');
+    },
     absorbs: ({ move }) => (lower(move.type) === 'water' ? { kind: 'heal', denominator: 4 } : null),
     damageIn: ({ move }) => (lower(move.type) === 'fire' ? 1.25 : 1),
   },
@@ -521,7 +799,7 @@ const ABILITIES = {
       const roll = rng() * 100;
       if (roll >= 30) return;
       const status = roll < 10 ? 'sleep' : roll < 20 ? 'paralysis' : 'poison';
-      requestStatus(attacker, status, events, { by: defender.name, source: 'ability' });
+      requestStatus(attacker, status, events, { by: defender.name, source: 'ability', from: defender });
     },
   },
 
@@ -541,6 +819,8 @@ const ABILITIES = {
   aftermath: {
     onHitTaken: ({ attacker, contact, defender, events }) => {
       if (!contact || !defender.fainted || attacker.fainted) return;
+      // Damp stops it going off.
+      if (abilityNow(attacker) === 'damp') return;
       chip(attacker, chunk(attacker, 4), events, 'Aftermath');
     },
   },
@@ -584,10 +864,19 @@ const ABILITIES = {
   },
 
   intimidate: {
-    onSendOut: ({ foe, events }) => {
+    onSendOut: ({ mon, foe, events }) => {
       if (!foe || foe.fainted) return;
+      events.push({ kind: 'note', text: `**${mon.name}**'s Intimidate!` });
+      // Guard Dog turns it round.
+      if (!foe.abilitySuppressed && foe.ability === 'guard-dog') {
+        requestStage(foe, 'attack', 1, events, 'ability');
+        return;
+      }
       // Since Gen 8 these shrug it off.
-      if (!foe.abilitySuppressed && INTIMIDATE_PROOF.has(foe.ability)) return;
+      if (!foe.abilitySuppressed && INTIMIDATE_PROOF.has(foe.ability)) {
+        events.push({ kind: 'note', text: `${foe.name}'s Attack was not lowered!` });
+        return;
+      }
       requestStage(foe, 'attack', -1, events, 'ability', true);
     },
   },
@@ -627,11 +916,16 @@ const ABILITIES = {
     absorbs: ({ move }) => (BULLETS.has(move.name) ? { kind: 'blocked' } : null),
   },
 
-  // Fairy moves from either side hit a third harder.
-  'fairy-aura': {
-    damageOut: ({ move }) => (lower(move.type) === 'fairy' ? 4 / 3 : 1),
-    damageIn: ({ move }) => (lower(move.type) === 'fairy' ? 4 / 3 : 1),
-  },
+  // Fairy and Dark moves from either side hit a third harder (worked out in
+  // damageParts, with Aura Break turning them round).
+  'fairy-aura': {},
+  'dark-aura': {},
+  'aura-break': {},
+  // The Ruin abilities lower everyone else's stat (also in damageParts).
+  'beads-of-ruin': {},
+  'sword-of-ruin': {},
+  'tablets-of-ruin': {},
+  'vessel-of-ruin': {},
 
   // Sand Force: Rock, Ground and Steel moves 30% harder in a sandstorm.
   // Like Sand Veil and Sand Rush, it is never hurt by the sand
@@ -645,7 +939,7 @@ const ABILITIES = {
   'solar-power': {
     attackMultiplier: ({ attacker, move }) =>
       weatherAround(attacker) === 'sun' && move.damageClass === 'special' ? 1.5 : 1,
-    endOfTurn: ({ mon, events }) => {
+    weatherEndOfTurn: ({ mon, events }) => {
       if (weatherAround(mon) === 'sun') chip(mon, chunk(mon, 8), events, 'Solar Power');
     },
   },
@@ -678,7 +972,7 @@ const ABILITIES = {
   'spicy-spray': {
     onHitTaken: ({ attacker, defender, dealt, events }) => {
       if (!dealt || attacker.fainted || attacker === defender) return;
-      requestStatus(attacker, 'burn', events, { by: defender.name, source: 'ability' });
+      requestStatus(attacker, 'burn', events, { by: defender.name, source: 'ability', from: defender });
     },
   },
 
@@ -774,15 +1068,20 @@ const ABILITIES = {
     onWithdraw: ({ mon, events }) => heal(mon, chunk(mon, 3), events, 'Regenerator'),
   },
 
+  // Not on the turn it was switched in.
   'speed-boost': {
-    endOfTurn: ({ mon, events }) => requestStage(mon, 'speed', 1, events, 'ability'),
+    lateEndOfTurn: ({ mon, events }) => {
+      const state = battleOf(mon);
+      if (state && mon.switchedInTurn === state.turn) return;
+      requestStage(mon, 'speed', 1, events, 'ability');
+    },
   },
 
   'clear-body': statProof('attack', 'defense', 'specialAttack', 'specialDefense', 'speed', 'accuracy', 'evasion'),
   'white-smoke': statProof('attack', 'defense', 'specialAttack', 'specialDefense', 'speed', 'accuracy', 'evasion'),
   'full-metal-body': statProof('attack', 'defense', 'specialAttack', 'specialDefense', 'speed', 'accuracy', 'evasion'),
   'hyper-cutter': statProof('attack'),
-  'keen-eye': statProof('accuracy'),
+  'keen-eye': { ...statProof('accuracy'), ignoresEvasion: true },
   'big-pecks': statProof('defense'),
 
   contrary: { invertsStatChanges: true },
@@ -792,6 +1091,573 @@ const ABILITIES = {
   competitive: spiteBoost('specialAttack'),
 
   'rock-head': { blocksRecoil: true },
+
+  // -------------------------------------------------------------------------
+  // Weather and terrain
+  // -------------------------------------------------------------------------
+  'rain-dish': {
+    weatherEndOfTurn: ({ mon, events }) => {
+      if (weatherAround(mon) === 'rain') heal(mon, chunk(mon, 16), events, 'Rain Dish');
+    },
+  },
+  'ice-body': {
+    weatherEndOfTurn: ({ mon, events }) => {
+      if (['hail', 'snow'].includes(weatherAround(mon))) heal(mon, chunk(mon, 16), events, 'Ice Body');
+    },
+  },
+  hydration: {
+    endOfTurn: ({ mon, events }) => {
+      if (!mon.status || weatherAround(mon) !== 'rain') return;
+      events.push({ kind: 'cured', name: mon.name, status: mon.status, source: 'Hydration' });
+      mon.status = null;
+      mon.statusTurns = 0;
+      mon.toxicCounter = 0;
+    },
+  },
+  'leaf-guard': { blocksStatus: ({ mon }) => weatherAround(mon) === 'sun' },
+  'sand-veil': { evasionMultiplier: ({ mon }) => (weatherAround(mon) === 'sandstorm' ? 0.8 : 1) },
+  'snow-cloak': { evasionMultiplier: ({ mon }) => (['hail', 'snow'].includes(weatherAround(mon)) ? 0.8 : 1) },
+  'surge-surfer': { speedMultiplier: ({ mon }) => (terrainAround(mon) === 'electric' ? 2 : 1) },
+  'grass-pelt': {
+    defenceMultiplier: ({ mon, move }) => (terrainAround(mon) === 'grassy' && move.damageClass === 'physical' ? 1.5 : 1),
+  },
+  // Miraidon and Koraidon: they lay their field as they come out (the
+  // engine), and fight a third harder on it.
+  'hadron-engine': {
+    attackMultiplier: ({ attacker, move }) =>
+      terrainAround(attacker) === 'electric' && move.damageClass === 'special' ? 5461 / 4096 : 1,
+  },
+  'orichalcum-pulse': {
+    attackMultiplier: ({ attacker, move }) =>
+      weatherAround(attacker) === 'sun' && move.damageClass === 'physical' ? 5461 / 4096 : 1,
+  },
+  // Protosynthesis and Quark Drive: the highest stat goes up while the sun
+  // shines (or the terrain is electric), or once for a Booster Energy. The
+  // engine works out which stat (see fieldAbilities in Utils/battle.js).
+  protosynthesis: paradoxBoost(),
+  'quark-drive': paradoxBoost(),
+  'flower-gift': {
+    attackMultiplier: ({ attacker, move }) => (weatherAround(attacker) === 'sun' && move.damageClass === 'physical' ? 1.5 : 1),
+    defenceMultiplier: ({ mon, move }) => (weatherAround(mon) === 'sun' && move.damageClass === 'special' ? 1.5 : 1),
+  },
+  // Air Lock and Cloud Nine are read by Utils/field.js (weatherNow).
+  'air-lock': { onSendOut: ({ events }) => note(events, 'The effects of the weather disappeared.') },
+  'cloud-nine': { onSendOut: ({ events }) => note(events, 'The effects of the weather disappeared.') },
+  // Mimicry and Forecast are worked out by the engine (fieldAbilities).
+  mimicry: {},
+  forecast: {},
+
+  // Being hit sets a field.
+  'seed-sower': {
+    onHitTaken: ({ defender, dealt }) => {
+      if (dealt > 0) requestAct(defender, (e) => e.setTerrain('grassy', defender), true);
+    },
+  },
+  'sand-spit': {
+    onHitTaken: ({ defender, dealt }) => {
+      if (dealt > 0) requestAct(defender, (e) => e.setWeather('sandstorm', defender), true);
+    },
+  },
+  'toxic-debris': {
+    onHitTaken: ({ defender, attacker, move, dealt, events }) => {
+      if (!dealt || move.damageClass !== 'physical') return;
+      requestAct(defender, (e) => {
+        const side = e.state.sides[e.sideOf(attacker)];
+        if (!side) return;
+        const c = side.conditions || (side.conditions = {});
+        if ((c.toxicSpikes || 0) >= 2) return;
+        c.toxicSpikes = (c.toxicSpikes || 0) + 1;
+        note(events, `Poison spikes were scattered on the ground all around ${side.name}'s team!`);
+      }, true);
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // Reactions to being hit
+  // -------------------------------------------------------------------------
+  'wind-power': {
+    onHitTaken: ({ defender, move, dealt, events }) => {
+      if (!dealt || defender.fainted || !WIND.has(move.name)) return;
+      vols(defender).charged = true;
+      note(events, `Being hit by ${move.displayName} charged ${defender.name} with power!`);
+    },
+  },
+  electromorphosis: {
+    onHitTaken: ({ defender, move, dealt, events }) => {
+      if (!dealt || defender.fainted) return;
+      vols(defender).charged = true;
+      note(events, `Being hit by ${move.displayName} charged ${defender.name} with power!`);
+    },
+  },
+  'wind-rider': {
+    absorbs: ({ move }) => (WIND.has(move.name) && move.damageClass !== 'status' ? { kind: 'boost', stat: 'attack', delta: 1 } : null),
+  },
+  'steam-engine': {
+    onHitTaken: ({ defender, move, dealt, events }) => {
+      if (dealt && ['fire', 'water'].includes(lower(move.type))) requestStage(defender, 'speed', 6, events, 'ability');
+    },
+  },
+  'water-compaction': {
+    onHitTaken: ({ defender, move, dealt, events }) => {
+      if (dealt && lower(move.type) === 'water') requestStage(defender, 'defense', 2, events, 'ability');
+    },
+  },
+  stamina: {
+    onHitTaken: ({ defender, dealt, events }) => {
+      if (dealt) requestStage(defender, 'defense', 1, events, 'ability');
+    },
+  },
+  'cotton-down': {
+    onHitTaken: ({ defender, attacker, dealt, events }) => {
+      if (!dealt || attacker.fainted || attacker === defender) return;
+      note(events, `${defender.name}'s Cotton Down!`);
+      requestStage(attacker, 'speed', -1, events, 'ability', true);
+    },
+  },
+  'anger-shell': {
+    onHitTaken: ({ defender, dealt, events }) => {
+      if (!crossedHalf(defender, dealt)) return;
+      for (const stat of ['attack', 'specialAttack', 'speed']) requestStage(defender, stat, 1, events, 'ability');
+      for (const stat of ['defense', 'specialDefense']) requestStage(defender, stat, -1, events, 'ability');
+    },
+  },
+  'emergency-exit': halfExit(),
+  'wimp-out': halfExit(),
+  'cursed-body': {
+    onHitTaken: ({ defender, attacker, move, dealt, rng, events }) => {
+      if (!dealt || attacker.fainted || attacker === defender || move.name === 'struggle') return;
+      const av = vols(attacker);
+      if (av.disable || rng() >= 0.3) return;
+      if (!attacker.moves.some((m) => m.name === move.name)) return;
+      av.disable = { move: move.name, turns: 4 };
+      note(events, `${attacker.name}'s ${move.displayName} was disabled by ${defender.name}'s Cursed Body!`);
+    },
+  },
+  'color-change': {
+    onHitTaken: ({ defender, move, dealt, events }) => {
+      const type = lower(move.type);
+      if (!dealt || defender.fainted || !type || (defender.types.length === 1 && lower(defender.types[0]) === type)) return;
+      defender.types = [type];
+      events.push({ kind: 'retyped', name: defender.name, types: defender.types });
+    },
+  },
+  // Contact passes the ability on.
+  mummy: spreadAbility('mummy'),
+  'lingering-aroma': spreadAbility('lingering-aroma'),
+  'wandering-spirit': {
+    onHitTaken: ({ defender, attacker, contact, events }) => {
+      if (!contact || attacker.fainted || defender.fainted) return;
+      if (UNCHANGEABLE.has(attacker.ability) || attacker.ability === 'wandering-spirit') return;
+      const theirs = attacker.ability;
+      setAbility(attacker, 'wandering-spirit');
+      setAbility(defender, theirs);
+      note(events, `${defender.name} swapped Abilities with ${attacker.name}!`);
+    },
+  },
+  'perish-body': {
+    onHitTaken: ({ defender, attacker, contact, events }) => {
+      if (!contact || attacker.fainted) return;
+      const dv = vols(defender);
+      const av = vols(attacker);
+      if (dv.perish !== undefined && av.perish !== undefined) return;
+      if (dv.perish === undefined && !defender.fainted) dv.perish = 4;
+      if (av.perish === undefined) av.perish = 4;
+      note(events, 'Both Pokemon will faint in three turns!');
+    },
+  },
+  pickpocket: {
+    onHitTaken: ({ defender, attacker, contact, events }) => {
+      if (!contact || defender.fainted || defender.item || !attacker.item) return;
+      if (lockedItem(attacker.item) || abilityNow(attacker) === 'sticky-hold') return;
+      const item = attacker.item;
+      setItem(attacker, null);
+      setItem(defender, item);
+      note(events, `${defender.name} stole ${attacker.name}'s ${displayItem(item)}!`);
+    },
+  },
+  // Gulp Missile: a caught Arrokuda or Pikachu is spat at whoever hits it.
+  'gulp-missile': {
+    onHitTaken: ({ defender, attacker, dealt, events }) => {
+      if (!dealt || !['Gulping', 'Gorging'].includes(defender.form)) return;
+      const gorging = defender.form === 'Gorging';
+      requestAct(defender, (e) => {
+        e.changeForm(defender, 'Default', '');
+        if (attacker.fainted) return;
+        chip(attacker, chunk(attacker, 4), events, 'Gulp Missile');
+        if (attacker.fainted) return;
+        if (gorging) e.applyStatus(attacker, 'paralysis', defender);
+        else e.applyStage(attacker, 'defense', -1, true);
+      }, true);
+    },
+  },
+  // Illusion is broken by any damaging hit (the engine checks).
+  illusion: {},
+  // Disguise and Ice Face take the first hit (the engine, in landHit).
+  disguise: {},
+  'ice-face': {
+    lateEndOfTurn: ({ mon }) => {
+      if (mon.form !== 'Noice' || !['hail', 'snow'].includes(weatherAround(mon))) return;
+      requestAct(mon, (e) => e.changeForm(mon, 'Ice', `${mon.name} transformed!`));
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // Attacking
+  // -------------------------------------------------------------------------
+  'poison-touch': {
+    onDealtDamage: ({ attacker, defender, contact, rng, events }) => {
+      if (!contact || defender.fainted || rng() >= 0.3) return;
+      requestStatus(defender, 'poison', events, { by: attacker.name, source: 'ability', from: attacker });
+    },
+  },
+  'toxic-chain': {
+    onDealtDamage: ({ attacker, defender, rng, events }) => {
+      if (defender.fainted || rng() >= 0.3) return;
+      requestStatus(defender, 'poison', events, { by: attacker.name, source: 'ability', badly: true, from: attacker });
+    },
+  },
+  magician: {
+    onDealtDamage: ({ attacker, defender, events }) => {
+      if (attacker.item || !defender.item || lockedItem(defender.item) || abilityNow(defender) === 'sticky-hold') return;
+      const item = defender.item;
+      setItem(defender, null);
+      setItem(attacker, item);
+      note(events, `${attacker.name} stole ${defender.name}'s ${displayItem(item)}!`);
+    },
+  },
+  merciless: { forcesCrit: ({ defender }) => defender.status === 'poison' },
+  'gorilla-tactics': {
+    attackMultiplier: ({ move }) => (move.damageClass === 'physical' ? 1.5 : 1),
+  },
+  sharpness: { damageOut: ({ move }) => (SLICING.has(move.name) ? 1.5 : 1) },
+  'punk-rock': {
+    damageOut: ({ move }) => (SOUND_MOVES.has(move.name) ? 1.3 : 1),
+    damageIn: ({ move }) => (SOUND_MOVES.has(move.name) ? 0.5 : 1),
+  },
+  // Liquid Voice and Normalize change the move's type (the engine);
+  // Normalize and Galvanize also hit 20% harder.
+  'liquid-voice': {},
+  normalize: { damageOut: ({ move }) => (move.normalized ? 1.2 : 1) },
+  galvanize: { damageOut: ({ move }) => (move.ateBoosted ? 1.2 : 1) },
+  'long-reach': { noContact: true },
+  neuroforce: { damageOut: ({ effectiveness }) => (effectiveness > 1 ? 1.25 : 1) },
+  'victory-star': { accuracyMultiplier: () => 1.1 },
+  defeatist: {
+    attackMultiplier: ({ attacker }) => (share(attacker) <= 0.5 ? 0.5 : 1),
+  },
+  rivalry: {
+    damageOut: ({ attacker, defender }) => {
+      const genders = [attacker.gender, defender.gender];
+      if (!genders.every((g) => g === 'male' || g === 'female')) return 1;
+      return genders[0] === genders[1] ? 1.25 : 0.75;
+    },
+  },
+  // Analytic: moving after the target.
+  analytic: { damageOut: ({ attacker }) => (vols(attacker).movingLast ? 1.3 : 1) },
+  // Stakeout: the target switched in this turn.
+  stakeout: {
+    damageOut: ({ defender }) => {
+      const state = battleOf(defender);
+      return state && defender.switchedInTurn === state.turn ? 2 : 1;
+    },
+  },
+  'supreme-overlord': {
+    damageOut: ({ attacker }) => {
+      const fallen = (attacker.allies || []).filter((ally) => ally !== attacker && ally.fainted).length;
+      return 1 + 0.1 * Math.min(5, fallen);
+    },
+  },
+  // Mind's Eye: Normal and Fighting hit Ghosts (Utils/conditions.js), and
+  // evasion and accuracy drops are ignored.
+  'minds-eye': { ...statProof('accuracy'), ignoresEvasion: true },
+  illuminate: { ...statProof('accuracy'), ignoresEvasion: true },
+  // Battle Bond (Gen 9): a knockout raises Attack, Sp. Atk and Speed, once.
+  'battle-bond': {
+    onKnockout: ({ attacker, events }) => {
+      const v = attacker.flags || (attacker.flags = {});
+      if (v.battleBond) return;
+      v.battleBond = true;
+      note(events, `${attacker.name} became fully charged due to its bond with its Trainer!`);
+      for (const stat of ['attack', 'specialAttack', 'speed']) requestStage(attacker, stat, 1, events, 'ability');
+    },
+  },
+  'soul-heart': {
+    onKnockout: ({ attacker, events }) => requestStage(attacker, 'specialAttack', 1, events, 'ability'),
+  },
+
+  // -------------------------------------------------------------------------
+  // Defending
+  // -------------------------------------------------------------------------
+  'tera-shell': {},
+  'good-as-gold': {},
+  'armor-tail': {},
+  dazzling: {},
+  'queenly-majesty': {},
+  'shield-dust': {},
+  'pastel-veil': statusProof('poison'),
+  'flower-veil': {
+    blocksStatus: ({ mon }) => isType(mon, 'grass'),
+    blocksStatDrop: ({ mon, fromFoe }) => fromFoe && isType(mon, 'grass'),
+  },
+  // Wonder Skin and Tangled Feet make the Pokemon harder to hit (the engine
+  // reads Wonder Skin for status moves).
+  'wonder-skin': {},
+  'tangled-feet': { evasionMultiplier: ({ mon }) => (vols(mon).confusion ? 0.5 : 1) },
+  unaware: {},
+  'heavy-metal': {},
+  'light-metal': {},
+  synchronize: {},
+  'liquid-ooze': {},
+  'magnet-pull': {},
+  'arena-trap': {},
+  'guard-dog': {},
+  'poison-puppeteer': {},
+  corrosion: {},
+
+  // -------------------------------------------------------------------------
+  // Turns, items and berries
+  // -------------------------------------------------------------------------
+  truant: {},
+  'early-bird': {},
+  pressure: { onSendOut: ({ mon, events }) => note(events, `${mon.name} is exerting its pressure!`) },
+  unnerve: { onSendOut: ({ mon, events }) => note(events, `${nervousTeam(mon)} is too nervous to eat Berries!`) },
+  'as-one-glastrier': {
+    onSendOut: ({ mon, events }) => note(events, `${mon.name} has two Abilities! ${nervousTeam(mon)} is too nervous to eat Berries!`),
+    ...killBoost('attack'),
+  },
+  'as-one-spectrier': {
+    onSendOut: ({ mon, events }) => note(events, `${mon.name} has two Abilities! ${nervousTeam(mon)} is too nervous to eat Berries!`),
+    ...killBoost('specialAttack'),
+  },
+  unburden: { speedMultiplier: ({ mon }) => (vols(mon).unburden && !mon.item ? 2 : 1) },
+  klutz: {},
+  gluttony: {},
+  ripen: {},
+  'cheek-pouch': {},
+  'cud-chew': {
+    lateEndOfTurn: ({ mon, events }) => {
+      const v = vols(mon);
+      const state = battleOf(mon);
+      if (!v.cudChew || (state && v.cudChew.turn >= state.turn)) return;
+      const berry = v.cudChew.berry;
+      delete v.cudChew;
+      note(events, `${mon.name} ate its ${displayItem(berry)} again!`);
+      eatBerry(mon, berry, events, { forced: true });
+    },
+  },
+  harvest: {
+    lateEndOfTurn: ({ mon, rng, events }) => {
+      if (mon.item || !isBerry(mon.consumedItem)) return;
+      if (weatherAround(mon) !== 'sun' && rng() >= 0.5) return;
+      const berry = mon.consumedItem;
+      mon.consumedItem = null;
+      setItem(mon, berry);
+      note(events, `${mon.name} harvested one ${displayItem(berry)}!`);
+      healthChanged(mon, events);
+    },
+  },
+  pickup: {
+    lateEndOfTurn: ({ mon, events }) => {
+      const foe = foeOf(mon);
+      const state = battleOf(mon);
+      if (mon.item || !foe || !foe.consumedItem || !state || foe.consumedTurn !== state.turn) return;
+      const item = foe.consumedItem;
+      foe.consumedItem = null;
+      setItem(mon, item);
+      note(events, `${mon.name} found one ${displayItem(item)}!`);
+      healthChanged(mon, events);
+    },
+  },
+  moody: {
+    lateEndOfTurn: ({ mon, rng, events }) => {
+      const stats = ['attack', 'defense', 'specialAttack', 'specialDefense', 'speed'];
+      const up = stats.filter((s) => (mon.stages[s] || 0) < 6);
+      const raised = up.length ? up[Math.floor(rng() * up.length)] : null;
+      const down = stats.filter((s) => s !== raised && (mon.stages[s] || 0) > -6);
+      const lowered = down.length ? down[Math.floor(rng() * down.length)] : null;
+      if (raised) requestStage(mon, raised, 2, events, 'ability');
+      if (lowered) requestStage(mon, lowered, -1, events, 'ability');
+    },
+  },
+  'bad-dreams': {
+    lateEndOfTurn: ({ mon, events }) => {
+      const foe = foeOf(mon);
+      if (!foe || foe.fainted || foe.status !== 'sleep') return;
+      chip(foe, chunk(foe, 8), events, `${foe.name} is tormented!`, 'hurt');
+    },
+  },
+  'slow-start': {
+    onSendOut: ({ mon, events }) => {
+      vols(mon).slowStart = 5;
+      note(events, `${mon.name} can't get it going!`);
+    },
+    attackMultiplier: ({ attacker, move }) => (vols(attacker).slowStart && move.damageClass === 'physical' ? 0.5 : 1),
+    speedMultiplier: ({ mon }) => (vols(mon).slowStart ? 0.5 : 1),
+    lateEndOfTurn: ({ mon, events }) => {
+      const v = vols(mon);
+      if (!v.slowStart) return;
+      v.slowStart -= 1;
+      if (v.slowStart <= 0) {
+        delete v.slowStart;
+        note(events, `${mon.name} finally got its act together!`);
+      }
+    },
+  },
+  'quick-draw': {
+    bracketShift: ({ rng, move }) => (move && move.damageClass !== 'status' && rng() < 0.3 ? 1 : 0),
+  },
+  stall: { bracketShift: () => -1 },
+  'mycelium-might': { bracketShift: ({ move }) => (move && move.damageClass === 'status' ? -1 : 0) },
+  opportunist: {},
+  dancer: {},
+
+  // -------------------------------------------------------------------------
+  // Coming out
+  // -------------------------------------------------------------------------
+  download: {
+    onSendOut: ({ mon, foe, events }) => {
+      if (!foe || foe.fainted) return;
+      const def = foe.stats.defense * stageWorth(foe.stages.defense);
+      const spd = foe.stats.specialDefense * stageWorth(foe.stages.specialDefense);
+      requestStage(mon, def < spd ? 'attack' : 'specialAttack', 1, events, 'ability');
+    },
+  },
+  // Once per battle, in Gen 9.
+  'intrepid-sword': oncePerBattle('intrepidSword', (mon, events) => requestStage(mon, 'attack', 1, events, 'ability')),
+  'dauntless-shield': oncePerBattle('dauntlessShield', (mon, events) => requestStage(mon, 'defense', 1, events, 'ability')),
+  'supersweet-syrup': {
+    onSendOut: ({ mon, foe, events }) => {
+      const v = mon.flags || (mon.flags = {});
+      if (v.syrup || !foe || foe.fainted) return;
+      v.syrup = true;
+      note(events, `A supersweet aroma is wafting from the syrup covering ${mon.name}!`);
+      requestStage(foe, 'evasion', -1, events, 'ability', true);
+    },
+  },
+  anticipation: {
+    onSendOut: ({ mon, foe, events }) => {
+      if (!foe || foe.fainted) return;
+      const scary = (foe.moves || []).some(({ data }) => data && data.damageClass !== 'status' &&
+        ((data.meta && data.meta.category === 'ohko') || typechart.effectiveness(data.type, mon.types) > 1));
+      if (scary) note(events, `${mon.name} shuddered!`);
+    },
+  },
+  forewarn: {
+    onSendOut: ({ mon, foe, events }) => {
+      if (!foe || foe.fainted || !(foe.moves || []).length) return;
+      const power = (data) => (data.meta && data.meta.category === 'ohko' ? 150 : data.power || (data.damageClass === 'status' ? 0 : 80));
+      const best = foe.moves.reduce((top, entry) => (power(entry.data) > power(top.data) ? entry : top));
+      note(events, `${mon.name}'s Forewarn alerted it to ${best.data.displayName}!`);
+    },
+  },
+  frisk: {
+    onSendOut: ({ mon, foe, events }) => {
+      if (foe && !foe.fainted && foe.item) note(events, `${mon.name} frisked ${foe.name} and found its ${displayItem(foe.item)}!`);
+    },
+  },
+  'screen-cleaner': {
+    onSendOut: ({ mon, events }) => {
+      const state = battleOf(mon);
+      if (!state) return;
+      let cleared = false;
+      for (const side of state.sides) {
+        const c = side.conditions || {};
+        for (const key of ['reflect', 'lightScreen', 'auroraVeil']) {
+          if (c[key]) {
+            delete c[key];
+            cleared = true;
+          }
+        }
+      }
+      if (cleared) note(events, 'The effects of protective barriers disappeared!');
+    },
+  },
+  'teraform-zero': {
+    onSendOut: ({ mon, events }) => {
+      const field = mon.arena;
+      if (!field || (!field.weather && !field.terrain)) return;
+      field.weather = null;
+      field.strongWeather = null;
+      field.weatherTurns = 0;
+      field.terrain = null;
+      field.terrainTurns = 0;
+      note(events, `${mon.name}'s Teraform Zero calmed the weather and terrain!`);
+    },
+  },
+  // Imposter, Neutralizing Gas, Tera Shift and the form abilities are
+  // handled by the engine as the Pokemon comes out.
+  imposter: {},
+  'neutralizing-gas': {},
+  'tera-shift': {},
+  'stance-change': {},
+  'zen-mode': {
+    lateEndOfTurn: ({ mon }) => zenCheck(mon),
+    onSendOut: ({ mon }) => zenCheck(mon),
+  },
+  schooling: {
+    lateEndOfTurn: ({ mon }) => schoolCheck(mon),
+    onSendOut: ({ mon }) => schoolCheck(mon),
+  },
+  'shields-down': {
+    blocksStatus: ({ mon }) => mon.form === 'Meteor',
+    lateEndOfTurn: ({ mon }) => shieldsCheck(mon),
+    onSendOut: ({ mon }) => shieldsCheck(mon),
+  },
+  'power-construct': {
+    lateEndOfTurn: ({ mon, events }) => {
+      if (share(mon) > 0.5 || !/Power Construct$/.test(mon.form || '')) return;
+      note(events, 'You sense the presence of many!');
+      requestAct(mon, (e) => e.changeForm(mon, 'Complete', `${mon.name} transformed into its Complete Forme!`));
+    },
+  },
+  'hunger-switch': {
+    lateEndOfTurn: ({ mon }) => {
+      if (mon.transformed) return;
+      const next = mon.form === 'Hangry' ? 'Full Belly' : 'Hangry';
+      requestAct(mon, (e) => e.changeForm(mon, next, ''));
+    },
+  },
+  'zero-to-hero': {},
+
+  // Doubles only: these help or copy an ally, so they do nothing in a single
+  // battle, as in the games.
+  battery: {},
+  'power-spot': {},
+  plus: {},
+  minus: {},
+  'friend-guard': {},
+  telepathy: {},
+  symbiosis: {},
+  costar: {},
+  'curious-medicine': {},
+  hospitality: {},
+  commander: {},
+  receiver: {},
+  'power-of-alchemy': {},
+  // Outside battle only.
+  'ball-fetch': {},
+  'honey-gather': {},
+  'run-away': {},
+  // Their form comes from the held plate or memory (Utils/formitems.js).
+  multitype: {},
+  'rks-system': {},
+  // Redirection, which a single battle doesn't have.
+  'propeller-tail': {},
+  // Mirror Armor bounces stat drops back (Utils/battle.js, applyStage).
+  'mirror-armor': {},
+  // Read by name in Utils/conditions.js, Utils/statusmoves.js and
+  // Utils/moverules.js: Soundproof (sound moves), Sticky Hold (Knock Off,
+  // Thief, Trick), Own Tempo (confusion, Intimidate), Oblivious (Attract,
+  // Taunt, Intimidate), Damp (explosions, Aftermath), Overcoat (powder,
+  // weather), Suction Cups (Roar, Dragon Tail), Aroma Veil (Taunt, Encore...).
+  soundproof: {},
+  'sticky-hold': {},
+  'own-tempo': {},
+  oblivious: {},
+  damp: {},
+  overcoat: {},
+  'suction-cups': {},
+  'aroma-veil': {},
 };
 
 // ---------------------------------------------------------------------------
@@ -846,8 +1712,7 @@ const HELD_ITEMS = {
     indirect: true,
   },
 
-  // Choice items give their boost only; there is no move lock (see the top
-  // of the file).
+  // The boost; the move lock is in Utils/conditions.js (choiceLock).
   'choice-band': {
     attackMultiplier: ({ move }) => (move.damageClass === 'physical' ? 1.5 : 1),
   },
@@ -912,6 +1777,14 @@ const HELD_ITEMS = {
     defenceMultiplier: ({ defender, move }) =>
       /ditto/i.test(defender.species || '') && !defender.transformed && move.damageClass === 'physical' ? 2 : 1,
   },
+  'deep-sea-tooth': {
+    attackMultiplier: ({ attacker, move }) =>
+      /clamperl/i.test(attacker.species || '') && move.damageClass === 'special' ? 2 : 1,
+  },
+  'deep-sea-scale': {
+    defenceMultiplier: ({ defender, move }) =>
+      /clamperl/i.test(defender.species || '') && move.damageClass === 'special' ? 2 : 1,
+  },
   'quick-powder': {
     speedMultiplier: ({ mon }) => (/ditto/i.test(mon.species || '') && !mon.transformed ? 2 : 1),
   },
@@ -945,62 +1818,32 @@ const HELD_ITEMS = {
   // Flame Orb and Toxic Orb inflict their status on the holder (for Guts,
   // Poison Heal and similar).
   'flame-orb': {
-    endOfTurn: ({ mon, events }) => {
+    lateEndOfTurn: ({ mon, events }) => {
       if (mon.status) return;
       requestStatus(mon, 'burn', events, { source: 'item' });
     },
   },
   'toxic-orb': {
-    endOfTurn: ({ mon, events }) => {
+    lateEndOfTurn: ({ mon, events }) => {
       if (mon.status) return;
-      requestStatus(mon, 'poison', events, { source: 'item' });
+      requestStatus(mon, 'poison', events, { source: 'item', badly: true });
     },
   },
 
-  'sitrus-berry': {
-    onHealthChanged: ({ mon, events }) => {
-      if (share(mon) > 0.5 || mon.fainted) return;
-      heal(mon, chunk(mon, 4), events, 'Sitrus Berry');
-      consumeItem(mon, events);
-    },
-  },
-  'oran-berry': {
-    onHealthChanged: ({ mon, events }) => {
-      if (share(mon) > 0.5 || mon.fainted) return;
-      heal(mon, 10, events, 'Oran Berry');
-      consumeItem(mon, events);
-    },
-  },
-  'berry-juice': {
-    onHealthChanged: ({ mon, events }) => {
-      if (share(mon) > 0.5 || mon.fainted) return;
-      heal(mon, 20, events, 'Berry Juice');
-      consumeItem(mon, events);
-    },
-  },
-
-  'lum-berry': {
-    onHealthChanged: ({ mon, events }) => {
-      if (!mon.status) return;
-      events.push({ kind: 'cured', name: mon.name, status: mon.status, source: 'Lum Berry' });
-      mon.status = null;
-      mon.statusTurns = 0;
-      consumeItem(mon, events);
-    },
-  },
-
-  'cheri-berry': cureBerry('paralysis'),
-  'chesto-berry': cureBerry('sleep'),
-  'pecha-berry': cureBerry('poison'),
-  'rawst-berry': cureBerry('burn'),
-  'aspear-berry': cureBerry('freeze'),
-
-  'liechi-berry': pinchBerry('attack'),
-  'ganlon-berry': pinchBerry('defense'),
-  'petaya-berry': pinchBerry('specialAttack'),
-  'apicot-berry': pinchBerry('specialDefense'),
-  'salac-berry': pinchBerry('speed'),
 };
+
+// Every berry (and Berry Juice) is eaten the same way: when its moment comes
+// (see BERRIES), unless an Unnerve on the other side stops it.
+for (const slug of Object.keys(BERRIES)) {
+  HELD_ITEMS[slug] = {
+    onHealthChanged: ({ mon, events }) => {
+      if (mon.fainted || !BERRIES[slug].when(mon)) return;
+      if (isBerry(slug) && unnerved(mon)) return;
+      eatBerry(mon, slug, events);
+      consumeItem(mon, events);
+    },
+  };
+}
 
 /**
  * The type-boosting items, read out of the data rather than listed.
@@ -1067,6 +1910,16 @@ function requestStatus(target, status, events, options = {}) {
   queue.push({ what: 'status', target, status, ...options });
 }
 
+/**
+ * Anything else a hook needs the engine for: setting a weather or terrain,
+ * changing form, switching out. `fn` is called with the engine's helpers
+ * (see hookEngine in Utils/battle.js). Runs even if `target` has fainted
+ * when `evenFainted` is set.
+ */
+function requestAct(target, fn, evenFainted = false) {
+  queue.push({ what: 'act', target, fn, evenFainted });
+}
+
 /** Take everything queued. The engine calls this and acts on what comes back. */
 function drain() {
   if (!queue.length) return [];
@@ -1114,10 +1967,12 @@ function itemEffectFor(slug) {
 /** The two definitions a combatant is carrying, ability first. */
 // Gastro Acid switches the ability off; Embargo and Magic Room the item
 // (Utils/conditions.js keeps the flags up to date).
+// Klutz switches its own item off (except an Iron Ball's slowness).
+const klutzed = (mon) => !mon.abilitySuppressed && mon.ability === 'klutz' && mon.item !== 'iron-ball';
 const definitionsOf = (mon, hook = null) =>
   [
     mon.abilitySuppressed || (mon.abilityBroken && BREAKABLE_HOOKS.has(hook)) ? null : mon.abilityEffect,
-    mon.itemsSuppressed ? null : mon.itemEffect,
+    mon.itemsSuppressed || klutzed(mon) ? null : mon.itemEffect,
   ].filter(Boolean);
 
 /**
@@ -1154,6 +2009,9 @@ function setAbility(mon, slug) {
 
 /** Change a Pokemon's held item mid-battle (Trick, Bestow, Recycle...). */
 function setItem(mon, slug) {
+  // Losing an item (Knock Off, Thief, Trick for nothing) wakes Unburden.
+  if (mon.item && !slug && mon.volatiles) mon.volatiles.unburden = true;
+  if (slug && mon.volatiles) delete mon.volatiles.unburden;
   mon.item = slug || null;
   mon.itemEffect = itemEffectFor(slug);
 }
@@ -1219,11 +2077,11 @@ const priorityBonus = (mon, move) => highest(mon, 'priorityBonus', { mon, move }
  * Where this Pokemon sits among others of the same priority: 1 to go first
  * (Quick Claw), -1 to go last (Lagging Tail, Full Incense), 0 otherwise.
  */
-function bracketShift(mon, rng = Math.random) {
+function bracketShift(mon, rng = Math.random, move = null) {
   let shift = 0;
 
   for (const definition of definitionsOf(mon)) {
-    if (typeof definition.bracketShift === 'function') shift += definition.bracketShift({ mon, rng });
+    if (typeof definition.bracketShift === 'function') shift += definition.bracketShift({ mon, rng, move });
   }
 
   return Math.max(-1, Math.min(1, shift));
@@ -1234,13 +2092,26 @@ const ignoresParalysisSpeed = (mon) => flag(mon, 'ignoresParalysisSpeed', { mon 
 
 /** Accuracy, after Compound Eyes and Hustle. */
 function accuracy(attacker, defender, move) {
+  const unaware = (mon) => abilityNow(mon) === 'unaware';
   return {
-    multiplier: product(attacker, 'accuracyMultiplier', { attacker, defender, move, mon: attacker }),
+    multiplier:
+      product(attacker, 'accuracyMultiplier', { attacker, defender, move, mon: attacker }) *
+      product(defender, 'evasionMultiplier', { attacker, defender, move, mon: defender }),
     never:
       flag(attacker, 'neverMisses', { attacker, move }) ||
       flag(defender, 'neverMisses', { attacker, move }),
+    // Keen Eye, Mind's Eye, Illuminate and Unaware look past evasion boosts;
+    // Unaware on the target also looks past the attacker's accuracy boosts.
+    ignoreEvasion: flag(attacker, 'ignoresEvasion', { attacker, move }) || unaware(attacker),
+    ignoreAccuracy: unaware(defender),
   };
 }
+
+/** Merciless: a poisoned target always takes a critical hit. */
+const forcesCrit = (attacker, defender) => flag(attacker, 'forcesCrit', { attacker, defender, mon: attacker });
+
+/** Does this move make contact, from this attacker? Long Reach never does. */
+const contactBy = (attacker, move) => makesContact(move) && !flag(attacker, 'noContact', { mon: attacker });
 
 /** Extra crit stages from Super Luck, Scope Lens and the species-locked items. */
 const critStage = (attacker, move) =>
@@ -1266,7 +2137,7 @@ function damageParts(attacker, defender, move, effectiveness, power = null) {
     // Utils/movepower.js for variable-power moves (matters for Technician).
     power: power || move.power || null,
 
-    contact: makesContact(move),
+    contact: contactBy(attacker, move),
     mon: attacker,
   };
 
@@ -1279,13 +2150,36 @@ function damageParts(attacker, defender, move, effectiveness, power = null) {
   const facade =
     move.name === 'facade' && ['burn', 'poison', 'paralysis'].includes(attacker.status);
 
+  // Fairy Aura and Dark Aura, from whoever has them; Aura Break turns them
+  // round. The Ruin abilities lower everyone else's stat.
+  const state = battleOf(attacker);
+  const out = state
+    ? state.sides.map((side) => side.team[side.active]).filter((mon) => mon && !mon.fainted)
+    : [attacker, defender];
+  const present = (name) => out.some((mon) => !mon.abilitySuppressed && mon.ability === name);
+  const owns = (mon, name) => mon && !mon.abilitySuppressed && mon.ability === name;
+  const type = lower(move.type);
+  let aura = 1;
+  if ((type === 'fairy' && present('fairy-aura')) || (type === 'dark' && present('dark-aura'))) {
+    aura = present('aura-break') ? 0.75 : 4 / 3;
+  }
+  const physical = move.damageClass === 'physical';
+  const special = move.damageClass === 'special';
+  const ruinedAttack =
+    (physical && owns(defender, 'tablets-of-ruin') && !owns(attacker, 'tablets-of-ruin')) ||
+    (special && owns(defender, 'vessel-of-ruin') && !owns(attacker, 'vessel-of-ruin'));
+  const ruinedDefence =
+    (physical && owns(attacker, 'sword-of-ruin') && !owns(defender, 'sword-of-ruin')) ||
+    (special && owns(attacker, 'beads-of-ruin') && !owns(defender, 'beads-of-ruin'));
+
   return {
-    attackModifiers: [product(attacker, 'attackMultiplier', context)],
-    defenceModifiers: [product(defender, 'defenceMultiplier', { ...context, mon: defender })],
+    attackModifiers: [product(attacker, 'attackMultiplier', context), ruinedAttack ? 0.75 : 1],
+    defenceModifiers: [product(defender, 'defenceMultiplier', { ...context, mon: defender }), ruinedDefence ? 0.75 : 1],
     extraModifiers: [
       product(attacker, 'damageOut', context),
       product(defender, 'damageIn', { ...context, mon: defender }),
       facade ? 2 : 1,
+      aura,
     ],
     stabMultiplier: stabOverrides.length ? Math.max(...stabOverrides) : null,
     ignoreBurn: facade || flag(attacker, 'ignoresBurn', context),
@@ -1383,7 +2277,7 @@ function survives(defender, incoming, rng) {
 function afterHitTaken(context) {
   run(context.defender, 'onHitTaken', {
     ...context,
-    contact: makesContact(context.move),
+    contact: contactBy(context.attacker, context.move),
     mon: context.defender,
   });
 }
@@ -1397,7 +2291,7 @@ function afterHitTaken(context) {
 function afterDealtDamage(context) {
   run(context.attacker, 'onDealtDamage', {
     ...context,
-    contact: makesContact(context.move),
+    contact: contactBy(context.attacker, context.move),
     mon: context.attacker,
   });
 }
@@ -1438,10 +2332,23 @@ function stageDelta(target, stat, delta, fromFoe) {
 const afterStatLowered = (target, stat, fromFoe, events) =>
   run(target, 'onStatLowered', { target, stat, fromFoe, events, mon: target });
 
-/** Leftovers, Speed Boost, Shed Skin, the orbs. */
+/**
+ * The end of a turn, in three moments (Utils/battle.js's endTurn calls them
+ * in the games' order):
+ *
+ *   weatherEndOfTurn  with the weather: Rain Dish, Dry Skin, Ice Body, Solar Power
+ *   endOfTurn         Shed Skin, Hydration, Leftovers, Black Sludge
+ *   lateEndOfTurn     after burn, poison and the timers: Speed Boost, Moody,
+ *                     Harvest, Bad Dreams, the Orbs, the form changes
+ */
+const weatherEndOfTurn = (mon, rng, events) => {
+  if (!mon.fainted) run(mon, 'weatherEndOfTurn', { mon, rng, events });
+};
 const endOfTurn = (mon, rng, events) => {
-  if (mon.fainted) return;
-  run(mon, 'endOfTurn', { mon, rng, events });
+  if (!mon.fainted) run(mon, 'endOfTurn', { mon, rng, events });
+};
+const lateEndOfTurn = (mon, rng, events) => {
+  if (!mon.fainted) run(mon, 'lateEndOfTurn', { mon, rng, events });
 };
 
 /**
@@ -1540,6 +2447,19 @@ module.exports = {
   isHeldEffect,
   isImplementedAbility,
 
+  SOUND_MOVES,
+  SLICING,
+  WIND,
+  DANCES,
+  UNCHANGEABLE,
+  BERRIES,
+  lockedItem,
+  isBerry,
+  eatBerry,
+  unnerved,
+  contactBy,
+  forcesCrit,
+
   // hooks
   speedMultiplier,
   ignoresParalysisSpeed,
@@ -1558,7 +2478,9 @@ module.exports = {
   afterFlinch,
   stageDelta,
   afterStatLowered,
+  weatherEndOfTurn,
   endOfTurn,
+  lateEndOfTurn,
   residual,
   recoilAllowed,
   indirectAllowed,
@@ -1575,6 +2497,15 @@ module.exports = {
   drain,
   requestStage,
   requestStatus,
+  requestAct,
+
+  // where a Pokemon is
+  battleOf,
+  sideIndexOf,
+  foeOf,
+  abilityNow,
+  weatherAround,
+  terrainAround,
 
   // shared with the engine so both hurt and heal the same way
   heal,

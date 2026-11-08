@@ -25,6 +25,7 @@ const effects = require('../Utils/battleeffects');
 const lootbox = require('../Utils/lootbox');
 const machines = require('../Utils/machines');
 const names = require('../Utils/names');
+const itemtext = require('../Utils/itemtext');
 const inventory = require('../Utils/inventory');
 const { clip, titleCase, statName, fitLines, LIMITS } = require('../Utils/display');
 
@@ -104,14 +105,6 @@ const EXPLAIN = {
     summary: (what, slug) => {
       const species = what.speciesId ? names.speciesById(what.speciesId) : null;
 
-      const lasts = {
-        consumed: 'Used up. `.useitem <id> default` puts the form back for nothing.',
-        keep: 'Not used up - one is enough forever.',
-        held: 'Held, not spent. The form lasts as long as it does, and `.take` gives it back.',
-      }[what.reuse] || '';
-
-      const rule = 'This is not an evolution - same Pokemon, new look, new typing and stats.';
-
       // Family items work on several species, so list or count them.
       if (!species) {
         const users = familyUsers(what.form);
@@ -125,10 +118,10 @@ const EXPLAIN = {
           who = `any of the ${users.length} Pokemon that has one`;
         }
 
-        return `Changes ${who} into its ${what.form} form. ${rule} ${lasts}`;
+        return `Changes ${who} into its ${what.form} form.`;
       }
 
-      return `Changes ${species.displayName} into its ${what.form} form. ${rule} ${lasts}`;
+      return `Changes ${species.displayName} into its ${what.form} form.`;
     },
     usage: (slug) => `.useitem <pokemon> ${slug}`,
   },
@@ -176,7 +169,7 @@ const EXPLAIN = {
     summary: (what, slug) => {
       const tm = machines.bySlug(slug);
       const move = tm ? tm.moveDisplayName : 'its move';
-      return `Teaches ${move} to a Pokemon that can learn it. TMs are reusable and stay in your bag.`;
+      return `Teaches ${move} to a Pokemon that can learn it.`;
     },
     usage: () => '.tm <pokemon> <move> [slot]',
   },
@@ -262,7 +255,7 @@ function describeItem(slug) {
   const raw = evolution.itemTargets().get(slug) || [];
   const explain = explanationFor(what, slug, { trade: raw.some((t) => t.trigger === 'trade') });
 
-  return explain.summary(what, slug);
+  return itemtext.describe(slug) || explain.summary(what, slug);
 }
 
 /** How the item is obtained here: which shop sells it, and for how much. */
@@ -289,7 +282,7 @@ function buildExamine(row) {
   const embed = new EmbedBuilder()
     .setTitle(row.displayName)
     .setColor(0x9b7653)
-    .setDescription(clip(explain.summary(what, row.item), LIMITS.description));
+    .setDescription(clip(itemtext.describe(row.item) || explain.summary(what, row.item), LIMITS.description));
 
   // Which Pokemon it works on. Only evolution-ish items have any.
   if (lines) {

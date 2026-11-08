@@ -146,6 +146,16 @@ function expBar(mon) {
   return `EXP \`${'▰'.repeat(filled)}${'▱'.repeat(EXP_WIDTH - filled)}\``;
 }
 
+/** The trainer's bar for the battle recap: "Trainer Lv.6 `▰▰▰▱▱▱▱▱▱▱` 1,240 / 3,000". */
+function trainerBar(standing) {
+  const filled = Math.max(0, Math.min(EXP_WIDTH, Math.floor(standing.fraction * EXP_WIDTH)));
+  const shown = Math.min(standing.exp, standing.needed);
+  return (
+    `Trainer Lv.${standing.level} \`${'▰'.repeat(filled)}${'▱'.repeat(EXP_WIDTH - filled)}\` ` +
+    `${shown.toLocaleString()} / ${standing.needed.toLocaleString()}`
+  );
+}
+
 /**
  * The name on the card. A Mega or Primal shows its form ("Mega Charizard X");
  * a nicknamed one keeps its nickname with a 🧬.
@@ -308,6 +318,8 @@ const RESTRICTED = {
   imprison: (n, m) => `${n} can't use its sealed ${m}!`,
   'throat-chop': (n, m) => `${n} can't use ${m} because of Throat Chop!`,
   repeat: (n, m) => `${n} can't use ${m} twice in a row!`,
+  'assault-vest': () => 'The effects of the Assault Vest prevent status moves from being used!',
+  'gorilla-tactics': (n, m) => `${n} can't use ${m}!`,
 };
 
 /** The log line for a condition or status-move event, or null. */
@@ -985,7 +997,10 @@ function settle(userId, state, setup, outcome = null) {
   if (payout.won) {
     lines.push(`**${setup.opponent.name} was defeated!**`);
     if (applied.coins) lines.push(`You earned **${applied.coins.toLocaleString()}** coins.`);
-    if (applied.trainerExp) lines.push(`**+${applied.trainerExp.toLocaleString()}** trainer exp.`);
+    if (applied.trainerExp) {
+      lines.push(`**+${applied.trainerExp.toLocaleString()}** trainer exp.`);
+      lines.push(trainerBar(store.trainerProgress(userId)));
+    }
 
     // Daily quest progress. Only says anything when it completes one.
     try {
@@ -1371,6 +1386,8 @@ async function loop({ userId, state, setup, card, log }) {
     if (state.finished) {
       // Roar, Whirlwind or Teleport ending a wild battle counts as getting away.
       // The last level-ups are announced with the result.
+      // The finished card's log button gets its own listener (see conclude()).
+      presses.stop();
       await conclude({ userId, state, setup, card, log, edit: choice, outcome: state.fled ? 'fled' : null, grown: learnGrowth() });
       return true;
     }
@@ -1388,129 +1405,147 @@ async function loop({ userId, state, setup, card, log }) {
   // When this choice runs out. Looking at the log doesn't restart the clock.
   let deadline = null;
 
-  while (!state.finished) {
-    let choice;
-    if (deadline == null) deadline = Date.now() + TURN_MS;
+  // Goes up each time a turn (or a free replacement) is played out. A press
+  // made while that was happening was aimed at the old card and is ignored.
+  let epoch = 0;
 
-    try {
-      choice = await card.awaitMessageComponent({
-        componentType: ComponentType.Button,
-        time: Math.max(1_000, deadline - Date.now()),
-        filter: (button) => button.user.id === userId,
-      });
-    } catch {
-      // Timed out: treated the same as fleeing (see settle()).
-      await conclude({ userId, state, setup, card, log, outcome: 'fled', edit: null });
-      return;
-    }
+  // Every press is caught the moment it's made, even while the card is still
+  // updating from the last one (Mega Evolve, then a move straight away).
+  const presses = pressQueue(card, userId, () => epoch);
 
-    const [, verb, value] = choice.customId.split(':');
+  try {
+    while (!state.finished) {
+      let choice;
+      if (deadline == null) deadline = Date.now() + TURN_MS;
 
-    // What was pressed, and the battle just before it, for a failure log.
-    setup.lastAction = { verb, value, mode, megaArmed, battleBefore: crashlog.battleSnapshot(state) };
-
-    if (verb === 'log') {
-      await choice.reply(fullLog(log)).catch(() => {});
-      continue;
-    }
-    deadline = null;
-
-    if (verb === 'switch') {
-      mode = 'switch';
-      await choice.update({ components: componentsFor() });
-      continue;
-    }
-
-    // Toggles; the move picked next carries it (see below).
-    if (verb === 'mega') {
-      megaArmed = !megaArmed && battle.canMegaEvolve(state, 0);
-      await choice.update({ components: componentsFor() });
-      continue;
-    }
-
-    if (verb === 'back') {
-      mode = 'moves';
-      await choice.update({ components: componentsFor() });
-      continue;
-    }
-
-    if (verb === 'forfeit') {
-      await conclude({ userId, state, setup, card, log, outcome: 'fled', edit: choice });
-      return;
-    }
-
-    // A forced replacement is free: no turn is resolved.
-    if (mode === 'replace' && verb === 'send') {
-      const arriving = [];
-      const sent = battle.sendOut(state, 0, Number(value), arriving);
-
-      if (!sent) {
-        // Invalid choice (fainted or already active): show the bench again.
-        await choice.update({ components: componentsFor() });
-        continue;
-      }
-
-      log.push(...narrate([sent, ...arriving]));
-
-      // Hazards can knock out the one that just came in, and even end it.
-      const after = [];
-      battle.checkFinished(state, after);
-      if (state.finished) {
-        await conclude({ userId, state, setup, card, log, edit: choice });
+      try {
+        choice = await presses.next(Math.max(1_000, deadline - Date.now()));
+        await choice.ready;
+      } catch {
+        // Timed out: treated the same as fleeing (see settle()).
+        presses.stop();
+        await conclude({ userId, state, setup, card, log, outcome: 'fled', edit: null });
         return;
       }
 
-      const me = state.sides[0];
-      mode = battle.activeOf(me).fainted ? 'replace' : 'moves';
+      if (choice.epoch !== epoch) continue;
 
-      await choice.update({ embeds: [buildCard(state, log)], components: componentsFor() });
-      continue;
-    }
+      const [, verb, value] = choice.customId.split(':');
 
-    let events;
+      // What was pressed, and the battle just before it, for a failure log.
+      setup.lastAction = { verb, value, mode, megaArmed, battleBefore: crashlog.battleSnapshot(state) };
 
-    if (mode === 'midturn' && verb === 'send') {
-      // The player picked who comes in after their U-turn or Baton Pass; the
-      // rest of the turn (including the foe's chosen move) carries on.
-      const target = state.sides[0].team[Number(value)];
-      if (!target || target.fainted || Number(value) === state.sides[0].active) {
+      if (verb === 'log') {
+        await choice.reply(fullLog(log)).catch(() => {});
+        continue;
+      }
+      deadline = null;
+
+      if (verb === 'switch') {
+        mode = 'switch';
         await choice.update({ components: componentsFor() });
         continue;
       }
-      events = battle.continueTurn(state, Number(value));
-    } else {
-      // A Pokemon switching in can't Mega Evolve this turn; it takes the
-      // foe's move as it is.
-      const action =
-        verb === 'send'
-          ? { type: 'switch', index: Number(value) }
-          : { type: 'move', slot: Number(value), mega: megaArmed };
-      megaArmed = false;
 
-      // The opponent chooses from the same pre-turn state as the player
-      // (Utils/ai.js: attacks, status, boosts, healing and, for trainers, the
-      // occasional switch).
-      const foeAction = ai.chooseAction(state, 1);
+      // Toggles; the move picked next carries it (see below).
+      if (verb === 'mega') {
+        megaArmed = !megaArmed && battle.canMegaEvolve(state, 0);
+        await choice.update({ components: componentsFor() });
+        continue;
+      }
 
-      // A switch out mid-turn (U-turn, Baton Pass...) happens straight away,
-      // before the other side's move: the AI picks at once, and the turn
-      // pauses for the player to pick.
-      events = battle.resolveTurn(state, [action, foeAction], {
-        choose: (s, sideIndex) => (sideIndex === 1 ? ai.chooseReplacement(s, 1) : null),
-      });
+      if (verb === 'back') {
+        mode = 'moves';
+        await choice.update({ components: componentsFor() });
+        continue;
+      }
+
+      if (verb === 'forfeit') {
+        presses.stop();
+        await conclude({ userId, state, setup, card, log, outcome: 'fled', edit: choice });
+        return;
+      }
+
+      // A forced replacement is free: no turn is resolved.
+      if (mode === 'replace' && verb === 'send') {
+        const arriving = [];
+        const sent = battle.sendOut(state, 0, Number(value), arriving);
+
+        if (!sent) {
+          // Invalid choice (fainted or already active): show the bench again.
+          await choice.update({ components: componentsFor() });
+          continue;
+        }
+
+        log.push(...narrate([sent, ...arriving]));
+
+        // Hazards can knock out the one that just came in, and even end it.
+        const after = [];
+        battle.checkFinished(state, after);
+        if (state.finished) {
+          presses.stop();
+          await conclude({ userId, state, setup, card, log, edit: choice });
+          return;
+        }
+
+        const me = state.sides[0];
+        mode = battle.activeOf(me).fainted ? 'replace' : 'moves';
+
+        await choice.update({ embeds: [buildCard(state, log)], components: componentsFor() });
+        epoch += 1;
+        continue;
+      }
+
+      let events;
+
+      if (mode === 'midturn' && verb === 'send') {
+        // The player picked who comes in after their U-turn or Baton Pass; the
+        // rest of the turn (including the foe's chosen move) carries on.
+        const target = state.sides[0].team[Number(value)];
+        if (!target || target.fainted || Number(value) === state.sides[0].active) {
+          await choice.update({ components: componentsFor() });
+          continue;
+        }
+        events = battle.continueTurn(state, Number(value));
+      } else {
+        // A Pokemon switching in can't Mega Evolve this turn; it takes the
+        // foe's move as it is.
+        const action =
+          verb === 'send'
+            ? { type: 'switch', index: Number(value) }
+            : { type: 'move', slot: Number(value), mega: megaArmed };
+        megaArmed = false;
+
+        // The opponent chooses from the same pre-turn state as the player
+        // (Utils/ai.js: attacks, status, boosts, healing and, for trainers, the
+        // occasional switch).
+        const foeAction = ai.chooseAction(state, 1);
+
+        // A switch out mid-turn (U-turn, Baton Pass...) happens straight away,
+        // before the other side's move: the AI picks at once, and the turn
+        // pauses for the player to pick.
+        events = battle.resolveTurn(state, [action, foeAction], {
+          choose: (s, sideIndex) => (sideIndex === 1 ? ai.chooseReplacement(s, 1) : null),
+        });
+      }
+
+      epoch += 1;
+      if (await finishTurn(events, choice)) return;
+
+      // Locked in (the second turn of Dig, the rest of Outrage, Hyper Beam's
+      // recharge): those turns play out on their own, as in the games.
+      while (mode === 'moves' && !state.finished && rules.lockedAction(battle.activeOf(state.sides[0]))) {
+        await new Promise((resolve) => setTimeout(resolve, AUTO_TURN_MS));
+        const more = battle.resolveTurn(state, [{ type: 'move', slot: 0 }, ai.chooseAction(state, 1)], {
+          choose: (s, sideIndex) => (sideIndex === 1 ? ai.chooseReplacement(s, 1) : null),
+        });
+        if (await finishTurn(more, null)) return;
+      }
+      // Anything pressed while the turn played out is stale.
+      epoch += 1;
     }
-
-    if (await finishTurn(events, choice)) return;
-
-    // Locked in (the second turn of Dig, the rest of Outrage, Hyper Beam's
-    // recharge): those turns play out on their own, as in the games.
-    while (mode === 'moves' && !state.finished && rules.lockedAction(battle.activeOf(state.sides[0]))) {
-      await new Promise((resolve) => setTimeout(resolve, AUTO_TURN_MS));
-      const more = battle.resolveTurn(state, [{ type: 'move', slot: 0 }, ai.chooseAction(state, 1)], {
-        choose: (s, sideIndex) => (sideIndex === 1 ? ai.chooseReplacement(s, 1) : null),
-      });
-      if (await finishTurn(more, null)) return;
-    }
+  } finally {
+    presses.stop();
   }
 
   await conclude({ userId, state, setup, card, log, edit: null });
@@ -1575,6 +1610,71 @@ const frozen = (rows) =>
     const json = typeof row.toJSON === 'function' ? row.toJSON() : row;
     return { ...json, components: json.components.map((c) => ({ ...c, disabled: true })) };
   });
+
+/**
+ * Answer a button press at once, then do the work.
+ *
+ * Discord gives a press 3 seconds to be answered or shows "didn't respond in
+ * time". Deferring answers it straight away, so a slow turn (a busy server, a
+ * slow disk) can't run that clock out. The returned object behaves like the
+ * press: update() edits the battle card, reply() posts a private message.
+ */
+function acknowledged(press) {
+  const deferred = typeof press.deferUpdate === 'function';
+  return {
+    customId: press.customId,
+    user: press.user,
+    ready: deferred ? press.deferUpdate().catch(() => {}) : Promise.resolve(),
+    update: (payload) => (deferred ? press.editReply(payload) : press.update(payload)),
+    reply: (payload) => (deferred ? press.followUp(payload) : press.reply(payload)),
+  };
+}
+
+/**
+ * Every press on the battle card, in order, answered the moment it arrives.
+ *
+ * Waiting with awaitMessageComponent only listens between presses: one made
+ * while the card was still updating (say a move straight after Mega Evolve)
+ * went unheard and Discord said "didn't respond". A collector hears them all;
+ * next() hands them out one at a time. Each press is tagged with epoch() as
+ * it arrives, so the loop can tell which ones were for an older card.
+ */
+function pressQueue(card, userId, epoch) {
+  const waiting = [];
+  let wake = null;
+
+  const collector = card.createMessageComponentCollector({
+    componentType: ComponentType.Button,
+    filter: (button) => button.user.id === userId,
+  });
+
+  collector.on('collect', (press) => {
+    const choice = acknowledged(press);
+    choice.epoch = epoch();
+    if (wake) wake(choice);
+    else waiting.push(choice);
+  });
+
+  return {
+    next(ms) {
+      if (waiting.length) return Promise.resolve(waiting.shift());
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          wake = null;
+          reject(new Error('No choice in time'));
+        }, ms);
+        wake = (choice) => {
+          clearTimeout(timer);
+          wake = null;
+          resolve(choice);
+        };
+      });
+    },
+    stop() {
+      if (!collector.ended) collector.stop();
+    },
+  };
+}
 
 /**
  * Pay for every opponent that has gone down and not yet been paid for.

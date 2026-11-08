@@ -828,6 +828,29 @@ function apply(row, slug) {
  * @param {object}   row        a pokemon row
  * @param {string[]} moveNames  the moves it knows (for Rayquaza)
  */
+/** Where each battle-only form starts a battle. */
+const BATTLE_ONLY_START = {
+  Blade: 'Shield',
+  Busted: 'Disguised',
+  'Totem Busted': 'Totem Disguised',
+  Zen: 'Standard',
+  'Galar Zen': 'Galar Standard',
+  School: 'Solo',
+  Hero: 'Zero',
+  Terastal: 'Default',
+  Stellar: 'Default',
+  Sunny: 'Default',
+  Rainy: 'Default',
+  Snowy: 'Default',
+  Sunshine: 'Overcast',
+  Complete: '50 Power Construct',
+  Hangry: 'Full Belly',
+  Gulping: 'Default',
+  Gorging: 'Default',
+  Noice: 'Ice',
+  Ash: 'Battle Bond',
+};
+
 function battleForms(row, moveNames = []) {
   const species = loadSpecies(row.species_id);
   const forms = (species && species.forms) || [];
@@ -841,6 +864,12 @@ function battleForms(row, moveNames = []) {
     start = withoutFamily(row, row.form_folder, 'Gmax');
   } else if (row.form_folder === 'Primal') {
     start = baseFormFolder(row);
+  } else if (BATTLE_ONLY_START[row.form_folder]) {
+    // A form that only exists in battle (Blade Aegislash, Busted Mimikyu,
+    // Zen Darmanitan...) starts the next battle in its usual form; its
+    // ability changes it again (Utils/battle.js).
+    const data = require('./pokemon').loadForm(row.species_id, row.form_folder);
+    if (data && data.isBattleOnly) start = BATTLE_ONLY_START[row.form_folder];
   }
 
   const effect = row.equipped_item ? classify(row.equipped_item) : null;

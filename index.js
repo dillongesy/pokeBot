@@ -21,8 +21,12 @@ const db = require('./Utils/db');
 const store = require('./Utils/store');
 const crashlog = require('./Utils/crashlog');
 
-// Every reported failure also goes to a file in Logs/ (see Utils/crashlog.js).
+// Every reported failure also goes to a file in Logs/ (see Utils/crashlog.js),
+// and so does any freeze long enough for Discord to give up on a button
+// press (see Utils/lagwatch.js).
 crashlog.install();
+const lagwatch = require('./Utils/lagwatch');
+lagwatch.start();
 const reminders = require('./Utils/reminders');
 const channels = require('./Utils/channels');
 const livebuttons = require('./Utils/livebuttons');
@@ -110,6 +114,7 @@ client.on('messageCreate', async (message) => {
         if (!mayAnswer(message.guildId, message.channelId, name)) return;
 
         store.noteGuild(message.author.id, message.guildId);
+        lagwatch.note(`.${name} ${args.join(' ')}`.trim());
         await command.run(message, args);
         return;
       }
@@ -137,6 +142,7 @@ client.on('interactionCreate', async (interaction) => {
   // the presses none of them will: expired, left over from before a restart,
   // or pressed by someone else.
   if (interaction.isMessageComponent()) {
+    lagwatch.note(`button ${interaction.customId}`);
     await livebuttons.answerStray(interaction);
     return;
   }
@@ -157,6 +163,7 @@ client.on('interactionCreate', async (interaction) => {
 
   try {
     store.noteGuild(interaction.user.id, interaction.guildId);
+    lagwatch.note(`/${interaction.commandName}`);
     await command.execute(interaction);
   } catch (err) {
     crashlog.record('command', err, {

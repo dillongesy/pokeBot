@@ -70,14 +70,7 @@ const POWDER = new Set([
 ]);
 
 /** Sound moves: they go through a Substitute, and Soundproof ignores them. */
-const SOUND = new Set([
-  'growl', 'roar', 'sing', 'supersonic', 'screech', 'snore', 'uproar', 'metal-sound',
-  'grass-whistle', 'hyper-voice', 'perish-song', 'heal-bell', 'bug-buzz', 'chatter',
-  'round', 'echoed-voice', 'relic-song', 'snarl', 'noble-roar', 'disarming-voice',
-  'parting-shot', 'boomburst', 'confide', 'sparkling-aria', 'clanging-scales',
-  'clangorous-soul', 'overdrive', 'eerie-spell', 'torch-song', 'alluring-voice',
-  'psychic-noise',
-]);
+const SOUND = effects.SOUND_MOVES;
 
 /** Spread moves, which Wide Guard blocks. */
 const SPREAD_TARGETS = new Set(['all-opponents', 'all-other-pokemon', 'all-pokemon']);
@@ -96,7 +89,12 @@ const lower = (text) => String(text || '').toLowerCase();
 const hasType = (mon, type) => (mon.types || []).some((t) => lower(t) === type);
 // `abilityBroken`: ignored while a Mold Breaker attacks it (Utils/battle.js).
 const abilityOf = (mon) => (mon.abilitySuppressed || mon.abilityBroken ? null : mon.ability);
-const itemOf = (mon) => (mon.itemsSuppressed ? null : mon.item);
+// Klutz switches its own item off, except an Iron Ball's weight.
+const itemOf = (mon) => {
+  if (mon.itemsSuppressed) return null;
+  if (mon.ability === 'klutz' && !mon.abilitySuppressed && mon.item !== 'iron-ball') return null;
+  return mon.item;
+};
 const vol = (mon) => {
   if (!mon.volatiles) mon.volatiles = {};
   return mon.volatiles;
@@ -138,11 +136,17 @@ function grounded(mon, field = {}) {
  * items off, Gastro Acid abilities. Utils/battleeffects.js reads these flags.
  */
 function refreshSuppression(state) {
+  // Neutralizing Gas: every other ability is switched off while it is out.
+  const gas = state.sides.some((side) => {
+    const mon = side.team[side.active];
+    return mon && !mon.fainted && mon.ability === 'neutralizing-gas' && !vol(mon).gastroAcid;
+  });
   for (const side of state.sides) {
     for (const mon of side.team) {
       const v = vol(mon);
       mon.itemsSuppressed = Boolean(state.field.magicRoom || v.embargo);
-      mon.abilitySuppressed = Boolean(v.gastroAcid);
+      mon.abilitySuppressed = Boolean(v.gastroAcid) ||
+        (gas && mon.ability !== 'neutralizing-gas' && !effects.UNCHANGEABLE.has(mon.ability));
     }
   }
 }
@@ -166,7 +170,7 @@ function effectiveness(type, defender, field = {}, attacker = null) {
   let types = (defender.types || []).map(lower);
 
   // Foresight and Scrappy let Normal and Fighting moves hit Ghosts.
-  const scrappy = attacker && abilityOf(attacker) === 'scrappy';
+  const scrappy = attacker && ['scrappy', 'minds-eye'].includes(abilityOf(attacker));
   if ((t === 'normal' || t === 'fighting') && (v.foresight || scrappy)) types = types.filter((x) => x !== 'ghost');
   if (t === 'psychic' && v.miracleEye) types = types.filter((x) => x !== 'dark');
 
@@ -182,7 +186,7 @@ function effectiveness(type, defender, field = {}, attacker = null) {
   if (!types.length) return 1;
 
   // Delta Stream's strong winds: nothing is super effective on Flying.
-  if (field && field.weather === 'strong-winds' && types.includes('flying')) {
+  if (field && require('./field').weatherNow(field) === 'strong-winds' && types.includes('flying')) {
     const againstFlying = typechart.effectiveness(type, ['flying']);
     if (againstFlying > 1) return typechart.effectiveness(type, types) / againstFlying;
   }
@@ -218,6 +222,9 @@ function immuneTo(attacker, defender, move) {
   }
 
   if (SOUND.has(move.name) && abilityOf(defender) === 'soundproof') return 'Soundproof';
+
+  // Good as Gold: no status move from another Pokemon touches it.
+  if (move.damageClass === 'status' && attacker !== defender && abilityOf(defender) === 'good-as-gold') return 'Good as Gold';
 
   return null;
 }
@@ -367,7 +374,8 @@ function restriction(state, sideIndex, mon, slot) {
   if (NO_REPEAT.has(move.name) && mon.lastMove === move.name) return 'repeat';
   // Choice Band, Specs and Scarf: only the move it is locked into.
   const locked = choiceLock(mon);
-  if (locked && locked !== move.name) return 'choice';
+  if (locked && locked !== move.name) return CHOICE_ITEMS.has(itemOf(mon)) ? 'choice' : 'gorilla-tactics';
+  if (move.damageClass === 'status' && itemOf(mon) === 'assault-vest') return 'assault-vest';
   return null;
 }
 
@@ -384,12 +392,12 @@ const CHOICE_ITEMS = new Set(['choice-band', 'choice-specs', 'choice-scarf']);
  */
 function choiceLock(mon) {
   const locked = vol(mon).choiceLock;
-  return locked && CHOICE_ITEMS.has(itemOf(mon)) ? locked : null;
+  return locked && (CHOICE_ITEMS.has(itemOf(mon)) || abilityOf(mon) === 'gorilla-tactics') ? locked : null;
 }
 
-/** Called when a move is used: a Choice item holder is now locked into it. */
+/** Called when a move is used: a Choice item holder (or Gorilla Tactics) is now locked into it. */
 function lockChoice(mon, moveName) {
-  if (!CHOICE_ITEMS.has(itemOf(mon)) || moveName === 'struggle') return;
+  if ((!CHOICE_ITEMS.has(itemOf(mon)) && abilityOf(mon) !== 'gorilla-tactics') || moveName === 'struggle') return;
   const v = vol(mon);
   if (!v.choiceLock) v.choiceLock = moveName;
 }
@@ -417,6 +425,9 @@ function switchBlocked(state, mon) {
     .map((side) => side.team[side.active])
     .find((other) => other && other !== mon && !other.fainted);
   if (foe && abilityOf(foe) === 'shadow-tag' && abilityOf(mon) !== 'shadow-tag') return 'Shadow Tag';
+  // Magnet Pull holds Steel types; Arena Trap anything on the ground.
+  if (foe && abilityOf(foe) === 'magnet-pull' && hasType(mon, 'steel')) return 'Magnet Pull';
+  if (foe && abilityOf(foe) === 'arena-trap' && grounded(mon, state.field)) return 'Arena Trap';
   return null;
 }
 
@@ -614,11 +625,12 @@ function clearVolatiles(mon) {
  *
  * @param {object} engine  { applyStatus, chip } from Utils/battle.js
  */
-function endOfTurn(state, events, rng, engine) {
+function endOfTurn(state, events, rng, engine, phase = 'all') {
   const active = state.sides.map((side) => side.team[side.active]);
+  const now = (name) => phase === 'all' || phase === name;
 
   // Wish heals whoever is out a turn later.
-  state.sides.forEach((side, i) => {
+  if (now('wish')) state.sides.forEach((side, i) => {
     const c = side.conditions || {};
     if (!c.wish) return;
     c.wish.turns -= 1;
@@ -636,9 +648,10 @@ function endOfTurn(state, events, rng, engine) {
     if (mon.fainted) continue;
     const v = vol(mon);
     const heals = [];
-    if (v.aquaRing) heals.push('Aqua Ring');
-    if (v.ingrain) heals.push('Ingrain');
-    if (state.field.terrain === 'grassy' && grounded(mon, state.field)) heals.push('Grassy Terrain');
+    // Grassy Terrain heals with Wish; Aqua Ring and Ingrain after Leftovers.
+    if (now('wish') && state.field.terrain === 'grassy' && grounded(mon, state.field)) heals.push('Grassy Terrain');
+    if (now('rings') && v.aquaRing) heals.push('Aqua Ring');
+    if (now('rings') && v.ingrain) heals.push('Ingrain');
 
     for (const source of heals) {
       if (mon.hp >= mon.maxHp || v.healBlock) break;
@@ -649,7 +662,7 @@ function endOfTurn(state, events, rng, engine) {
     }
   }
 
-  for (const mon of active) {
+  if (now('damage')) for (const mon of active) {
     if (mon.fainted) continue;
     const v = vol(mon);
     if (v.nightmare && mon.status === 'sleep') {
@@ -665,6 +678,8 @@ function endOfTurn(state, events, rng, engine) {
       effects.requestStage(mon, 'specialDefense', -1, events, 'Octolock', true);
     }
   }
+
+  if (!now('timers')) return;
 
   // Yawn: asleep at the end of the next turn.
   state.sides.forEach((side, i) => {

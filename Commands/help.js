@@ -38,7 +38,7 @@ const GROUPS = [
   {
     name: '📦 Your collection',
     commands: [
-      { name: 'party', usage: '.p [sort]', blurb: 'Everything you have caught, with dropdowns to filter and sort. `.p iv desc`, `.p shiny`, `.p lvl 25-35`.' },
+      { name: 'party', usage: '.p [sort]', blurb: 'Everything you have caught, with dropdowns to filter and sort. Search: `.p n <name>`, `.p lvl 25-35`, `.p shiny`, `.p legendary`, `.p mythical`, `.p ub`, `.p holding`, `.p battle`. Sort: `.p iv desc`, `.p speed`, `.p nature`.' },
       { name: 'view', usage: '.v <slot>', blurb: 'One Pokemon in full - stats, IVs, nature.' },
       { name: 'nickname', usage: '.nick <slot> <name>', blurb: 'Rename one. "clear" undoes it.' },
       { name: 'swap', usage: '.swap <a> <b>', blurb: 'Swap two party slots, using the numbers from `.p`.' },
@@ -86,7 +86,7 @@ const GROUPS = [
       { name: 'battle', usage: '.battle', blurb: 'Fight whatever turns up, with your first six.' },
       { name: 'battle milestone', usage: '.battle milestone [name]', blurb: 'Take on your next gym leader. The Elite Four is four battles; name one to pick.' },
       { name: 'moves', usage: '.moves <slot>', blurb: 'What one of yours knows, and what is next.' },
-      { name: 'tm', usage: '.tm <slot> [move]', blurb: 'Teach a move. TMs are reusable.' },
+      { name: 'tm', usage: '.tm <slot> [move]', blurb: 'Teach a move.' },
       { name: 'pvp-battle', usage: '.pvp @user', blurb: 'Fight another player.', soon: true },
     ],
   },
