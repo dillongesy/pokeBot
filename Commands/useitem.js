@@ -332,9 +332,19 @@ function use(userId, rawPokemonId, rawItem) {
     return { content: `You do not have ${cost} ${content.item(slug).displayName}.` };
   }
 
-  // Swapping held items returns the old one to the bag.
+  // Swapping held items returns the old one to the bag, and a form the old
+  // one was holding up goes with it (a Mega Stone swapped for an Assault
+  // Vest), just as with `.take`. Dragon Ascent is a move, so it can't go back.
   if (result.changes.equipped_item && row.equipped_item && row.equipped_item !== slug) {
-    store.addItem(userId, row.equipped_item);
+    if (items.classify(row.equipped_item).returnable !== false) store.addItem(userId, row.equipped_item);
+
+    const reverted = items.formWithoutHeldItem(row);
+    if (!result.changes.form_folder && reverted !== null && reverted !== row.form_folder) {
+      result.changes.form_folder = reverted;
+      const restored = evolution.remapAbility(row.species_id, reverted, row.ability_slot || 1);
+      if (restored) result.changes.ability = restored.name;
+      result.message += ` It went back to its ${reverted} form.`;
+    }
   }
 
   // If the Pokemon ends up holding nothing, still return the old item.

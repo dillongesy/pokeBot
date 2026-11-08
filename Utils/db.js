@@ -28,7 +28,7 @@ const DB_FILE = path.join(__dirname, '..', 'Data', 'pokedropper.db');
  * Stored in SQLite's `PRAGMA user_version`, so an out-of-date file fails
  * clearly at startup instead of with "no such column" errors later.
  */
-const SCHEMA_VERSION = 16;
+const SCHEMA_VERSION = 17;
 
 /**
  * Which Elite Four members a player has beaten on the milestone in front of
@@ -478,6 +478,7 @@ ${USER_GUILDS}`;
 const MIGRATIONS = {
   13: splitGenderForms,
   15: partyNumbersAsSlots,
+  16: heldFormsMatchItems,
   14: `
     ALTER TABLE users ADD COLUMN wild_won       INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE users ADD COLUMN wild_lost      INTEGER NOT NULL DEFAULT 0;
@@ -492,6 +493,33 @@ const MIGRATIONS = {
       SELECT dropped_by, guild_id FROM drops WHERE dropped_by IS NOT NULL AND guild_id IS NOT NULL;
   `,
 };
+
+/**
+ * Schema 17 changes no tables. It repairs Pokemon left in a held-item form
+ * (a Mega, an Origin Forme, a plate's type) after the item holding it up was
+ * swapped for another: they go back to the form they had without it, with
+ * that form's ability, as `.take` would have done.
+ */
+function heldFormsMatchItems(handle) {
+  const items = require('./items');
+  const evolution = require('./evolution');
+  const rows = handle
+    .prepare("SELECT id, species_id, form_folder, equipped_item, ability_slot FROM pokemon WHERE form_folder IS NOT NULL")
+    .all();
+  const fix = handle.prepare('UPDATE pokemon SET form_folder = ?, ability = COALESCE(?, ability) WHERE id = ?');
+
+  for (const row of rows) {
+    const wanted = items.itemForForm(row);
+    if (wanted === null || row.equipped_item === wanted) continue;
+
+    // Where it would go if the item causing the form came off.
+    const base = items.formWithoutHeldItem({ ...row, equipped_item: wanted });
+    if (base === null || base === row.form_folder) continue;
+
+    const ability = evolution.remapAbility(row.species_id, base, row.ability_slot || 1);
+    fix.run(base, ability ? ability.name : null, row.id);
+  }
+}
 
 /**
  * Schema 16 changes no tables. Party numbers become slots, 1 to N with no
