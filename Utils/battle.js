@@ -856,9 +856,13 @@ function residualDamage(mon, events) {
   const verdict = effects.residual(mon, events);
   if (verdict !== 'normal') return;
 
-  // Bad poison (Toxic) grows by a sixteenth each turn: 1/16, 2/16, 3/16...
-  const sixteenths = mon.status === 'poison' && mon.toxicCounter ? mon.toxicCounter : 1;
-  if (mon.status === 'poison' && mon.toxicCounter) mon.toxicCounter = Math.min(15, mon.toxicCounter + 1);
+  // Burn takes a sixteenth and poison an eighth (Gen 7 onward); bad poison
+  // (Toxic) grows by a sixteenth each turn: 1/16, 2/16, 3/16...
+  let sixteenths = mon.status === 'poison' ? 2 : 1;
+  if (mon.status === 'poison' && mon.toxicCounter) {
+    sixteenths = mon.toxicCounter;
+    mon.toxicCounter = Math.min(15, mon.toxicCounter + 1);
+  }
 
   const hurt = Math.max(1, Math.floor((mon.maxHp * sixteenths) / 16));
   mon.hp = Math.max(0, mon.hp - hurt);
@@ -904,6 +908,9 @@ function applyStatus(target, status, events, rng = null, by = null, { badly = fa
   if (immune && !corroding && target.types.some((type) => immune.includes(type.toLowerCase()))) {
     return false;
   }
+
+  // Nothing freezes in harsh sunlight.
+  if (status === 'freeze' && fieldRules.weatherNow(target.arena) === 'sun') return false;
 
   // Immunity, Limber, Water Veil, Insomnia and the rest.
   if (!effects.statusAllowed(target, status)) {

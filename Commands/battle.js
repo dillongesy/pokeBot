@@ -1621,12 +1621,24 @@ const frozen = (rows) =>
  */
 function acknowledged(press) {
   const deferred = typeof press.deferUpdate === 'function';
+  // A press that reached the bot after Discord's 3 seconds (a freeze, a slow
+  // network) can't be answered any more. The turn still goes ahead: the card
+  // is edited directly instead, and a private reply is skipped.
+  let answered = !deferred;
   return {
     customId: press.customId,
     user: press.user,
-    ready: deferred ? press.deferUpdate().catch(() => {}) : Promise.resolve(),
-    update: (payload) => (deferred ? press.editReply(payload) : press.update(payload)),
-    reply: (payload) => (deferred ? press.followUp(payload) : press.reply(payload)),
+    ready: deferred
+      ? press.deferUpdate().then(() => { answered = true; }, () => {})
+      : Promise.resolve(),
+    update: (payload) => {
+      if (!deferred) return press.update(payload);
+      return answered ? press.editReply(payload) : press.message.edit(payload);
+    },
+    reply: (payload) => {
+      if (!deferred) return press.reply(payload);
+      return answered ? press.followUp(payload) : Promise.resolve();
+    },
   };
 }
 
