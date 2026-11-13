@@ -1,0 +1,17 @@
+tile_id,file,source_x,source_y,occurrences
+0,tiles/interior/room/000.png,1933,428,20
+1,tiles/interior/room/001.png,1933,460,8
+2,tiles/interior/room/002.png,1981,460,2
+3,tiles/interior/room/003.png,1933,476,8
+4,tiles/interior/room/004.png,1981,476,2
+5,tiles/interior/room/005.png,1933,492,10
+6,tiles/interior/room/006.png,1933,508,4
+7,tiles/interior/room/007.png,1949,508,26
+8,tiles/interior/room/008.png,1965,508,2
+9,tiles/interior/room/009.png,1981,508,1
+10,tiles/interior/room/010.png,1997,508,1
+11,tiles/interior/room/011.png,2013,508,2
+12,tiles/interior/room/012.png,1981,524,1
+13,tiles/interior/room/013.png,1997,524,1
+14,tiles/interior/room/014.png,1981,556,1
+15,tiles/interior/room/015.png,1997,556,1

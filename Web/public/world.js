@@ -1,12 +1,13 @@
 'use strict';
 
 /**
- * The overworld: a small town drawn on a 240x160 canvas (the GBA's screen),
- * scaled up with crisp pixels.
+ * The overworld: a small town on a 240x160 canvas (the GBA's screen), scaled
+ * up with crisp pixels.
  *
- * All the art is drawn here in code - tiles, buildings and the player - so
- * there are no outside assets yet. Each tile is 16x16, the screen is 15x10
- * tiles, and the camera follows the player.
+ * The scenery comes from the tile pack in Web/sprites (served at /sprites):
+ * atlas/outdoor.png holds every 16x16 tile, numbered left to right, top to
+ * bottom, as in atlas/outdoor-index.csv. The town below is laid out from
+ * those numbers. The player is the Emerald hero (objects/characters/hero.png).
  *
  * Movement is on the grid, as in the handheld games: tap a direction to turn,
  * hold it to walk, hold B (X / Shift) to run. Walk into a door to go in; face
@@ -22,397 +23,169 @@
   // A tap shorter than this only turns the player.
   const TURN_MS = 90;
 
-  const C = {
-    outline: '#283038',
-    grass: '#7ccf6a',
-    grassTuft: '#5db456',
-    grassDeep: '#3f9447',
-    tall: '#4fae4f',
-    tallTip: '#8fe07a',
-    path: '#ead9a2',
-    pathDot: '#d6c085',
-    water: '#4aa0e6',
-    waterLight: '#9ad6ff',
-    waterDeep: '#3482c8',
-    leaf: '#3f9a4b',
-    leafLight: '#62c264',
-    leafDark: '#2b6b38',
-    trunk: '#7a5230',
-    wall: '#f4ecd9',
-    wallShade: '#d5c9ae',
-    window: '#8fd3ff',
-    windowDark: '#4f8fc8',
-    door: '#5b4a3a',
-    teal: '#29a39b',
-    tealLight: '#5fd1c6',
-    tealDark: '#1d7570',
-    orange: '#e2703a',
-    orangeLight: '#ff9a62',
-    orangeDark: '#a84d24',
-    signWood: '#b98a52',
-    signLight: '#e3b878',
-    flowerA: '#f05a6a',
-    flowerB: '#ffd34a',
-    white: '#ffffff',
+  const ATLAS = '/sprites/atlas/outdoor.png';
+  const ATLAS_COLUMNS = 16;
+
+  // -------------------------------------------------------------------------
+  // Tile numbers in the atlas
+  // -------------------------------------------------------------------------
+
+  const T = {
+    grass: 20,
+    tallGrass: 28,
+    rock: 32,
+    // A tree is two tiles wide: its top, then its bottom, which is darker
+    // when another tree stands below it. The tip pokes into the grass above.
+    treeTop: [0, 1],
+    treeBottomOnTree: [11, 12],
+    treeBottomOnGrass: [16, 17],
+    treeTip: [66, 23],
+    // The pale path, as a rectangle.
+    path: { tl: 56, t: 57, tr: 58, l: 64, c: 59, r: 65, bl: 62, b: 60, br: 61 },
+    // A pond, as a rectangle.
+    pond: { tl: 144, t: 159, tr: 145, l: 149, c: 41, r: 150, bl: 153, b: 160, br: 154 },
+    // The red-roofed house, 4x4; its door is the second tile of the last row.
+    house: [
+      [111, 112, 112, 113],
+      [118, 119, 119, 120],
+      [125, 126, 127, 128],
+      [135, 136, 137, 138],
+    ],
+    houseSign: 139,
   };
 
   // -------------------------------------------------------------------------
-  // The map
-  //
-  //   R tree      G grass     T tall grass   F flowers   P path
-  //   W water     B building  D door         S sign
+  // The town
   // -------------------------------------------------------------------------
 
-  const MAP = [
-    'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
-    'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
-    'RRGGGGGGGGGGGGGGGGGGGGGGGGGGGGRR',
-    'RRGBBBBBBGGGGFGGGGGFGGBBBBBBBGRR',
-    'RRGBBBBBBGGGGGGGGGGGGGBBBBBBBGRR',
-    'RRGBBBBBBGGGGGGGGGGGGGBBBBBBBGRR',
-    'RRGBBBDBBGGGGGGGGGGGGGBBBDBBBGRR',
-    'RRGGSGPGGGGGGGGGGGGGGGGSGPGGGGRR',
-    'RRGGGGPPPPPPPPPPPPPPPPPPPPGGGGRR',
-    'RRGGGGGGGGGGGGPPGGGGGGGGGGGGGGRR',
-    'RRGFFGGGGGGGGGPPGGGGGGGGGGGFFGRR',
-    'RRGWWWWWGGGGGGPPGGGGTTTTTTTTGGRR',
-    'RRGWWWWWWGGGGGPPGGGGTTTTTTTTGGRR',
-    'RRGWWWWWWGGGGGPPGGGGTTTTTTTTGGRR',
-    'RRGGWWWWGGGGGGPPGGGGTTTTTTTTGGRR',
-    'RRGGGGGGGGFFGGPPGGGGGGGGGGGGGGRR',
-    'RRGGGGGGGGGGGGPPGGGGGGGGGGGGGGRR',
-    'RRGGGGGGGGGGGGPPGGGGGGGGGGGGGGRR',
-    'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
-    'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
-  ];
+  const MAP_W = 20;
+  const MAP_H = 16;
 
-  const MAP_W = MAP[0].length;
-  const MAP_H = MAP.length;
-  MAP.forEach((row, y) => {
-    if (row.length !== MAP_W) console.warn(`map row ${y} is ${row.length} wide, not ${MAP_W}`);
-  });
-
-  /** The two stations. `door` is the tile you walk into. */
+  /** The two stations. `door` is the tile you walk into; `sign` is read with A. */
   const BUILDINGS = [
-    { station: 'drop', x: 3, y: 3, w: 6, h: 4, door: { x: 6, y: 6 }, roof: [C.teal, C.tealLight, C.tealDark], label: 'DROP' },
-    { station: 'battle', x: 22, y: 3, w: 7, h: 4, door: { x: 25, y: 6 }, roof: [C.orange, C.orangeLight, C.orangeDark], label: 'BATTLE' },
+    { station: 'drop', x: 3, y: 3, door: { x: 4, y: 6 }, sign: { x: 7, y: 6 }, text: ['DROP STATION', 'Drop a wild Pokemon, then catch it by name.'] },
+    { station: 'battle', x: 12, y: 3, door: { x: 13, y: 6 }, sign: { x: 16, y: 6 }, text: ['BATTLE STATION', 'Take your team into a battle.'] },
   ];
 
-  const SIGNS = {
-    '4,7': ['DROP STATION', 'Drop a wild Pokemon, then catch it by name.'],
-    '23,7': ['BATTLE STATION', 'Take your team into a battle.'],
-  };
+  const START = { x: 10, y: 9, facing: 'up' };
 
-  const START = { x: 15, y: 15, facing: 'up' };
+  /** ground[y][x] is a tile number; solid[y][x] blocks walking. */
+  const ground = Array.from({ length: MAP_H }, () => Array(MAP_W).fill(T.grass));
+  const solid = Array.from({ length: MAP_H }, () => Array(MAP_W).fill(false));
 
-  const tileAt = (x, y) => (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H ? 'R' : MAP[y][x]);
-
-  /** A stable pseudo-random number per tile, for grass tufts and such. */
-  const hash = (x, y, salt = 0) => {
-    let h = (x * 374761393 + y * 668265263 + salt * 2147483647) | 0;
-    h = (h ^ (h >>> 13)) * 1274126177;
-    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-  };
-
-  // -------------------------------------------------------------------------
-  // Drawing tiles
-  // -------------------------------------------------------------------------
-
-  function px(g, x, y, color, w = 1, h = 1) {
-    g.fillStyle = color;
-    g.fillRect(x, y, w, h);
+  function put(x, y, tile, blocks = false) {
+    if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return;
+    ground[y][x] = tile;
+    solid[y][x] = blocks;
   }
 
-  function grass(g, ox, oy, tx, ty) {
-    px(g, ox, oy, C.grass, TILE, TILE);
-    for (let i = 0; i < 3; i++) {
-      const x = ox + Math.floor(hash(tx, ty, i) * 13) + 1;
-      const y = oy + Math.floor(hash(tx, ty, i + 9) * 13) + 1;
-      px(g, x, y + 1, C.grassTuft);
-      px(g, x + 2, y + 1, C.grassTuft);
-      px(g, x + 1, y, C.grassTuft);
-    }
-  }
-
-  function tallGrass(g, ox, oy) {
-    px(g, ox, oy, C.tall, TILE, TILE);
-    for (let row = 0; row < 2; row++) {
-      for (let col = 0; col < 4; col++) {
-        const x = ox + col * 4 + (row ? 2 : 0);
-        const y = oy + row * 8 + 2;
-        px(g, x, y + 1, C.grassDeep, 1, 5);
-        px(g, x + 1, y, C.tallTip, 1, 5);
-        px(g, x + 2, y + 2, C.grassDeep, 1, 4);
+  /** A rectangle drawn with a 9-piece set (corners, edges, middle). */
+  function rect(set, x0, y0, w, h, blocks = false) {
+    for (let y = y0; y < y0 + h; y++) {
+      for (let x = x0; x < x0 + w; x++) {
+        const top = y === y0;
+        const bottom = y === y0 + h - 1;
+        const left = x === x0;
+        const right = x === x0 + w - 1;
+        const piece =
+          top ? (left ? 'tl' : right ? 'tr' : 't')
+          : bottom ? (left ? 'bl' : right ? 'br' : 'b')
+          : left ? 'l' : right ? 'r' : 'c';
+        put(x, y, set[piece], blocks);
       }
     }
   }
 
-  function flowers(g, ox, oy, tx, ty) {
-    grass(g, ox, oy, tx, ty);
-    const spots = [[3, 3], [10, 5], [5, 11], [12, 12]];
-    spots.forEach(([x, y], i) => {
-      const petal = i % 2 ? C.flowerB : C.flowerA;
-      px(g, ox + x - 1, oy + y, petal);
-      px(g, ox + x + 1, oy + y, petal);
-      px(g, ox + x, oy + y - 1, petal);
-      px(g, ox + x, oy + y + 1, petal);
-      px(g, ox + x, oy + y, C.white);
-    });
-  }
+  // Trees all round the edge, laid out in 2x2 cells.
+  const CELLS_W = MAP_W / 2;
+  const CELLS_H = MAP_H / 2;
+  const treeCell = (cx, cy) =>
+    cx < 0 || cy < 0 || cx >= CELLS_W || cy >= CELLS_H || cx === 0 || cy === 0 || cx === CELLS_W - 1 || cy === CELLS_H - 1;
 
-  function path(g, ox, oy, tx, ty) {
-    px(g, ox, oy, C.path, TILE, TILE);
-    for (let i = 0; i < 4; i++) {
-      px(g, ox + Math.floor(hash(tx, ty, i + 3) * 15), oy + Math.floor(hash(tx, ty, i + 7) * 15), C.pathDot);
+  for (let cy = 0; cy < CELLS_H; cy++) {
+    for (let cx = 0; cx < CELLS_W; cx++) {
+      if (!treeCell(cx, cy)) continue;
+      const x = cx * 2;
+      const y = cy * 2;
+      const bottom = treeCell(cx, cy + 1) ? T.treeBottomOnTree : T.treeBottomOnGrass;
+      put(x, y, T.treeTop[0], true);
+      put(x + 1, y, T.treeTop[1], true);
+      put(x, y + 1, bottom[0], true);
+      put(x + 1, y + 1, bottom[1], true);
     }
-    // Soft edge where it meets grass.
-    if (!'PD'.includes(tileAt(tx, ty - 1))) px(g, ox, oy, C.pathDot, TILE, 1);
-    if (!'PD'.includes(tileAt(tx, ty + 1))) px(g, ox, oy + 15, C.pathDot, TILE, 1);
-    if (!'PD'.includes(tileAt(tx - 1, ty))) px(g, ox, oy, C.pathDot, 1, TILE);
-    if (!'PD'.includes(tileAt(tx + 1, ty))) px(g, ox + 15, oy, C.pathDot, 1, TILE);
+  }
+  // Tips of the bottom row of trees, over the grass above them.
+  for (let cx = 1; cx < CELLS_W - 1; cx++) {
+    put(cx * 2, MAP_H - 3, T.treeTip[0], true);
+    put(cx * 2 + 1, MAP_H - 3, T.treeTip[1], true);
   }
 
-  function water(g, ox, oy, tx, ty, frame) {
-    px(g, ox, oy, C.water, TILE, TILE);
-    // Darker rim along any shore.
-    if (tileAt(tx, ty - 1) !== 'W') px(g, ox, oy, C.waterDeep, TILE, 2);
-    if (tileAt(tx - 1, ty) !== 'W') px(g, ox, oy, C.waterDeep, 2, TILE);
-    if (tileAt(tx + 1, ty) !== 'W') px(g, ox + 14, oy, C.waterDeep, 2, TILE);
-    if (tileAt(tx, ty + 1) !== 'W') px(g, ox, oy + 14, C.waterDeep, TILE, 2);
-    const shift = frame ? 3 : 0;
-    px(g, ox + 3 + shift, oy + 5, C.waterLight, 4, 1);
-    px(g, ox + 8 - shift, oy + 10, C.waterLight, 4, 1);
+  // The path in front of both stations.
+  rect(T.path, 3, 7, 14, 3);
+
+  // A pond, some tall grass and a few rocks.
+  rect(T.pond, 3, 10, 4, 3, true);
+  for (let y = 10; y <= 12; y++) for (let x = 12; x <= 16; x++) put(x, y, T.tallGrass);
+  put(8, 11, T.rock, true);
+  put(17, 8, T.rock, true);
+  put(10, 4, T.rock, true);
+
+  // The stations, each with its sign by the door.
+  for (const b of BUILDINGS) {
+    T.house.forEach((row, dy) => row.forEach((tile, dx) => put(b.x + dx, b.y + dy, tile, true)));
+    put(b.sign.x, b.sign.y, T.houseSign, true);
   }
 
-  function tree(g, ox, oy) {
-    // A round canopy over a short trunk; neighbours overlap into a forest.
-    px(g, ox + 6, oy + 12, C.trunk, 4, 4);
-    g.fillStyle = C.leafDark;
-    g.beginPath();
-    g.arc(ox + 8, oy + 7, 7.5, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = C.leaf;
-    g.beginPath();
-    g.arc(ox + 8, oy + 6.5, 6, 0, Math.PI * 2);
-    g.fill();
-    px(g, ox + 4, oy + 3, C.leafLight, 3, 2);
-    px(g, ox + 9, oy + 5, C.leafLight, 2, 2);
-    px(g, ox + 6, oy + 8, C.leafLight, 2, 1);
-  }
+  const tileAt = (x, y) => (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H ? null : ground[y][x]);
+  const blocked = (x, y) => x < 0 || y < 0 || x >= MAP_W || y >= MAP_H || solid[y][x];
 
-  function sign(g, ox, oy, tx, ty) {
-    grass(g, ox, oy, tx, ty);
-    px(g, ox + 7, oy + 9, C.trunk, 2, 6);
-    px(g, ox + 2, oy + 2, C.outline, 12, 9);
-    px(g, ox + 3, oy + 3, C.signWood, 10, 7);
-    px(g, ox + 3, oy + 3, C.signLight, 10, 2);
-    px(g, ox + 5, oy + 6, C.trunk, 6, 1);
-    px(g, ox + 5, oy + 8, C.trunk, 4, 1);
-  }
+  // -------------------------------------------------------------------------
+  // Drawing the map
+  // -------------------------------------------------------------------------
 
-  function building(g, b) {
-    const x = b.x * TILE;
-    const y = b.y * TILE;
-    const w = b.w * TILE;
-    const h = b.h * TILE;
-    const [roof, roofLight, roofDark] = b.roof;
-    const roofH = 34;
-
-    // Walls
-    px(g, x, y + roofH - 2, C.outline, w, h - roofH + 2);
-    px(g, x + 1, y + roofH - 1, C.wall, w - 2, h - roofH);
-    px(g, x + 1, y + h - 5, C.wallShade, w - 2, 4);
-
-    // Roof: overhanging, with stripes and a lighter ridge.
-    px(g, x - 2, y + 2, C.outline, w + 4, roofH);
-    px(g, x - 1, y + 3, roof, w + 2, roofH - 2);
-    for (let row = y + 9; row < y + roofH - 2; row += 6) px(g, x - 1, row, roofDark, w + 2, 1);
-    px(g, x - 1, y + 3, roofLight, w + 2, 3);
-
-    // The station's name on a plate on the roof.
-    const plateW = b.label.length * 8 + 8;
-    const plateX = x + Math.floor((w - plateW) / 2);
-    px(g, plateX, y + 13, C.outline, plateW, 13);
-    px(g, plateX + 1, y + 14, C.white, plateW - 2, 11);
-    g.fillStyle = roofDark;
-    g.font = '8px "Press Start 2P", monospace';
-    g.textBaseline = 'top';
-    g.fillText(b.label, plateX + 5, y + 16);
-
-    // Windows either side of the door.
-    const doorX = b.door.x * TILE;
-    const doorY = b.door.y * TILE;
-    const windows = [x + 8, x + w - 24];
-    windows.forEach((wx) => {
-      if (Math.abs(wx - doorX) < 18) return;
-      px(g, wx, y + roofH + 4, C.outline, 16, 12);
-      px(g, wx + 1, y + roofH + 5, C.window, 14, 10);
-      px(g, wx + 1, y + roofH + 5, C.windowDark, 14, 3);
-      px(g, wx + 7, y + roofH + 5, C.outline, 1, 10);
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`could not load ${src}`));
+      img.src = src;
     });
-
-    // Door, with a mat.
-    px(g, doorX + 2, doorY + 1, C.outline, 12, 15);
-    px(g, doorX + 3, doorY + 2, C.door, 10, 14);
-    px(g, doorX + 3, doorY + 2, C.window, 10, 4);
-    px(g, doorX + 10, doorY + 9, C.signLight, 2, 2);
   }
 
-  /** The whole map as one image. Water is redrawn as it ripples. */
-  function drawMap(frame = 0) {
+  function drawTile(g, atlas, tile, x, y) {
+    g.drawImage(atlas, (tile % ATLAS_COLUMNS) * TILE, Math.floor(tile / ATLAS_COLUMNS) * TILE, TILE, TILE, x, y, TILE, TILE);
+  }
+
+  /** The whole town as one image. */
+  function drawMap(atlas) {
     const canvas = document.createElement('canvas');
     canvas.width = MAP_W * TILE;
     canvas.height = MAP_H * TILE;
     const g = canvas.getContext('2d');
-
-    for (let ty = 0; ty < MAP_H; ty++) {
-      for (let tx = 0; tx < MAP_W; tx++) {
-        const ox = tx * TILE;
-        const oy = ty * TILE;
-        const t = MAP[ty][tx];
-        if (t === 'T') tallGrass(g, ox, oy);
-        else if (t === 'F') flowers(g, ox, oy, tx, ty);
-        else if (t === 'P') path(g, ox, oy, tx, ty);
-        else if (t === 'W') water(g, ox, oy, tx, ty, frame);
-        else if (t === 'S') sign(g, ox, oy, tx, ty);
-        else grass(g, ox, oy, tx, ty);
-      }
+    for (let y = 0; y < MAP_H; y++) {
+      for (let x = 0; x < MAP_W; x++) drawTile(g, atlas, ground[y][x], x * TILE, y * TILE);
     }
-
-    // Trees last, row by row, so lower canopies overlap the ones above.
-    for (let ty = 0; ty < MAP_H; ty++) {
-      for (let tx = 0; tx < MAP_W; tx++) if (MAP[ty][tx] === 'R') tree(g, tx * TILE, ty * TILE);
-    }
-
-    BUILDINGS.forEach((b) => building(g, b));
     return canvas;
   }
 
   // -------------------------------------------------------------------------
   // The player
+  //
+  // objects/characters/hero.png: 16x24 cells, columns facing down, up and
+  // left (right is left mirrored); rows 0-2 walking (standing, then each
+  // foot), rows 3-5 running. Cut from soulcaliburfan's rip of the Emerald
+  // hero, feet aligned to the bottom of each cell.
   // -------------------------------------------------------------------------
 
-  const PALETTE = {
-    k: C.outline,
-    c: '#3456c8',
-    C: '#6d8ff2',
-    h: '#5a3a22',
-    s: '#f8c9a0',
-    j: '#e2553a',
-    J: '#ff8c5c',
-    p: '#3a4a7a',
-    b: '#2c2c34',
-    w: '#ffffff',
-  };
+  const HERO = '/sprites/objects/characters/hero.png';
+  const HERO_W = 16;
+  const HERO_H = 24;
+  const HERO_COLUMN = { down: 0, up: 1, left: 2, right: 2 };
 
-  /** Left halves of the front and back views; mirrored to make the whole. */
-  const FRONT = [
-    '........',
-    '....kkkk',
-    '...kCCCC',
-    '..kcCCCC',
-    '..kccccc',
-    '.kkkkkkk',
-    '..khssss',
-    '..ksskss',
-    '...kssss',
-    '...kjjJw',
-    '..kjjjJJ',
-    '..ksjjjj',
-    '...kpppp',
-    '...kpppk',
-    '...kbbbk',
-    '....kkk.',
-  ];
-  const BACK = [
-    '........',
-    '....kkkk',
-    '...kCCCC',
-    '..kcCCCC',
-    '..kccccc',
-    '..kkkkkk',
-    '..khhhhh',
-    '..khhhhh',
-    '...khhhh',
-    '...kjjjj',
-    '..kjjjJJ',
-    '..ksjjjj',
-    '...kpppp',
-    '...kpppk',
-    '...kbbbk',
-    '....kkk.',
-  ];
-  /** Facing left; facing right is this mirrored. */
-  const SIDE = [
-    '................',
-    '.....kkkkk......',
-    '....kCCCCCk.....',
-    '...kcCCCCCck....',
-    '..kkkcccccck....',
-    '.kkkkkkkkkkk....',
-    '...ksssshhhk....',
-    '...kskshhhhk....',
-    '....kssshhk.....',
-    '.....kjjjk......',
-    '....kjjjJJk.....',
-    '....kjsjJJk.....',
-    '....kkppppk.....',
-    '.....kpppk......',
-    '.....kbbbk......',
-    '......kkk.......',
-  ];
-
-  const whole = (half) => half.map((row) => row + row.split('').reverse().join(''));
-  const mirror = (rows) => rows.map((row) => row.split('').reverse().join(''));
-
-  /** One leg lifted, for the walking frames. */
-  function stepOf(rows, side) {
-    const out = rows.slice();
-    if (side === 'left') {
-      out[13] = out[13].slice(0, 8).replace('kpppk', 'kbbbk') + out[13].slice(8);
-      out[14] = out[14].slice(0, 8).replace('kbbbk', '.kkk.') + out[14].slice(8);
-      out[15] = out[15].slice(0, 8).replace(/k/g, '.') + out[15].slice(8);
-    } else {
-      out[13] = out[13].slice(0, 8) + out[13].slice(8).replace('kpppk', 'kbbbk');
-      out[14] = out[14].slice(0, 8) + out[14].slice(8).replace('kbbbk', '.kkk.');
-      out[15] = out[15].slice(0, 8) + out[15].slice(8).replace(/k/g, '.');
-    }
-    return out;
-  }
-
-  function sideStep(rows) {
-    const out = rows.slice();
-    out[13] = '....kpk.kpk.....';
-    out[14] = '....kbk.kbk.....';
-    out[15] = '................';
-    return out;
-  }
-
-  function sprite(rows) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 16;
-    canvas.height = 16;
-    const g = canvas.getContext('2d');
-    rows.forEach((row, y) => {
-      for (let x = 0; x < 16; x++) {
-        const color = PALETTE[row[x]];
-        if (color) px(g, x, y, color);
-      }
-    });
-    return canvas;
-  }
-
-  function playerFrames() {
-    const front = whole(FRONT);
-    const back = whole(BACK);
-    const left = SIDE.map((row) => row.padEnd(16, '.').slice(0, 16));
-    const right = mirror(left);
-    return {
-      down: [front, stepOf(front, 'left'), front, stepOf(front, 'right')].map(sprite),
-      up: [back, stepOf(back, 'left'), back, stepOf(back, 'right')].map(sprite),
-      left: [left, sideStep(left), left, sideStep(left)].map(sprite),
-      right: [right, sideStep(right), right, sideStep(right)].map(sprite),
-    };
+  /** Which row of the sheet: a step alternates feet, with standing between. */
+  function heroRow(step, running) {
+    const base = running ? 3 : 0;
+    return base + [0, 1, 0, 2][step];
   }
 
   // -------------------------------------------------------------------------
@@ -439,8 +212,14 @@
     canvas.height = VIEW_H;
     g.imageSmoothingEnabled = false;
 
-    let maps = [drawMap(0), drawMap(1)];
-    const frames = playerFrames();
+    let atlas = null;
+    let map = null;
+    let hero = null;
+    loadImage(ATLAS).then((img) => {
+      atlas = img;
+      map = drawMap(img);
+    }, (err) => console.error(err));
+    loadImage(HERO).then((img) => { hero = img; }, (err) => console.error(err));
 
     const player = {
       x: START.x,
@@ -459,14 +238,8 @@
     let running = false;
     let fade = 0;
 
-    function walkable(x, y) {
-      const t = tileAt(x, y);
-      return t === 'G' || t === 'P' || t === 'T' || t === 'F';
-    }
-
-    function doorAt(x, y) {
-      return BUILDINGS.find((b) => b.door.x === x && b.door.y === y) || null;
-    }
+    const doorAt = (x, y) => BUILDINGS.find((b) => b.door.x === x && b.door.y === y) || null;
+    const signAt = (x, y) => BUILDINGS.find((b) => b.sign.x === x && b.sign.y === y) || null;
 
     function tryMove(now) {
       const dir = held[held.length - 1];
@@ -492,7 +265,7 @@
         return;
       }
 
-      if (!walkable(nx, ny)) return;
+      if (blocked(nx, ny)) return;
 
       player.from = { x: player.x, y: player.y };
       player.x = nx;
@@ -504,20 +277,21 @@
 
     function interact() {
       const [dx, dy] = DIRS[player.facing];
-      const key = `${player.x + dx},${player.y + dy}`;
-      if (SIGNS[key]) hooks.read(SIGNS[key]);
-      const door = doorAt(player.x + dx, player.y + dy);
+      const x = player.x + dx;
+      const y = player.y + dy;
+      const sign = signAt(x, y);
+      if (sign) hooks.read(sign.text);
+      const door = doorAt(x, y);
       if (door) hooks.enter(door.station);
     }
 
     /** Where the player is drawn, in pixels, including mid-step. */
     function position(now) {
-      if (!player.from) return { x: player.x * TILE, y: player.y * TILE, moving: false, t: 0 };
+      if (!player.from) return { x: player.x * TILE, y: player.y * TILE, t: 0 };
       const t = Math.min(1, (now - player.started) / player.duration);
       return {
         x: (player.from.x + (player.x - player.from.x) * t) * TILE,
         y: (player.from.y + (player.y - player.from.y) * t) * TILE,
-        moving: t < 1,
         t,
       };
     }
@@ -535,23 +309,41 @@
       const camX = Math.max(0, Math.min(MAP_W * TILE - VIEW_W, Math.round(pos.x + TILE / 2 - VIEW_W / 2)));
       const camY = Math.max(0, Math.min(MAP_H * TILE - VIEW_H, Math.round(pos.y + TILE / 2 - VIEW_H / 2)));
 
-      const map = maps[Math.floor(now / 600) % 2];
-      g.drawImage(map, camX, camY, VIEW_W, VIEW_H, 0, 0, VIEW_W, VIEW_H);
+      g.fillStyle = '#000';
+      g.fillRect(0, 0, VIEW_W, VIEW_H);
+      if (map) g.drawImage(map, camX, camY, VIEW_W, VIEW_H, 0, 0, VIEW_W, VIEW_H);
 
-      // Shadow, then the player. Steps alternate feet.
+      // Shadow, then the player, feet on the bottom of the tile. Steps
+      // alternate feet; running uses its own frames.
       const sx = Math.round(pos.x - camX);
-      const sy = Math.round(pos.y - camY) - 4;
+      const tileY = Math.round(pos.y - camY);
       g.fillStyle = 'rgba(0,0,0,0.22)';
       g.beginPath();
-      g.ellipse(sx + 8, sy + 15.5, 5.5, 2, 0, 0, Math.PI * 2);
+      g.ellipse(sx + 8, tileY + 14.5, 5.5, 2, 0, 0, Math.PI * 2);
       g.fill();
-      const walking = player.from && pos.t > 0.25 && pos.t < 0.75;
-      const step = walking ? (player.stepCount % 2 ? 1 : 3) : 0;
-      g.drawImage(frames[player.facing][step], sx, sy);
+      if (hero) {
+        const walking = player.from && pos.t > 0.25 && pos.t < 0.75;
+        const step = walking ? (player.stepCount % 2 ? 1 : 3) : 0;
+        const fast = Boolean(player.from) && player.duration === RUN_MS;
+        const srcX = HERO_COLUMN[player.facing] * HERO_W;
+        const srcY = heroRow(step, fast) * HERO_H;
+        const top = tileY + TILE - HERO_H;
+        if (player.facing === 'right') {
+          g.save();
+          g.translate(sx + HERO_W, top);
+          g.scale(-1, 1);
+          g.drawImage(hero, srcX, srcY, HERO_W, HERO_H, 0, 0, HERO_W, HERO_H);
+          g.restore();
+        } else {
+          g.drawImage(hero, srcX, srcY, HERO_W, HERO_H, sx, top, HERO_W, HERO_H);
+        }
+      }
 
-      // Standing in tall grass hides the feet.
-      if (!player.from && tileAt(player.x, player.y) === 'T') {
-        tallGrass(makeClip(g, sx, sy + 10), sx, sy + 4);
+      // Standing in tall grass hides the feet: redraw the grass's lower half over them.
+      if (atlas && !player.from && tileAt(player.x, player.y) === T.tallGrass) {
+        const tile = T.tallGrass;
+        const half = TILE / 2;
+        g.drawImage(atlas, (tile % ATLAS_COLUMNS) * TILE, Math.floor(tile / ATLAS_COLUMNS) * TILE + half, TILE, half, sx, tileY + half, TILE, half);
       }
 
       // A quick fade on going through a door.
@@ -566,22 +358,6 @@
 
       requestAnimationFrame(frame);
     }
-
-    /** Clip drawing to the bottom of the player's tile (feet in the grass). */
-    function makeClip(ctx, x, y) {
-      return {
-        set fillStyle(v) { ctx.fillStyle = v; },
-        fillRect(rx, ry, w, h) {
-          const top = Math.max(ry, y);
-          const bottom = Math.min(ry + h, y + 6);
-          if (bottom > top) ctx.fillRect(rx, top, w, bottom - top);
-        },
-      };
-    }
-
-    document.fonts.ready.then(() => {
-      maps = [drawMap(0), drawMap(1)];
-    });
 
     requestAnimationFrame(frame);
 
@@ -617,5 +393,10 @@
     };
   }
 
-  window.World = { create, VIEW_W, VIEW_H };
+  /** The whole town at once, for checking the layout. */
+  async function preview() {
+    return drawMap(await loadImage(ATLAS));
+  }
+
+  window.World = { create, preview, VIEW_W, VIEW_H };
 })();

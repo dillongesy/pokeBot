@@ -33,6 +33,7 @@ const partylock = require('../Utils/partylock');
 const crashlog = require('../Utils/crashlog');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
+const SPRITES_DIR = path.join(__dirname, 'sprites');
 const STATUS_EVERY_MS = 2_000;
 const HEARTBEAT_MS = 25_000;
 const MAX_BODY = 8 * 1024;
@@ -264,14 +265,18 @@ function file(res, session, station, messageId, index) {
 // ---------------------------------------------------------------------------
 
 function serveStatic(res, pathname) {
-  const wanted = pathname === '/' ? '/index.html' : pathname;
-  const full = path.normalize(path.join(PUBLIC_DIR, wanted));
-  if (!full.startsWith(PUBLIC_DIR + path.sep) || !fs.existsSync(full) || !fs.statSync(full).isFile()) {
+  // /sprites/... is the tile and object pack in Web/sprites.
+  const sprites = pathname.startsWith('/sprites/');
+  const dir = sprites ? SPRITES_DIR : PUBLIC_DIR;
+  const wanted = sprites ? pathname.slice('/sprites'.length) : pathname === '/' ? '/index.html' : pathname;
+  const full = path.normalize(path.join(dir, decodeURIComponent(wanted)));
+  if (!full.startsWith(dir + path.sep) || !fs.existsSync(full) || !fs.statSync(full).isFile()) {
     return send(res, 404, 'Not found');
   }
   res.writeHead(200, {
     'Content-Type': TYPES[path.extname(full).toLowerCase()] || 'application/octet-stream',
-    'Cache-Control': 'no-cache',
+    // The pack rarely changes; the page's own files are checked each load.
+    'Cache-Control': sprites ? 'public, max-age=86400' : 'no-cache',
   });
   fs.createReadStream(full).pipe(res);
 }
