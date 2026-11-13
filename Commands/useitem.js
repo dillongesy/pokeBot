@@ -18,6 +18,7 @@ const questengine = require('../Utils/questengine');
 const incense = require('../Utils/incense');
 const lootbox = require('../Utils/lootbox');
 const content = require('../Utils/content');
+const inventory = require('../Utils/inventory');
 const items = require('../Utils/items');
 const { displayName, colorFor, titleCase, fitLines, clip, LIMITS } = require('../Utils/display');
 const { describeItem } = require('./examine');
@@ -287,8 +288,15 @@ function use(userId, rawPokemonId, rawItem) {
   const row = store.getOwnedByNumber(userId, pokemonId);
   if (!row) return { content: store.noSuchNumber(userId, pokemonId) };
 
-  const slug = String(rawItem ?? '').toLowerCase().trim();
+  let slug = String(rawItem ?? '').toLowerCase().trim();
   if (!slug) return { content: 'Use what? Check `.bag` for what you have.' };
+
+  // "Shiny Stone" or "shiny stone" for shiny-stone: matched against the bag,
+  // as `.trash` and `.examine` do.
+  if (!content.item(slug) && !/^\d+$/.test(slug)) {
+    const { row: found } = inventory.resolve(inventory.bagRows(userId), slug);
+    if (found) slug = found.item;
+  }
 
   if (slug === 'clear' || slug === 'none' || slug === 'off') return unequip(userId, row);
 
@@ -478,7 +486,8 @@ module.exports = {
     await reply(
       (payload) => message.channel.send(payload),
       message.author.id,
-      use(message.author.id, args[0], args[1])
+      // Item names can have spaces (".use 12 shiny stone").
+      use(message.author.id, args[0], args.slice(1).join(' ') || undefined)
     );
   },
 
