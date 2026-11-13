@@ -246,6 +246,26 @@ function streakOf(userId, at = Date.now()) {
   return { days, doneToday: Boolean(user && user.daily_streak_day === day), next };
 }
 
+/**
+ * Count today in the streak if every daily is done and it isn't counted yet,
+ * paying any reward it reaches. Returns a line to show, or null.
+ */
+function creditStreak(userId, at = Date.now()) {
+  const row = today(userId, at);
+  if (!row.bonus_done) return null;
+
+  const handle = db.open();
+  handle.exec('BEGIN IMMEDIATE');
+  try {
+    const line = extendStreak(handle, userId, row.day);
+    handle.exec('COMMIT');
+    return line;
+  } catch (err) {
+    handle.exec('ROLLBACK');
+    throw err;
+  }
+}
+
 /** Both overdrive goals reached today: the prize for both, once. */
 function maybeOverdriveBoth(handle, userId, row) {
   if (row.od_both_done || !(row.od_catch_done && row.od_battle_done)) return null;
@@ -403,5 +423,6 @@ module.exports = {
   lastCreditedVote,
   voteCounts,
   streakOf,
+  creditStreak,
   dayBefore,
 };

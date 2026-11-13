@@ -93,26 +93,32 @@ async function show(userId, botId) {
           `${bar(Math.min(row.wins, row.battle_target), row.battle_target)} ` +
           `${Math.min(row.wins, row.battle_target)}/${row.battle_target}\n` +
           'Reward: a Rare Candy or a random TM',
-      },
-      {
-        name: `${tick(row.vote_done)} Vote on top.gg`,
-        value:
-          voteLine(row, check, botId) +
-          (check.ok || check.reason !== 'not-configured' ? `\nReward: ${boxes(voteLootboxes)}` : ''),
-      },
-      {
-        name: `${tick(row.bonus_done)} ${daily.voteCounts() ? 'All three' : 'Catch and battle'}`,
-        value: `Reward: ${boxes(bonusLootboxes)}`,
       }
     );
 
-  // Days in a row with every daily done.
+  // The vote quest only once voting is set up (TOPGG_TOKEN); until then the
+  // bonus needs just the other two.
+  if (daily.voteCounts()) {
+    embed.addFields({
+      name: `${tick(row.vote_done)} Vote on top.gg`,
+      value: voteLine(row, check, botId) + `\nReward: ${boxes(voteLootboxes)}`,
+    });
+  }
+
+  embed.addFields({
+    name: `${tick(row.bonus_done)} ${daily.voteCounts() ? 'All three' : 'Catch and battle'}`,
+    value: `Reward: ${boxes(bonusLootboxes)}`,
+  });
+
+  // Days in a row with every daily done. A bonus finished before the streak
+  // existed (or any day it was missed) is counted now.
+  const streakNotice = daily.creditStreak(userId);
+  if (streakNotice) embed.setDescription(`${streakNotice}\n\n${embed.data.description}`);
   const streak = daily.streakOf(userId);
   embed.addFields({
     name: `Daily streak: ${streak.days} day${streak.days === 1 ? '' : 's'}`,
     value:
-      (streak.next ? `${boxes(streak.next[1])} at ${streak.next[0]} days in a row.` : '') +
-      (streak.doneToday ? '' : '\nFinish every daily today to keep it going.'),
+      streak.next ? `${boxes(streak.next[1])} at ${streak.next[0]} days in a row.` : '-',
   });
 
   return { embeds: [embed] };
