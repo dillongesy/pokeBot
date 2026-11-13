@@ -76,7 +76,9 @@ async function show(userId, botId) {
     .setColor(row.bonus_done ? 0xf1c40f : 0x3498db)
     .setDescription(
       (notices.length ? `${notices.join('\n')}\n\n` : '') +
-        `New quests at midnight ${timezoneLabel}, in **${countdown(resetsIn)}**.`
+        `New quests at midnight ${timezoneLabel}, in **${countdown(resetsIn)}**.` +
+        // Overdrive stays hidden until both of today's are done.
+        (row.od_both_done ? '\n**You completed both Overdrive quests today!**' : '')
     )
     .addFields(
       {
