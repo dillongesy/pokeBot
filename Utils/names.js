@@ -167,6 +167,70 @@ function resolveOne(guess) {
   return matches.reduce((best, species) => (species.id < best.id ? species : best));
 }
 
+/** A species' forms, read once each: [{ folder, displayName, formName }]. */
+const formCache = new Map();
+
+function formsOf(species) {
+  if (formCache.has(species.id)) return formCache.get(species.id);
+
+  const dir = path.join(POKEMON_DIR, species.folder || String(species.id));
+  const forms = [];
+  if (fs.existsSync(dir)) {
+    for (const folder of fs.readdirSync(dir)) {
+      const file = path.join(dir, folder, 'data.json');
+      if (!fs.existsSync(file)) continue;
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      forms.push({ folder, displayName: data.displayName || folder, formName: data.formName || folder });
+    }
+  }
+
+  formCache.set(species.id, forms);
+  return forms;
+}
+
+/**
+ * One form of one species, from "alolan rattata", "alola rattata" or
+ * "rattata alola". A name that covers several forms ("paldean tauros")
+ * matches them all.
+ *
+ * @returns {{ species, name, folders: string[] }|null}
+ */
+function resolveForm(text) {
+  const words = String(text || '').trim().split(/\s+/).filter(Boolean);
+  if (words.length < 2) return null;
+
+  const wanted = foldName(words.join(''));
+
+  // The species is some run of the words: "alolan rattata", "rattata alola",
+  // "mega charizard x". Longest runs first.
+  const runs = [];
+  for (let size = words.length - 1; size >= 1; size -= 1) {
+    for (let at = 0; at + size <= words.length; at += 1) runs.push(words.slice(at, at + size).join(' '));
+  }
+
+  const tried = new Set();
+  for (const part of runs) {
+    const species = resolveOne(part);
+    if (!species || tried.has(species.id)) continue;
+    tried.add(species.id);
+
+    const plain = foldName(species.displayName || species.name);
+    const forms = formsOf(species).filter((form) => {
+      const label = foldName(form.formName);
+      return [foldName(form.displayName), label + plain, plain + label].some((name) => name.startsWith(wanted));
+    });
+
+    if (forms.length) {
+      // One form keeps its own name; several share what was typed.
+      const name =
+        forms.length === 1 ? forms[0].displayName : words.map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
+      return { species, name, folders: forms.map((form) => form.folder) };
+    }
+  }
+
+  return null;
+}
+
 /** Species by id, from the same cached index. */
 function speciesById(speciesId) {
   return load().byId.get(Number(speciesId)) || null;
@@ -183,6 +247,7 @@ function reload() {
 }
 
 module.exports = {
+  resolveForm,
   JOKE_ALIASES,
   foldName,
   resolveSpecies,

@@ -82,13 +82,16 @@ async function show(userId, botId) {
       {
         name: `${tick(row.catch_done)} Catch ${row.catch_target} Pokemon`,
         value:
-          `${bar(row.catches, row.catch_target)} ${row.catches}/${row.catch_target}\n` +
+          // Counting goes on past the target (Utils/daily.js); shown capped.
+          `${bar(Math.min(row.catches, row.catch_target), row.catch_target)} ` +
+          `${Math.min(row.catches, row.catch_target)}/${row.catch_target}\n` +
           `Reward: ${catchCoins} coins`,
       },
       {
         name: `${tick(row.battle_done)} Win ${row.battle_target} battles`,
         value:
-          `${bar(row.wins, row.battle_target)} ${row.wins}/${row.battle_target}\n` +
+          `${bar(Math.min(row.wins, row.battle_target), row.battle_target)} ` +
+          `${Math.min(row.wins, row.battle_target)}/${row.battle_target}\n` +
           'Reward: a Rare Candy or a random TM',
       },
       {
@@ -102,6 +105,15 @@ async function show(userId, botId) {
         value: `Reward: ${boxes(bonusLootboxes)}`,
       }
     );
+
+  // Days in a row with every daily done.
+  const streak = daily.streakOf(userId);
+  embed.addFields({
+    name: `Daily streak: ${streak.days} day${streak.days === 1 ? '' : 's'}`,
+    value:
+      (streak.next ? `${boxes(streak.next[1])} at ${streak.next[0]} days in a row.` : '') +
+      (streak.doneToday ? '' : '\nFinish every daily today to keep it going.'),
+  });
 
   return { embeds: [embed] };
 }

@@ -15,6 +15,8 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 const store = require('../Utils/store');
 const view = require('./view');
+const browse = require('../Utils/browse');
+const pager = require('../Utils/pager');
 const obedience = require('../Utils/obedience');
 const { displayName, ivPercent, colorFor, typeList, capitalize, GENDER_SYMBOLS } = require('../Utils/display');
 
@@ -142,8 +144,33 @@ function team(owner, viewer, args = []) {
     };
   }
 
-  // Reuse the .view card, which works for any owner.
-  return view.buildView(rows[slot - 1]);
+  // Shown with the .view card and arrows through the six (see show()).
+  return { slot: slot - 1 };
+}
+
+/**
+ * Post what team() decided: a message, or one of the six in full with back
+ * and forward buttons for the viewer.
+ */
+async function show({ send, owner, viewer, args }) {
+  const result = team(owner, viewer, args);
+  if (result.slot == null) return send(result);
+
+  return browse.sendBrowser({
+    send,
+    userId: viewer.id,
+    start: result.slot,
+    // Read fresh each press, so a trade or release in between can't show
+    // something that is no longer on the team.
+    render: (index) => {
+      const row = teamOf(owner.id)[index];
+      return row ? view.buildView(row) : null;
+    },
+    step: (index, step) => {
+      const size = teamOf(owner.id).length;
+      return size > 1 ? (index + step + size) % size : null;
+    },
+  });
 }
 
 module.exports = {
@@ -169,17 +196,23 @@ module.exports = {
     const owner = interaction.options.getUser('user') || interaction.user;
     const slot = interaction.options.getInteger('slot');
 
-    await interaction.reply(team(owner, interaction.user, slot ? [String(slot)] : []));
+    await show({
+      send: pager.interactionSender(interaction),
+      owner,
+      viewer: interaction.user,
+      args: slot ? [String(slot)] : [],
+    });
   },
 
   async run(message, args) {
     store.ensureUser(message.author.id);
 
     const owner = message.mentions.users.first() || message.author;
-    await message.channel.send(team(owner, message.author, args));
+    await show({ send: (payload) => message.channel.send(payload), owner, viewer: message.author, args });
   },
 
   team,
+  show,
   buildTeam,
   teamOf,
   parseArgs,

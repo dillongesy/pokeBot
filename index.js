@@ -137,12 +137,35 @@ client.on('messageCreate', async (message) => {
   }
 });
 
+/**
+ * Discord gives every press and slash command 3 seconds to be answered. Note
+ * any that only reached the bot after most of that was gone: the delay was
+ * on the way here (the network, Discord itself), not in the bot. At most one
+ * log a minute.
+ */
+const LATE_MS = 2000;
+let lastLate = 0;
+
+function noteIfLate(interaction, what) {
+  const age = Date.now() - interaction.createdTimestamp;
+  if (age < LATE_MS || Date.now() - lastLate < 60_000) return;
+  lastLate = Date.now();
+  crashlog.record('late', new Error(`${what} reached the bot ${(age / 1000).toFixed(1)} seconds after it was made`), {
+    what,
+    ageMs: age,
+    wsPingMs: client.ws.ping,
+    userId: interaction.user && interaction.user.id,
+    note: "The time is measured against this machine's clock. If every log says about the same delay, check the clock (timedatectl).",
+  });
+}
+
 client.on('interactionCreate', async (interaction) => {
   // Buttons and menus are handled by their own collectors. This only answers
   // the presses none of them will: expired, left over from before a restart,
   // or pressed by someone else.
   if (interaction.isMessageComponent()) {
     lagwatch.note(`button ${interaction.customId}`);
+    noteIfLate(interaction, `The press on ${interaction.customId}`);
     await livebuttons.answerStray(interaction);
     return;
   }
@@ -164,6 +187,7 @@ client.on('interactionCreate', async (interaction) => {
   try {
     store.noteGuild(interaction.user.id, interaction.guildId);
     lagwatch.note(`/${interaction.commandName}`);
+    noteIfLate(interaction, `/${interaction.commandName}`);
     await command.execute(interaction);
   } catch (err) {
     crashlog.record('command', err, {

@@ -12,6 +12,8 @@ const path = require('path');
 const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 
 const store = require('../Utils/store');
+const browse = require('../Utils/browse');
+const pager = require('../Utils/pager');
 const happiness = require('../Utils/happiness');
 const { loadNatures, loadSpecies, experienceForLevel, MAX_LEVEL } = require('../Utils/pokemon');
 const {
@@ -166,6 +168,23 @@ function buildView(row) {
   return { embeds: [embed], files };
 }
 
+/**
+ * Post the card with back and forward buttons that step through the rest of
+ * the owner's Pokemon by number.
+ */
+function sendView({ send, userId, row }) {
+  return browse.sendBrowser({
+    send,
+    userId,
+    start: row.party_number,
+    render: (number) => {
+      const found = store.getOwnedByNumber(userId, number);
+      return found ? buildView(found) : null;
+    },
+    step: (number, step) => store.adjacentNumber(userId, number, step),
+  });
+}
+
 /** Resolve the argument to one of the user's Pokemon, or explain why not. */
 function resolve(userId, rawId) {
   if (rawId === undefined || rawId === null || rawId === '') {
@@ -202,7 +221,7 @@ module.exports = {
       return;
     }
 
-    await interaction.reply(buildView(row));
+    await sendView({ send: pager.interactionSender(interaction), userId: interaction.user.id, row });
   },
 
   async run(message, args) {
@@ -214,11 +233,12 @@ module.exports = {
       return;
     }
 
-    await message.channel.send(buildView(row));
+    await sendView({ send: (payload) => message.channel.send(payload), userId: message.author.id, row });
   },
 
   resolve,
   buildView,
+  sendView,
   resolveArtwork,
   metLine,
 };

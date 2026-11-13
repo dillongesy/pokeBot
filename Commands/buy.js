@@ -7,12 +7,21 @@
  * id belongs to. Gold shop buffs apply immediately instead of going in the bag.
  */
 
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ComponentType,
+} = require('discord.js');
 
 const store = require('../Utils/store');
 const content = require('../Utils/content');
 const itemtext = require('../Utils/itemtext');
 const questengine = require('../Utils/questengine');
+const livebuttons = require('../Utils/livebuttons');
+const pager = require('../Utils/pager');
 const { titleCase } = require('../Utils/display');
 
 const money = (amount) => amount.toLocaleString('en-US');
@@ -64,7 +73,14 @@ function nextTier(userId, tiers) {
   return { entry: next, owned };
 }
 
-function purchase(userId, rawId, rawQuantity) {
+/**
+ * Check a purchase and, unless `quote` is set, make it.
+ *
+ * With `quote`, a purchase that would go through returns `{ quote }` (what,
+ * how many, the cost) without spending anything, so the player can be asked
+ * first. Everything is checked again when it is made.
+ */
+function purchase(userId, rawId, rawQuantity, { quote = false } = {}) {
   const listing = content.findForSale(rawId);
 
   if (!listing) {
@@ -78,7 +94,7 @@ function purchase(userId, rawId, rawQuantity) {
   if (listing.ladder) {
     const { entry, error } = nextTier(userId, listing.tiers);
     if (error) return { content: error };
-    return purchase(userId, entry.id, 1);
+    return purchase(userId, entry.id, 1, { quote });
   }
 
   // Each gold buff can only be bought once. Buffs are keyed by (user, buff), so
@@ -124,6 +140,12 @@ function purchase(userId, rawId, rawQuantity) {
         `That costs **${money(total)}** ${listing.currency} and you have **${money(balance)}**.` +
         (listing.currency === 'gold' ? ' Gold comes from finishing quests.' : ''),
     };
+  }
+
+  if (quote) {
+    const item = listing.shop === 'gold' ? null : content.item(listing.id);
+    const name = listing.shop === 'gold' ? listing.entry.name : item ? item.displayName : titleCase(listing.id);
+    return { quote: { id: listing.id, quantity, total, currency: listing.currency, name, gold: listing.shop === 'gold' } };
   }
 
   // spend() checks the balance inside the UPDATE, so concurrent purchases
@@ -192,6 +214,81 @@ function purchase(userId, rawId, rawQuantity) {
   return { embeds: [embed] };
 }
 
+/** How long the Yes / No buttons wait. */
+const CONFIRM_MS = 60_000;
+
+const YES = 'buy:yes';
+const NO = 'buy:no';
+
+/** "Poke Balls", "Oran Berries", "Leftovers". A TM's name stays as it is. */
+function plural(name) {
+  if (/^(TM|HM|TR)\d/.test(name) || /s$/i.test(name)) return name;
+  if (/[^aeiou]y$/i.test(name)) return `${name.slice(0, -1)}ies`;
+  if (/(x|ch|sh)$/i.test(name)) return `${name}es`;
+  return `${name}s`;
+}
+
+/** "Spend 1,000 coins for 5 Poke Balls?" */
+function question({ quantity, total, currency, name, gold }) {
+  const what = gold ? `**${name}**` : `${quantity} **${quantity === 1 ? name : plural(name)}**`;
+  return `Spend **${money(total)}** ${currency} for ${what}?`;
+}
+
+/**
+ * Ask first, then buy on Yes.
+ *
+ * @param {function} send  posts a payload, returns the Message
+ */
+async function askThenBuy({ send, userId, rawId, rawQuantity }) {
+  const checked = purchase(userId, rawId, rawQuantity, { quote: true });
+  if (!checked.quote) {
+    await send(checked);
+    return;
+  }
+
+  const prompt = await send({
+    content: question(checked.quote),
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(YES).setLabel('Yes').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(NO).setLabel('No').setStyle(ButtonStyle.Secondary)
+      ),
+    ],
+  });
+  if (!prompt || typeof prompt.awaitMessageComponent !== 'function') return;
+
+  livebuttons.track(prompt, userId);
+
+  let choice;
+  try {
+    choice = await livebuttons.answered(await prompt.awaitMessageComponent({
+      componentType: ComponentType.Button,
+      time: CONFIRM_MS,
+      filter: (button) => button.user.id === userId,
+    }));
+  } catch {
+    livebuttons.release(prompt);
+    await prompt.edit({ components: [] }).catch(() => {});
+    return;
+  }
+
+  livebuttons.release(prompt);
+
+  if (choice.customId !== YES) {
+    await choice
+      .update({ content: `${question(checked.quote)}\nYou didn't buy anything.`, components: [] })
+      .catch(() => {});
+    return;
+  }
+
+  // Checked again: coins may have been spent while the question was open.
+  const { id, quantity } = checked.quote;
+  const result = purchase(userId, id, quantity);
+  await choice
+    .update({ content: result.content || '', embeds: result.embeds || [], components: [] })
+    .catch(() => {});
+}
+
 module.exports = {
   // `.b` is reserved for `.battle`.
   aliases: ['buy', 'purchase'],
@@ -211,13 +308,12 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    await interaction.reply(
-      purchase(
-        interaction.user.id,
-        interaction.options.getString('item'),
-        interaction.options.getInteger('quantity')
-      )
-    );
+    await askThenBuy({
+      send: pager.interactionSender(interaction),
+      userId: interaction.user.id,
+      rawId: interaction.options.getString('item'),
+      rawQuantity: interaction.options.getInteger('quantity'),
+    });
   },
 
   async run(message, args) {
@@ -225,8 +321,16 @@ module.exports = {
       await message.channel.send('Buy what? Try `.buy fire-stone`, or `.shop` to see the list.');
       return;
     }
-    await message.channel.send(purchase(message.author.id, args[0], args[1]));
+    await askThenBuy({
+      send: (payload) => message.channel.send(payload),
+      userId: message.author.id,
+      rawId: args[0],
+      rawQuantity: args[1],
+    });
   },
 
   purchase,
+  askThenBuy,
+  question,
+  plural,
 };

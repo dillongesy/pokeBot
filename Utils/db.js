@@ -28,7 +28,7 @@ const DB_FILE = path.join(__dirname, '..', 'Data', 'pokedropper.db');
  * Stored in SQLite's `PRAGMA user_version`, so an out-of-date file fails
  * clearly at startup instead of with "no such column" errors later.
  */
-const SCHEMA_VERSION = 17;
+const SCHEMA_VERSION = 18;
 
 /**
  * Which Elite Four members a player has beaten on the milestone in front of
@@ -83,6 +83,11 @@ CREATE TABLE daily_quests (
   battle_done     INTEGER NOT NULL DEFAULT 0,
   vote_done       INTEGER NOT NULL DEFAULT 0,
   bonus_done      INTEGER NOT NULL DEFAULT 0,
+
+  -- Overdrive, the hidden goals past the dailies: 1 once each has been paid.
+  od_catch_done   INTEGER NOT NULL DEFAULT 0,
+  od_battle_done  INTEGER NOT NULL DEFAULT 0,
+  od_both_done    INTEGER NOT NULL DEFAULT 0,
 
   -- When the credited vote was cast, per top.gg. Milliseconds since the epoch.
   vote_created_at INTEGER,
@@ -157,6 +162,10 @@ CREATE TABLE users (
   trainer_lost       INTEGER NOT NULL DEFAULT 0,
   milestone_won      INTEGER NOT NULL DEFAULT 0,
   milestone_lost     INTEGER NOT NULL DEFAULT 0,
+
+  -- Days in a row with every daily done, and the last such day (Utils/daily.js).
+  daily_streak       INTEGER NOT NULL DEFAULT 0,
+  daily_streak_day   TEXT,
 
   created_at      INTEGER NOT NULL,
   updated_at      INTEGER NOT NULL
@@ -479,6 +488,14 @@ const MIGRATIONS = {
   13: splitGenderForms,
   15: partyNumbersAsSlots,
   16: heldFormsMatchItems,
+  // The daily streak and the overdrive goals.
+  17: `
+    ALTER TABLE users ADD COLUMN daily_streak INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE users ADD COLUMN daily_streak_day TEXT;
+    ALTER TABLE daily_quests ADD COLUMN od_catch_done INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE daily_quests ADD COLUMN od_battle_done INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE daily_quests ADD COLUMN od_both_done INTEGER NOT NULL DEFAULT 0;
+  `,
   14: `
     ALTER TABLE users ADD COLUMN wild_won       INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE users ADD COLUMN wild_lost      INTEGER NOT NULL DEFAULT 0;

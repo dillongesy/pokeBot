@@ -5,11 +5,10 @@
  *
  *   .tm 12                  TMs you own that #12 can learn
  *   .tm 12 all              every TM #12 can learn
- *   .tm 12 flamethrower     teach it, if there is a free slot
+ *   .tm 12 flamethrower     teach it; with four moves, buttons ask which to forget
  *   .tm 12 flamethrower 2   teach it over slot 2
  *
- * With four moves known and no slot given, it refuses and lists the current
- * moves instead of overwriting one. TMs are reusable and stay in the bag.
+ * TMs are reusable and stay in the bag.
  */
 
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
@@ -20,6 +19,8 @@ const content = require('../Utils/content');
 const machines = require('../Utils/machines');
 const learnset = require('../Utils/learnset');
 const happiness = require('../Utils/happiness');
+const moveprompt = require('../Utils/moveprompt');
+const pager = require('../Utils/pager');
 const versiongroups = require('../Utils/versiongroups');
 const { displayName, colorFor, titleCase } = require('../Utils/display');
 
@@ -90,16 +91,43 @@ function listFor(userId, row, showAll) {
   return { embeds: [embed] };
 }
 
-/** The current four moves, numbered, so the player can pick one to replace. */
-const slotList = (known) =>
-  known.map((entry) => `\`${entry.slot}\` ${(entry.data || {}).displayName || entry.move}`).join('\n');
-
 /**
  * Teach one move. Each refusal explains the specific problem (can't learn it,
  * TM not owned, or no free slot).
  */
-function teach(userId, row, query, rawSlot) {
+/**
+ * Why `row` can't be taught `move` from a TM right now, or null if it can.
+ * Asked again when the forget-a-move buttons are answered.
+ */
+function refusal(userId, row, move, tm) {
   // Not during a battle or trade (see Utils/partylock.js).
+  const busy = partylock.refusalFor(userId, 'teach your Pokemon moves');
+  if (busy) return busy;
+
+  if (!machines.canLearn(row.species_id, row.form_folder, move)) {
+    return (
+      `${displayName(row)} cannot learn **${tm.moveDisplayName}**. ` +
+      `\`.tm ${row.party_number || row.id}\` shows what it can.`
+    );
+  }
+
+  if (store.itemQuantity(userId, tm.slug) <= 0) {
+    return (
+      `You do not own **${tm.displayName}**. It is ${tm.price.toLocaleString()} coins ` +
+      'in `.shop TMs`, and it never runs out once you have it.'
+    );
+  }
+
+  return null;
+}
+
+/** Being taught a TM raises friendship a little, as in the games. */
+function befriend(row) {
+  const friendship = happiness.after(row, 'learnTm');
+  if (friendship !== row.happiness) store.updatePokemon(row.id, { happiness: friendship });
+}
+
+function teach(userId, row, query, rawSlot) {
   const busy = partylock.refusalFor(userId, 'teach your Pokemon moves');
   if (busy) return { content: busy };
 
@@ -111,21 +139,8 @@ function teach(userId, row, query, rawSlot) {
 
   const tm = machines.forMove(move);
 
-  if (!machines.canLearn(row.species_id, row.form_folder, move)) {
-    return {
-      content:
-        `${displayName(row)} cannot learn **${tm.moveDisplayName}**. ` +
-        `\`.tm ${row.party_number || row.id}\` shows what it can.`,
-    };
-  }
-
-  if (store.itemQuantity(userId, tm.slug) <= 0) {
-    return {
-      content:
-        `You do not own **${tm.displayName}**. It is ${tm.price.toLocaleString()} coins ` +
-        'in `.shop TMs`, and it never runs out once you have it.',
-    };
-  }
+  const refused = refusal(userId, row, move, tm);
+  if (refused) return { content: refused };
 
   const known = store.movesOf(row.id);
 
@@ -133,15 +148,24 @@ function teach(userId, row, query, rawSlot) {
     return { content: `${displayName(row)} already knows **${tm.moveDisplayName}**.` };
   }
 
-  // Four moves and no slot given: list them and ask which to replace.
-  let slot = rawSlot === undefined || rawSlot === null || rawSlot === '' ? null : Number(rawSlot);
+  // Four moves and no slot given: buttons ask which to forget (Utils/moveprompt.js).
+  const slot = rawSlot === undefined || rawSlot === null || rawSlot === '' ? null : Number(rawSlot);
 
   if (slot === null && known.length >= learnset.MAX_MOVES) {
     return {
-      content:
-        `${displayName(row)} already knows four moves. ` +
-        `Say which to replace: \`.tm ${row.party_number || row.id} ${move} <1-4>\`.\n` +
-        slotList(known),
+      offered: {
+        pokemonId: row.id,
+        moves: [
+          {
+            name: move,
+            displayName: tm.moveDisplayName,
+            via: tm.number || tm.displayName,
+            laterHint: `.tm ${row.party_number || row.id} ${move}`,
+            check: (now) => refusal(userId, now, move, tm),
+            onTaught: befriend,
+          },
+        ],
+      },
     };
   }
 
@@ -152,9 +176,7 @@ function teach(userId, row, query, rawSlot) {
   const result = store.teachMove(row.id, move, slot);
   if (!result.ok) return { content: result.message };
 
-  // Being taught a TM raises friendship a little, as in the games.
-  const friendship = happiness.after(row, 'learnTm');
-  if (friendship !== row.happiness) store.updatePokemon(row.id, { happiness: friendship });
+  befriend(row);
 
   const replaced = result.replaced ? content.move(result.replaced) : null;
 
@@ -246,6 +268,13 @@ function run(userId, args) {
   return teach(userId, row, what, args[2]);
 }
 
+/** Send the result, or ask which move to forget. */
+async function answer(send, userId, args) {
+  const result = run(userId, args);
+  if (result.offered) await moveprompt.askAll({ send, userId, ...result.offered });
+  else await send(result);
+}
+
 module.exports = {
   aliases: ['tm', 'teach', 'hm'],
 
@@ -277,12 +306,12 @@ module.exports = {
       interaction.options.getInteger('slot'),
     ];
 
-    await interaction.reply(run(interaction.user.id, args));
+    await answer(pager.interactionSender(interaction), interaction.user.id, args);
   },
 
   async run(message, args) {
     store.ensureUser(message.author.id);
-    await message.channel.send(run(message.author.id, args));
+    await answer((payload) => message.channel.send(payload), message.author.id, args);
   },
 
   listFor,

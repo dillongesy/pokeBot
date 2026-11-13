@@ -125,11 +125,11 @@ async function ask({ send, userId, pokemonId, options }) {
 
   let choice;
   try {
-    choice = await prompt.awaitMessageComponent({
+    choice = await livebuttons.answered(await prompt.awaitMessageComponent({
       componentType: ComponentType.Button,
       time: ANSWER_MS,
       filter: (button) => button.user.id === userId,
-    });
+    }));
   } catch {
     livebuttons.release(prompt);
     await prompt

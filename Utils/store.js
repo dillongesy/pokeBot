@@ -1849,6 +1849,32 @@ function noSuchNumber(userId, number) {
   return `You have no #${number}. Your party goes from 1 to ${highest} - \`.party\` lists them.`;
 }
 
+/**
+ * The party number after (`step` 1) or before (-1) `number`, wrapping round
+ * at the ends. Numbers can have gaps, so this asks rather than adding one.
+ * Null when they own nothing else.
+ */
+function adjacentNumber(userId, number, step) {
+  const handle = db.open();
+  const forward = step > 0;
+  const next = handle
+    .prepare(
+      `SELECT party_number AS n FROM pokemon WHERE current_trainer_id = ? AND party_number ${forward ? '>' : '<'} ?
+       ORDER BY party_number ${forward ? 'ASC' : 'DESC'} LIMIT 1`
+    )
+    .get(userId, number);
+  if (next) return next.n;
+
+  // Off the end: wrap to the other one.
+  const wrapped = handle
+    .prepare(
+      `SELECT party_number AS n FROM pokemon WHERE current_trainer_id = ? AND party_number IS NOT NULL
+       ORDER BY party_number ${forward ? 'ASC' : 'DESC'} LIMIT 1`
+    )
+    .get(userId);
+  return wrapped && wrapped.n !== number ? wrapped.n : null;
+}
+
 /** The most recent catch, which is what .view defaults to. */
 function latestCaught(userId) {
   return (
@@ -2342,17 +2368,23 @@ function boardQuery(entry, { dir = 'desc', guildId = null } = {}) {
  * ".lb pikachu". Separate from LEADERBOARDS because it takes an argument. Keys
  * are bound as parameters, and an empty list returns early.
  */
-function speciesLeaderboard(speciesKeys, { limit = 10, dir = 'desc', guildId = null } = {}) {
+function speciesLeaderboard(speciesKeys, { limit = 10, dir = 'desc', guildId = null, forms = null } = {}) {
   if (!speciesKeys || !speciesKeys.length) return [];
 
+  // ".lb alolan rattata": only those forms.
+  const byForm = forms && forms.length;
   const entry = {
     sql: `SELECT current_trainer_id AS id, COUNT(*) AS score FROM pokemon
           WHERE current_trainer_id IS NOT NULL
             AND species_key IN (${speciesKeys.map(() => '?').join(', ')})
+            ${byForm ? `AND form_folder IN (${forms.map(() => '?').join(', ')})` : ''}
           GROUP BY current_trainer_id`,
   };
   const query = boardQuery(entry, { dir, guildId });
-  return db.open().prepare(query.sql).all(...speciesKeys, ...query.params, limit);
+  return db
+    .open()
+    .prepare(query.sql)
+    .all(...speciesKeys, ...(byForm ? forms : []), ...query.params, limit);
 }
 
 /**
@@ -2443,6 +2475,7 @@ module.exports = {
   updatePokemon,
   getOwnedPokemon,
   getOwnedByNumber,
+  adjacentNumber,
   parsePartyNumber,
   highestPartyNumber,
   noSuchNumber,

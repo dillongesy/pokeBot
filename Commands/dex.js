@@ -418,7 +418,9 @@ async function sendDex({ send, userId, query, shiny = false }) {
 
   livebuttons.track(message, userId);
 
-  collector.on('collect', async (interaction) => {
+  collector.on('collect', async (press) => {
+    // Answered first, so Discord never gives up on it (Utils/livebuttons.js).
+    const interaction = await livebuttons.answered(press);
     state = applyPress(state, interaction.customId, interaction.values || []);
 
     try {

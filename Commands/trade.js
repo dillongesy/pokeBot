@@ -200,11 +200,11 @@ async function request({ reply, send, fromUserId, toUserId, names }) {
 
   let choice;
   try {
-    choice = await prompt.awaitMessageComponent({
+    choice = await livebuttons.answered(await prompt.awaitMessageComponent({
       componentType: ComponentType.Button,
       time: REQUEST_MS,
       filter: (button) => button.user.id === toUserId,
-    });
+    }));
   } catch {
     await prompt.edit({ content: 'Trade request timed out.', embeds: [], components: [] }).catch(() => {});
     return;

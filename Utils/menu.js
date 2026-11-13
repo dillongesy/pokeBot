@@ -138,7 +138,9 @@ async function sendMenu({ send, userId, sections, home = null, start = null, pla
 
   livebuttons.track(message, userId);
 
-  collector.on('collect', async (interaction) => {
+  collector.on('collect', async (press) => {
+    // Answered first, so Discord never gives up on it (Utils/livebuttons.js).
+    const interaction = await livebuttons.answered(press);
     if (interaction.customId === 'menu:section') {
       current = interaction.values[0];
       page = 0;

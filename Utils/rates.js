@@ -315,5 +315,29 @@ module.exports = {
 
     /** Paid on top once all three are done. */
     bonusLootboxes: 2,
+
+    /**
+     * Finishing every daily (the bonus) on days in a row. Each pair is
+     * [days in a row, Lootboxes]. After the last one the streak starts
+     * again from day 1.
+     */
+    streakRewards: [
+      [3, 1],
+      [5, 3],
+      [10, 5],
+      [25, 10],
+    ],
+
+    /**
+     * Overdrive: two hidden goals for going well past the dailies, paid once
+     * a day each. `.daily` never shows them; the reward says so when it comes.
+     */
+    overdrive: {
+      battleTarget: 25,
+      catchTarget: 10,
+      catchCoins: 250,
+      /** Both in one day. */
+      bothRareCandies: 3,
+    },
   },
 };

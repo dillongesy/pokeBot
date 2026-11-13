@@ -78,7 +78,9 @@ async function sendPaged({ send, pages, page = 0, render, userId }) {
 
   livebuttons.track(message, userId);
 
-  collector.on('collect', async (interaction) => {
+  collector.on('collect', async (press) => {
+    // Answered first, so Discord never gives up on it (Utils/livebuttons.js).
+    const interaction = await livebuttons.answered(press);
     current = nextPage(current, total, interaction.customId);
     try {
       await interaction.update({ embeds: [render(current)], components: [buildRow()] });

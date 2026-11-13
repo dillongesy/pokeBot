@@ -51,4 +51,48 @@ async function answerStray(interaction) {
   await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
 }
 
-module.exports = { ANYONE, track, release, answerStray };
+/**
+ * Answer a press at once, then do the work.
+ *
+ * Discord gives a press 3 seconds to be answered or shows "This interaction
+ * failed". Deferring answers it straight away, so the work after it (a
+ * database query, an image upload, looking up names) can't run that clock
+ * out. The returned object stands in for the press: update() edits the
+ * message the button is on, reply() posts a private message.
+ *
+ * A press that reached the bot after the 3 seconds (a freeze, a slow
+ * network) can't be answered any more. The work still happens: update()
+ * edits the message directly instead, and reply() is skipped.
+ */
+function acknowledge(press) {
+  const deferred = typeof press.deferUpdate === 'function';
+  let answered = !deferred;
+  return {
+    press,
+    customId: press.customId,
+    values: press.values || [],
+    user: press.user,
+    ready: deferred
+      ? press.deferUpdate().then(() => { answered = true; }, () => {})
+      : Promise.resolve(),
+    update(payload) {
+      if (!deferred) return press.update(payload);
+      return answered ? press.editReply(payload) : press.message.edit(payload);
+    },
+    reply(payload) {
+      if (!deferred) return press.reply(payload);
+      return answered ? press.followUp(payload) : Promise.resolve();
+    },
+  };
+}
+
+/**
+ * acknowledge(), waited for: `const choice = await answered(press)`.
+ */
+async function answered(press) {
+  const choice = acknowledge(press);
+  await choice.ready;
+  return choice;
+}
+
+module.exports = { ANYONE, track, release, answerStray, acknowledge, answered };

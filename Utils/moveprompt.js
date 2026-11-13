@@ -40,8 +40,8 @@ const TITLE_LIMIT = 256;
 
 const nameOf = (slot) => (slot.data ? slot.data.displayName : titleCase(slot.move));
 
-/** How to teach it later, for the footer and the "kept" message. */
-const laterHint = (row, move) => `.moves ${row.party_number} learn ${move.name}`;
+/** How to teach it later, for the footer and the "kept" message. A TM brings its own. */
+const laterHint = (row, move) => move.laterHint || `.moves ${row.party_number} learn ${move.name}`;
 
 /** The question: the new move, and the four it would replace one of. */
 function card(row, move, known) {
@@ -97,7 +97,9 @@ function settled(row, move, text) {
  * @param {function} options.send       posts a payload, returns the Message
  * @param {string}   options.userId     the owner; only they can answer
  * @param {number}   options.pokemonId  the database id, not the party number
- * @param {object}   options.move       {name, displayName, level, evolution}
+ * @param {object}   options.move       {name, displayName, level, evolution}, or
+ *   for a TM {name, displayName, via, laterHint, check, onTaught}: check(row)
+ *   says why it can no longer be taught (or null), onTaught(row) runs after
  */
 async function ask({ send, userId, pokemonId, move }) {
   const row = store.getOwnedPokemon(userId, pokemonId);
@@ -120,11 +122,11 @@ async function ask({ send, userId, pokemonId, move }) {
 
   let choice;
   try {
-    choice = await prompt.awaitMessageComponent({
+    choice = await livebuttons.answered(await prompt.awaitMessageComponent({
       componentType: ComponentType.Button,
       time: ANSWER_MS,
       filter: (button) => button.user.id === userId,
-    });
+    }));
   } catch {
     livebuttons.release(prompt);
 
@@ -151,8 +153,11 @@ async function ask({ send, userId, pokemonId, move }) {
   const now = store.getOwnedPokemon(userId, pokemonId);
 
   let text;
+  const refused = now && choice.customId !== KEEP && move.check ? move.check(now) : null;
   if (!now) {
     text = 'That Pokemon is no longer yours, so nothing changed.';
+  } else if (refused) {
+    text = refused;
   } else if (choice.customId === KEEP) {
     text =
       `**${displayName(now)}** did not learn **${move.displayName}**.\n` +
@@ -161,6 +166,7 @@ async function ask({ send, userId, pokemonId, move }) {
     const slot = Number(choice.customId.split(':')[1]);
     const taught = store.teachMove(now.id, move.name, slot);
     const forgotten = taught.replaced && content.move(taught.replaced);
+    if (taught.ok && move.onTaught) move.onTaught(now);
 
     text = taught.ok
       ? `1, 2 and... Poof! **${displayName(now)}** forgot ` +

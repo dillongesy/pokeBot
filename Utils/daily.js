@@ -10,6 +10,13 @@
  *   vote     vote for the bot on top.gg (checked by `.daily`, Utils/topgg.js)
  *   bonus    all three done
  *
+ * Doing the bonus on days in a row builds a streak, paid in Lootboxes at
+ * set lengths (rates.daily.streakRewards); after the longest, it starts over.
+ *
+ * Overdrive: two hidden goals past the dailies (25 wins, 10 catches, and a
+ * prize for both), paid once a day. `.daily` never shows them. Catches and
+ * wins keep counting after their daily is done so these can be reached.
+ *
  * Until voting is set up (no TOPGG_TOKEN, e.g. while top.gg reviews the bot),
  * the bonus only needs the catch and battle quests. Adding the token brings
  * the vote back in, with no code change.
@@ -150,7 +157,11 @@ function giveBattleReward(handle, userId) {
     giveItem(handle, userId, RARE_CANDY);
     return `a ${nameOf(RARE_CANDY)}`;
   }
+  return giveTm(handle, userId);
+}
 
+/** A random TM that at least one Pokemon can learn. Returns its name. */
+function giveTm(handle, userId) {
   const tms = machines.all({ teachableOnly: true }).filter((tm) => content.item(tm.slug));
   if (!tms.length) {
     giveItem(handle, userId, RARE_CANDY);
@@ -176,7 +187,76 @@ function maybeBonus(handle, userId, row) {
   const n = rates.daily.bonusLootboxes;
   giveItem(handle, userId, lootbox.LOOTBOX, n);
 
-  return `🎉 **${needsVote ? 'All three' : 'Both'} daily quests done!** You got ${plural(n, 'Lootbox')}.`;
+  const done = `🎉 **${needsVote ? 'All three' : 'Both'} daily quests done!** You got ${plural(n, 'Lootbox')}.`;
+  const streak = extendStreak(handle, userId, row.day);
+  return streak ? `${done}\n${streak}` : done;
+}
+
+/** The day before a 'YYYY-MM-DD' day. */
+function dayBefore(day) {
+  const [year, month, date] = day.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, date - 1)).toISOString().slice(0, 10);
+}
+
+/** The longest streak, after which it starts over. */
+const streakCycle = () => Math.max(...rates.daily.streakRewards.map(([days]) => days));
+
+/**
+ * Every daily was done on `day`: add it to the streak and pay any reward it
+ * reaches. Returns a line to show, or null.
+ */
+function extendStreak(handle, userId, day) {
+  const user = handle
+    .prepare('SELECT daily_streak, daily_streak_day FROM users WHERE discord_user_id = ?')
+    .get(userId);
+  if (!user || user.daily_streak_day === day) return null;
+
+  const streak = (user.daily_streak_day === dayBefore(day) ? user.daily_streak : 0) + 1;
+  const reward = rates.daily.streakRewards.find(([days]) => days === streak);
+
+  // The longest one done, the next day is day 1 again.
+  handle
+    .prepare('UPDATE users SET daily_streak = ?, daily_streak_day = ? WHERE discord_user_id = ?')
+    .run(streak >= streakCycle() ? 0 : streak, day, userId);
+
+  if (!reward) return null;
+
+  giveItem(handle, userId, lootbox.LOOTBOX, reward[1]);
+  return `**${streak} days in a row!** You got ${plural(reward[1], 'Lootbox')}.`;
+}
+
+/**
+ * The streak as `.daily` shows it: how many days in a row, and the next
+ * reward. A streak that missed yesterday is 0.
+ */
+function streakOf(userId, at = Date.now()) {
+  const user = db
+    .open()
+    .prepare('SELECT daily_streak, daily_streak_day FROM users WHERE discord_user_id = ?')
+    .get(userId);
+
+  const day = dayKey(at);
+  let days = 0;
+  if (user && user.daily_streak_day === day) days = user.daily_streak || streakCycle();
+  else if (user && user.daily_streak_day === dayBefore(day)) days = user.daily_streak;
+
+  // Finished the longest today: the next reward is a new cycle's first.
+  const counting = days >= streakCycle() ? 0 : days;
+  const next = rates.daily.streakRewards.find(([length]) => length > counting) || null;
+  return { days, doneToday: Boolean(user && user.daily_streak_day === day), next };
+}
+
+/** Both overdrive goals reached today: the prize for both, once. */
+function maybeOverdriveBoth(handle, userId, row) {
+  if (row.od_both_done || !(row.od_catch_done && row.od_battle_done)) return null;
+
+  handle
+    .prepare('UPDATE daily_quests SET od_both_done = 1 WHERE discord_user_id = ? AND day = ?')
+    .run(userId, row.day);
+
+  const n = rates.daily.overdrive.bothRareCandies;
+  giveItem(handle, userId, RARE_CANDY, n);
+  return `**Overdrive complete!** You got ${n} ${n === 1 ? nameOf(RARE_CANDY) : nameOf(RARE_CANDY).replace(/y$/, 'ies')}.`;
 }
 
 /**
@@ -198,10 +278,13 @@ function progress(userId, step, at = Date.now()) {
     const day = dayKey(at);
 
     const said = step(handle, select.get(userId, day));
-    if (said) notices.push(said);
+    for (const line of [].concat(said || [])) if (line) notices.push(line);
 
     const bonus = maybeBonus(handle, userId, select.get(userId, day));
     if (bonus) notices.push(bonus);
+
+    const overdrive = maybeOverdriveBoth(handle, userId, select.get(userId, day));
+    if (overdrive) notices.push(overdrive);
 
     handle.exec('COMMIT');
   } catch (err) {
@@ -219,40 +302,58 @@ function progress(userId, step, at = Date.now()) {
 /** A Pokemon was caught. */
 function recordCatch(userId, at = Date.now()) {
   return progress(userId, (handle, row) => {
-    if (row.catch_done) return null;
-
+    // Counted past the target, for overdrive.
     const catches = row.catches + 1;
-    const done = catches >= row.catch_target;
+    const done = !row.catch_done && catches >= row.catch_target;
+    const { catchTarget: odTarget, catchCoins: odCoins } = rates.daily.overdrive;
+    const overdrive = !row.od_catch_done && catches >= odTarget;
 
     handle
       .prepare(
-        'UPDATE daily_quests SET catches = ?, catch_done = ? WHERE discord_user_id = ? AND day = ?'
+        `UPDATE daily_quests SET catches = ?, catch_done = catch_done OR ?, od_catch_done = od_catch_done OR ?
+         WHERE discord_user_id = ? AND day = ?`
       )
-      .run(catches, done ? 1 : 0, userId, row.day);
+      .run(catches, done ? 1 : 0, overdrive ? 1 : 0, userId, row.day);
 
-    if (!done) return null;
-
-    giveCoins(handle, userId, rates.daily.catchCoins);
-    return `✅ **Daily quest done!** You caught ${row.catch_target} Pokemon and got ${rates.daily.catchCoins} coins.`;
+    const lines = [];
+    if (done) {
+      giveCoins(handle, userId, rates.daily.catchCoins);
+      lines.push(`✅ **Daily quest done!** You caught ${row.catch_target} Pokemon and got ${rates.daily.catchCoins} coins.`);
+    }
+    if (overdrive) {
+      giveCoins(handle, userId, odCoins);
+      lines.push(`**Overdrive!** You caught ${odTarget} Pokemon today and got ${odCoins} coins.`);
+    }
+    return lines;
   }, at);
 }
 
 /** A battle was won. */
 function recordWin(userId, at = Date.now()) {
   return progress(userId, (handle, row) => {
-    if (row.battle_done) return null;
-
+    // Counted past the target, for overdrive.
     const wins = row.wins + 1;
-    const done = wins >= row.battle_target;
+    const done = !row.battle_done && wins >= row.battle_target;
+    const odTarget = rates.daily.overdrive.battleTarget;
+    const overdrive = !row.od_battle_done && wins >= odTarget;
 
     handle
-      .prepare('UPDATE daily_quests SET wins = ?, battle_done = ? WHERE discord_user_id = ? AND day = ?')
-      .run(wins, done ? 1 : 0, userId, row.day);
+      .prepare(
+        `UPDATE daily_quests SET wins = ?, battle_done = battle_done OR ?, od_battle_done = od_battle_done OR ?
+         WHERE discord_user_id = ? AND day = ?`
+      )
+      .run(wins, done ? 1 : 0, overdrive ? 1 : 0, userId, row.day);
 
-    if (!done) return null;
-
-    const prize = giveBattleReward(handle, userId);
-    return `✅ **Daily quest done!** You won ${row.battle_target} battles and got ${prize}.`;
+    const lines = [];
+    if (done) {
+      const prize = giveBattleReward(handle, userId);
+      lines.push(`✅ **Daily quest done!** You won ${row.battle_target} battles and got ${prize}.`);
+    }
+    if (overdrive) {
+      const tm = giveTm(handle, userId);
+      lines.push(`**Overdrive!** You won ${odTarget} battles today and got ${tm}.`);
+    }
+    return lines;
   }, at);
 }
 
@@ -301,4 +402,6 @@ module.exports = {
   recordVote,
   lastCreditedVote,
   voteCounts,
+  streakOf,
+  dayBefore,
 };

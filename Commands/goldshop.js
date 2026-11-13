@@ -16,6 +16,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const store = require('../Utils/store');
 const content = require('../Utils/content');
 const buy = require('./buy');
+const pager = require('../Utils/pager');
 const { clip, capFields, LIMITS } = require('../Utils/display');
 
 const money = (amount) => Number(amount || 0).toLocaleString('en-US');
@@ -150,7 +151,12 @@ module.exports = {
 
     const wanted = interaction.options.getString('buy');
     if (wanted) {
-      await interaction.reply(buy.purchase(interaction.user.id, wanted, 1));
+      await buy.askThenBuy({
+        send: pager.interactionSender(interaction),
+        userId: interaction.user.id,
+        rawId: wanted,
+        rawQuantity: 1,
+      });
       return;
     }
 
@@ -171,7 +177,12 @@ module.exports = {
     }
 
     if (buying || args.length) {
-      await message.channel.send(buy.purchase(message.author.id, args.join(' '), 1));
+      await buy.askThenBuy({
+        send: (payload) => message.channel.send(payload),
+        userId: message.author.id,
+        rawId: args.join(' '),
+        rawQuantity: 1,
+      });
       return;
     }
 

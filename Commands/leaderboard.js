@@ -17,6 +17,7 @@
  *   .lb                     Pokemon caught
  *   .lb shiny | wins | winrate | trainer | coins | dex ...
  *   .lb <pokemonName>       who owns the most of one species
+ *   .lb alolan rattata      or of one form ("alola rattata" works too)
  *
  * Ranks are computed in SQL. Board names map to fixed queries and species keys
  * are bound as parameters, so user input never reaches the SQL text.
@@ -198,9 +199,19 @@ function initialState(query, guildId) {
 
   // Not a board name, so try it as a species (".lb pikachu").
   const species = names.resolveOne(text);
-  if (!species) return null;
+  if (species) {
+    return { ...base, board: 'species', species: { name: species.displayName, keys: names.resolveKeys(text) } };
+  }
 
-  return { ...base, board: 'species', species: { name: species.displayName, keys: names.resolveKeys(text) } };
+  // Or one form of one (".lb alolan rattata").
+  const form = names.resolveForm(text);
+  if (!form) return null;
+
+  return {
+    ...base,
+    board: 'species',
+    species: { name: form.name, keys: names.resolveKeys(form.species.name), forms: form.folders },
+  };
 }
 
 /** Everything a board shows, before any Discord call, so it can be tested. */
@@ -215,7 +226,7 @@ function resolveBoard(state) {
     return {
       kind: 'users',
       title: `Most ${state.species.name}`,
-      rows: store.speciesLeaderboard(state.species.keys, options),
+      rows: store.speciesLeaderboard(state.species.keys, { ...options, forms: state.species.forms || null }),
       format: (n) => n.toLocaleString('en-US'),
       color: DEFAULT_COLOR,
       rank: null,
@@ -414,13 +425,12 @@ async function show({ send, client, viewerId, guildId, query }) {
     time: pager.MAX_MS,
   });
 
-  collector.on('collect', async (interaction) => {
+  collector.on('collect', async (press) => {
+    // Answered first, so Discord never gives up on it (Utils/livebuttons.js).
+    const interaction = await livebuttons.answered(press);
     state = wrapPage(applyPress(state, interaction.customId, interaction.values || []));
     try {
-      // Answered first: looking up names can take a moment, and Discord
-      // only waits 3 seconds.
-      await interaction.deferUpdate();
-      await interaction.editReply(await render(client, viewerId, state));
+      await interaction.update(await render(client, viewerId, state));
     } catch (err) {
       if (err.code !== 10008) console.error('Leaderboard update failed:', err);
     }

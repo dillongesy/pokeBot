@@ -166,12 +166,17 @@ function cardName(mon) {
   return mon.source && mon.source.nickname ? `${mon.name} 🧬` : mon.formName;
 }
 
-function lineFor(mon, side) {
+/**
+ * One side's half of the card. `spacer` adds an empty line where the other
+ * side has its EXP bar, so both rows of balls line up.
+ */
+function lineFor(mon, side, spacer = false) {
+  // Only your own Pokemon earn experience.
+  const exp = side.isPlayer && mon.exp != null ? `${expBar(mon)}\n` : spacer ? '​\n' : '';
   return (
     `${mon.shiny ? '✨ ' : ''}**${cardName(mon)}** Lv.${mon.level}${statusTag(mon)}\n` +
     `${healthBar(mon)} ${mon.hp}/${mon.maxHp}\n` +
-    // Only your own Pokemon earn experience.
-    (side.isPlayer && mon.exp != null ? `${expBar(mon)}\n` : '') +
+    exp +
     `${teamDots(side)}`
   );
 }
@@ -596,6 +601,10 @@ function fullLog(log) {
 const logButton = () =>
   new ButtonBuilder().setCustomId('bt:log').setLabel('Battle log').setStyle(ButtonStyle.Secondary);
 
+/** On the finished card: start another battle of the same kind. */
+const againButton = (disabled = false) =>
+  new ButtonBuilder().setCustomId('bt:again').setLabel('Battle again').setStyle(ButtonStyle.Primary).setDisabled(disabled);
+
 /** The card. Rebuilt from scratch each turn rather than edited in place. */
 function buildCard(state, log) {
   const [playerSide, foeSide] = state.sides;
@@ -614,7 +623,7 @@ function buildCard(state, log) {
     .setColor(state.kind === 'milestone' ? 0xf1c40f : 0x4287f5)
     .addFields(
       { name: playerSide.name, value: lineFor(mine, playerSide), inline: true },
-      { name: foeSide.name, value: lineFor(theirs, foeSide), inline: true }
+      { name: foeSide.name, value: lineFor(theirs, foeSide, playerSide.isPlayer && mine.exp != null), inline: true }
     );
 
   // A transformed Pokemon looks like what it copied.
@@ -1195,6 +1204,8 @@ async function run(message, args) {
 
   // `.battle milestone bruno`: an Elite Four member, by name.
   const setup = prepare(userId, wantsMilestone, Math.random, wantsMilestone ? args[1] : null);
+  // What "Battle again" on the finished card runs.
+  setup.args = args;
   if (setup.error) {
     await message.channel.send(setup.error);
     return;
@@ -1611,36 +1622,8 @@ const frozen = (rows) =>
     return { ...json, components: json.components.map((c) => ({ ...c, disabled: true })) };
   });
 
-/**
- * Answer a button press at once, then do the work.
- *
- * Discord gives a press 3 seconds to be answered or shows "didn't respond in
- * time". Deferring answers it straight away, so a slow turn (a busy server, a
- * slow disk) can't run that clock out. The returned object behaves like the
- * press: update() edits the battle card, reply() posts a private message.
- */
-function acknowledged(press) {
-  const deferred = typeof press.deferUpdate === 'function';
-  // A press that reached the bot after Discord's 3 seconds (a freeze, a slow
-  // network) can't be answered any more. The turn still goes ahead: the card
-  // is edited directly instead, and a private reply is skipped.
-  let answered = !deferred;
-  return {
-    customId: press.customId,
-    user: press.user,
-    ready: deferred
-      ? press.deferUpdate().then(() => { answered = true; }, () => {})
-      : Promise.resolve(),
-    update: (payload) => {
-      if (!deferred) return press.update(payload);
-      return answered ? press.editReply(payload) : press.message.edit(payload);
-    },
-    reply: (payload) => {
-      if (!deferred) return press.reply(payload);
-      return answered ? press.followUp(payload) : Promise.resolve();
-    },
-  };
-}
+/** Answer a press at once, then do the work (see Utils/livebuttons.js). */
+const acknowledged = (press) => livebuttons.acknowledge(press);
 
 /**
  * Every press on the battle card, in order, answered the moment it arrives.
@@ -1753,12 +1736,38 @@ function payKnockouts({ userId, state, cap, paid, growth = null }) {
  * Answer the finished card's log button for LOG_KEPT_MS, then take it away.
  * Runs in the background; the battle itself is already over.
  */
-function keepLogOpen(card, log) {
+function keepLogOpen(card, log, { userId = null, args = [] } = {}) {
   livebuttons.track(card, livebuttons.ANYONE);
 
   const collector = card.createMessageComponentCollector({ componentType: ComponentType.Button, time: LOG_KEPT_MS });
-  collector.on('collect', (press) => {
-    if (press.customId === 'bt:log') press.reply(fullLog(log)).catch(() => {});
+  let again = Boolean(userId);
+  collector.on('collect', async (press) => {
+    if (press.customId === 'bt:log') {
+      press.reply(fullLog(log)).catch(() => {});
+      return;
+    }
+    if (press.customId !== 'bt:again') return;
+
+    if (press.user.id !== userId) {
+      await press
+        .reply({ content: `Only <@${userId}> can use this. Type \`.battle\` for your own.`, flags: MessageFlags.Ephemeral })
+        .catch(() => {});
+      return;
+    }
+
+    // Once only: the button goes grey and the new battle gets its own card.
+    const choice = await livebuttons.answered(press);
+    if (!again) return;
+    again = false;
+    await choice.update({ components: [new ActionRowBuilder().addComponents(logButton(), againButton(true))] }).catch(() => {});
+
+    // The old battle lets go of the player just after its card is final.
+    for (let waited = 0; active.has(userId) && waited < 5_000; waited += 100) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    const message = { author: press.user, channel: card.channel, guildId: card.guildId };
+    run(message, args).catch((err) => console.error('Battle again failed:', err));
   });
   collector.on('end', () => {
     livebuttons.release(card);
@@ -1796,13 +1805,13 @@ async function conclude({ userId, state, setup, card, log, outcome = null, edit 
   const keepLog = Boolean(card && typeof card.createMessageComponentCollector === 'function');
   const payload = {
     embeds: [finished],
-    components: keepLog ? [new ActionRowBuilder().addComponents(logButton())] : [],
+    components: keepLog ? [new ActionRowBuilder().addComponents(logButton(), againButton())] : [],
   };
 
   if (edit) await edit.update(payload).catch(() => {});
   else await card.edit(payload).catch(() => {});
 
-  if (keepLog) keepLogOpen(card, log);
+  if (keepLog) keepLogOpen(card, log, { userId, args: setup.args || [] });
 
   // Post level-ups, warnings, evolutions, the Lootbox and milestone unlocks as
   // separate messages, in that order (see settle()). Best-effort: rewards are

@@ -143,11 +143,11 @@ async function askThenRelease({ send, userId, rawId }) {
 
   let choice;
   try {
-    choice = await prompt.awaitMessageComponent({
+    choice = await livebuttons.answered(await prompt.awaitMessageComponent({
       componentType: ComponentType.Button,
       time: CONFIRM_MS,
       filter: (button) => button.user.id === userId,
-    });
+    }));
   } catch {
     // Timed out: nothing happens.
     livebuttons.release(prompt);

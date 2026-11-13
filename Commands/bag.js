@@ -252,7 +252,9 @@ async function show({ send, user, word }) {
     time: pager.MAX_MS,
   });
 
-  collector.on('collect', async (interaction) => {
+  collector.on('collect', async (press) => {
+    // Answered first, so Discord never gives up on it (Utils/livebuttons.js).
+    const interaction = await livebuttons.answered(press);
     current = applyPress(user.id, current, interaction.customId, interaction.values || []);
     try {
       await interaction.update(render(user, current));

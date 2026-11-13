@@ -54,6 +54,6 @@ function details(data, ppUp = 0) {
 }
 
 /** "Lv 18", or "On evolution" for an evolution move. */
-const learnedAt = (move) => (move.evolution ? 'On evolution' : `Lv ${move.level}`);
+const learnedAt = (move) => move.via || (move.evolution ? 'On evolution' : `Lv ${move.level}`);
 
 module.exports = { CLASS_LABEL, stats, effect, details, learnedAt };
