@@ -211,6 +211,37 @@ If the database schema changes in an update (`SCHEMA_VERSION` in
 [Utils/db.js](Utils/db.js)), the bot will refuse to start with an old
 database file rather than risk corrupting it.
 
+## Website (early)
+
+A browser version of the game, in [Web/](Web/): log in with Discord, walk
+around a small town, and use the **Drop Station** (`.d` and catching) and the
+**Battle Station** (`.b`, including milestones).
+
+It runs inside the bot's own process and drives the same commands through a
+stand-in Discord channel ([Web/virtual.js](Web/virtual.js)), so the two stay
+in sync: one drop cooldown, one battle at a time across Discord and the site,
+and the same rewards and quests. Web drops are private to the player.
+
+To turn it on:
+
+1. In the [Developer Portal](https://discord.com/developers/applications),
+   open **OAuth2**, copy the **Client Secret**, and under **Redirects** add
+   `https://pokedropper.dgesy.org/auth/callback`.
+2. Add to `.env`:
+
+   ```bash
+   DISCORD_CLIENT_SECRET=...
+   WEB_URL=https://pokedropper.dgesy.org
+   WEB_PORT=8420
+   # Signs login cookies. Any long random string: openssl rand -hex 32
+   WEB_SESSION_SECRET=...
+   ```
+
+3. Point the reverse proxy at `http://<server>:8420` (websockets are not
+   needed; live updates are server-sent events) and restart the bot.
+
+Without `WEB_URL` the site doesn't start at all.
+
 ## Commands
 
 The prefix is `.`, and every command is also available as a slash command.

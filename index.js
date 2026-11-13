@@ -85,6 +85,10 @@ client.once('clientReady', (bot) => {
   const armed = reminders.rearmAll();
   if (armed) console.log(`re-armed ${armed} cooldown reminder(s)`);
   console.log(`prefix commands: ${names}`);
+
+  // The website (Web/server.js), in this same process so it shares battles,
+  // locks and cooldowns with Discord. Only when WEB_URL is set in .env.
+  if (process.env.WEB_URL) require('./Web/server').start({ client: bot, byAlias });
   console.log(`slash commands:  ${slash.map((c) => c.data.name).join(', ') || 'none'}`);
   if (skipped.length) console.log(`not implemented yet: ${skipped.join(', ')}`);
 

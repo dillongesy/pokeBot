@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>PokeDropper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Shown until /api/me says who is logged in. -->
+  <main id="login" class="login" hidden>
+    <div class="login-card">
+      <h1>PokeDropper</h1>
+      <p>Your Discord trainer, in a world you can walk around.</p>
+      <a class="login-button" href="/auth/login">Log in with Discord</a>
+      <p class="login-error" id="login-error" hidden>Discord login didn't work. Try again.</p>
+    </div>
+  </main>
+
+  <main id="game" class="game" hidden>
+    <header class="hud">
+      <div class="hud-trainer">
+        <img id="hud-avatar" alt="">
+        <span id="hud-name"></span>
+      </div>
+      <div class="hud-status">
+        <span id="hud-battle" class="pill pill-battle" hidden>In battle</span>
+        <span id="hud-drop" class="pill">Drop ready</span>
+        <a class="hud-logout" href="/auth/logout">Log out</a>
+      </div>
+    </header>
+
+    <div class="screen" id="screen">
+      <canvas id="world"></canvas>
+
+      <!-- A sign's text, in the handheld style. -->
+      <div class="dialog" id="dialog" hidden>
+        <p id="dialog-text"></p>
+        <span class="dialog-more">▼</span>
+      </div>
+
+      <!-- Inside a station. -->
+      <section class="panel" id="panel" hidden>
+        <header class="panel-head">
+          <h2 id="panel-title"></h2>
+          <button class="panel-close" id="panel-close" aria-label="Leave">✕</button>
+        </header>
+        <div class="panel-body" id="panel-body"></div>
+        <footer class="panel-foot" id="panel-foot"></footer>
+      </section>
+
+      <div class="connection" id="connection" hidden>Reconnecting…</div>
+    </div>
+
+    <!-- On phones: a D-pad and A/B. -->
+    <div class="pad" id="pad">
+      <div class="dpad">
+        <button data-dir="up" class="d-up" aria-label="Up"></button>
+        <button data-dir="left" class="d-left" aria-label="Left"></button>
+        <button data-dir="right" class="d-right" aria-label="Right"></button>
+        <button data-dir="down" class="d-down" aria-label="Down"></button>
+      </div>
+      <div class="ab">
+        <button data-key="b" class="btn-b">B</button>
+        <button data-key="a" class="btn-a">A</button>
+      </div>
+    </div>
+
+    <p class="keys">Arrows / WASD to move · Z, Enter or Space is A · X or Shift is B (hold to run)</p>
+  </main>
+
+  <script src="/world.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
