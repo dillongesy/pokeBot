@@ -1,13 +1,19 @@
-SAFARI ZONE (EMERALD) | Sprite pack
-Source: supplied image 18616.png. Original sheet rip credited to Andrew the Hedgehog. Game artwork from Pokémon Emerald.
+PokeDropper web sprites
+=======================
 
-objects/         24 named PNGs. Cutouts use transparency. The slope and waterfall include their terrain pixels.
-tiles/outdoor/   All 185 unique 16 x 16 tiles in the 1920 x 1280 outdoor map.
-tiles/interior/  All 16 unique 16 x 16 tiles in the room inset, including its black border.
-atlas/           Native-size sheets and matching Tiled JSON maps. Open a .tmj in Tiled to see the original placement. The CSV indexes use zero-based IDs, with source coordinates measured from the upper left of the supplied image.
-reference/       Interior inset, title card, and original credit.
-object-preview.png   Visual index of the assembled objects.
+Each source has its own folder, with its own README and licence notes.
+Served by the site at /sprites/...
 
-The gatehouse continues past the bottom edge of the supplied image. Its cutout uses the visible roof and wall, with a few tree-obscured edging pixels restored from the adjacent facade. All source map tiles retain their exact original pixels, including overlaps. Only poses visible in the source are included. Use nearest-neighbor scaling for crisp pixels.
+tuxemon/        IN USE. From the open-source game Tuxemon
+                (https://github.com/Tuxemon/Tuxemon). The town, both
+                stations, the player, tall grass and water all come from here.
+opengameart/    Downloaded, not used yet. Two openly licensed tilesets from
+                OpenGameArt, kept for later.
+archive/        No longer used by the site. archive/emerald is the Emerald
+                Safari Zone pack and hero sheet the site used before.
 
-objects/characters/hero.png   The male hero from Pokemon Emerald, walking and running frames. Ripped by soulcaliburfan (cut from their sheet: 16 x 24 cells, columns down / up / left, rows 0-2 walk, 3-5 run).
+How the site puts them together: Web/public/world.js lays out the town from
+tile numbers in tuxemon/tilesets (see the TILES table there). Nothing is
+pre-combined into a new image, so swapping a piece means changing a number.
+
+Credits shown to players: /sprites/CREDITS.txt (linked from the site).

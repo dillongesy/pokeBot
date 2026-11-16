@@ -439,3 +439,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .d-down::after { border-top-color: #9aa3bd !important; margin-top: 4px; }
 .d-left::after { border-right-color: #9aa3bd !important; margin-left: -4px; }
 .d-right::after { border-left-color: #9aa3bd !important; margin-left: 4px; }
+
+.credits { margin: 0; font-size: 16px; }
+.credits a { color: var(--muted); }

@@ -4,14 +4,19 @@
  * The overworld: a small town on a 240x160 canvas (the GBA's screen), scaled
  * up with crisp pixels.
  *
- * The scenery comes from the tile pack in Web/sprites (served at /sprites):
- * atlas/outdoor.png holds every 16x16 tile, numbered left to right, top to
- * bottom, as in atlas/outdoor-index.csv. The town below is laid out from
- * those numbers. The player is the Emerald hero (objects/characters/hero.png).
+ * Every picture comes from the Tuxemon assets in Web/sprites/tuxemon (served
+ * at /sprites/tuxemon): the town is laid out below from tile numbers in its
+ * tilesets, the player is Tuxemon's adventurer, and the grass and splash
+ * effects are its animations. Credits: /sprites/CREDITS.txt.
  *
- * Movement is on the grid, as in the handheld games: tap a direction to turn,
- * hold it to walk, hold B (X / Shift) to run. Walk into a door to go in; face
- * a sign and press A (Z / Enter / Space) to read it.
+ * The town has three layers, as Tuxemon's own maps do: the ground, things on
+ * it (trees, buildings, tall grass), and what is drawn over the player (roofs,
+ * the tops of signs).
+ *
+ * Movement is on the grid: tap a direction to turn, hold it to walk, hold B
+ * (X / Shift) to run. Walk into a door to go in; face a sign and press A
+ * (Z / Enter / Space) to read it. Tall grass rustles as you go through it;
+ * shallow water splashes; deep water can't be entered.
  */
 
 (function () {
@@ -23,64 +28,98 @@
   // A tap shorter than this only turns the player.
   const TURN_MS = 90;
 
-  const ATLAS = '/sprites/atlas/outdoor.png';
-  const ATLAS_COLUMNS = 16;
+  const BASE = '/sprites/tuxemon';
+
+  /** The tilesets, by the letter used in tile names below ("o111"). */
+  const SHEETS = {
+    o: { src: `${BASE}/tilesets/core_outdoor.png`, columns: 37 },
+    b: { src: `${BASE}/tilesets/core_buildings.png`, columns: 47 },
+    s: { src: `${BASE}/tilesets/core_set_pieces.png`, columns: 31 },
+  };
+
+  /**
+   * Animated tiles, from the tileset's own .tsx: a tile name shows these
+   * frames in turn, each for `ms`.
+   */
+  const ANIMS = {
+    o1268: { frames: [1269, 1270, 1271], ms: 200 },
+    o941: { frames: [941, 942, 943, 944, 945, 946, 947, 948], ms: 150 },
+    o1482: { frames: [1482, 1483, 1484, 1485, 1486], ms: 250 },
+    o1556: { frames: [1556, 1557, 1558, 1559, 1560], ms: 250 },
+    o1704: { frames: [1704, 1705, 1706, 1707, 1708], ms: 250 },
+  };
 
   // -------------------------------------------------------------------------
-  // Tile numbers in the atlas
+  // Tile names in the Tuxemon tilesets
   // -------------------------------------------------------------------------
 
-  const T = {
-    grass: 20,
-    tallGrass: 28,
-    rock: 32,
-    // A tree is two tiles wide: its top, then its bottom, which is darker
-    // when another tree stands below it. The tip pokes into the grass above.
-    treeTop: [0, 1],
-    treeBottomOnTree: [11, 12],
-    treeBottomOnGrass: [16, 17],
-    treeTip: [66, 23],
-    // The pale path, as a rectangle.
-    path: { tl: 56, t: 57, tr: 58, l: 64, c: 59, r: 65, bl: 62, b: 60, br: 61 },
-    // A pond, as a rectangle.
-    pond: { tl: 144, t: 159, tr: 145, l: 149, c: 41, r: 150, bl: 153, b: 160, br: 154 },
-    // The red-roofed house, 4x4; its door is the second tile of the last row.
-    house: [
-      [111, 112, 112, 113],
-      [118, 119, 119, 120],
-      [125, 126, 127, 128],
-      [135, 136, 137, 138],
+  const TILES = {
+    grass: 'o111',
+    tallGrass: 'o1246',
+    // A pine: two tiles of top over two of trunk.
+    treeTop: ['o1319', 'o1320'],
+    treeBottom: ['o1356', 'o1357'],
+    // Sand path on grass, as a rectangle.
+    path: { tl: 'o116', t: 'o117', tr: 'o118', l: 'o153', c: 'o154', r: 'o155', bl: 'o190', b: 'o191', br: 'o192' },
+    // Water's edge on grass, around shallow water.
+    shore: { tl: 'o571', t: 'o572', tr: 'o573', l: 'o608', r: 'o610', bl: 'o645', b: 'o646', br: 'o647' },
+    shallow: 'o1268',
+    deep: 'o941',
+    flowers: ['o1482', 'o1556', 'o1704'],
+    // A signpost: its post, and its board drawn over the player.
+    signPost: 's199',
+    signBoard: 's168',
+  };
+
+  /** The blue-roofed shop: a row of roof drawn over the player, then 3 rows. */
+  const SHOP = {
+    above: [['b245', 'b246', 'b247', 'b248', 'b249']],
+    body: [
+      ['b292', 'b293', 'b294', 'b295', 'b296'],
+      ['b339', 'b340', 'b341', 'b342', 'b343'],
+      ['b386', 'b387', 'b388', 'b389', 'b390'],
     ],
-    houseSign: 139,
+    door: { dx: 2 },
+  };
+
+  /** The red-roofed house; its door is drawn on, in the last column. */
+  const HOUSE = {
+    above: [['b423', 'b424', 'b425', 'b426', 'b427']],
+    body: [
+      ['b470', 'b471', 'b472', 'b473', 'b474'],
+      ['b517', 'b518', 'b519', 'b520', 'b521'],
+      ['b564', 'b565', 'b566', 'b567', 'b568'],
+    ],
+    overlay: [{ dx: 4, dy: 1, tile: 'b181' }, { dx: 4, dy: 2, tile: 'b228' }],
+    door: { dx: 4 },
   };
 
   // -------------------------------------------------------------------------
   // The town
   // -------------------------------------------------------------------------
 
-  const MAP_W = 20;
-  const MAP_H = 16;
+  const MAP_W = 22;
+  const MAP_H = 18;
 
-  /** The two stations. `door` is the tile you walk into; `sign` is read with A. */
-  const BUILDINGS = [
-    { station: 'drop', x: 3, y: 3, door: { x: 4, y: 6 }, sign: { x: 7, y: 6 }, text: ['DROP STATION', 'Drop a wild Pokemon, then catch it by name.'] },
-    { station: 'battle', x: 12, y: 3, door: { x: 13, y: 6 }, sign: { x: 16, y: 6 }, text: ['BATTLE STATION', 'Take your team into a battle.'] },
-  ];
+  const grid = (fill) => Array.from({ length: MAP_H }, () => Array(MAP_W).fill(fill));
+  const ground = grid(TILES.grass);
+  const objects = grid(null);
+  const overlays = grid(null);
+  const above = grid(null);
+  const solid = grid(false);
+  /** null, 'tall' (grass), 'shallow' or 'deep' (water). */
+  const terrain = grid(null);
 
-  const START = { x: 10, y: 9, facing: 'up' };
-
-  /** ground[y][x] is a tile number; solid[y][x] blocks walking. */
-  const ground = Array.from({ length: MAP_H }, () => Array(MAP_W).fill(T.grass));
-  const solid = Array.from({ length: MAP_H }, () => Array(MAP_W).fill(false));
-
-  function put(x, y, tile, blocks = false) {
-    if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return;
-    ground[y][x] = tile;
-    solid[y][x] = blocks;
+  const inside = (x, y) => x >= 0 && y >= 0 && x < MAP_W && y < MAP_H;
+  function set(layer, x, y, tile) {
+    if (inside(x, y)) layer[y][x] = tile;
+  }
+  function block(x, y) {
+    if (inside(x, y)) solid[y][x] = true;
   }
 
   /** A rectangle drawn with a 9-piece set (corners, edges, middle). */
-  function rect(set, x0, y0, w, h, blocks = false) {
+  function rect(layer, set9, x0, y0, w, h, middle = set9.c) {
     for (let y = y0; y < y0 + h; y++) {
       for (let x = x0; x < x0 + w; x++) {
         const top = y === y0;
@@ -90,57 +129,81 @@
         const piece =
           top ? (left ? 'tl' : right ? 'tr' : 't')
           : bottom ? (left ? 'bl' : right ? 'br' : 'b')
-          : left ? 'l' : right ? 'r' : 'c';
-        put(x, y, set[piece], blocks);
+          : left ? 'l' : right ? 'r' : null;
+        set(layer, x, y, piece ? set9[piece] : middle);
       }
     }
   }
 
-  // Trees all round the edge, laid out in 2x2 cells.
+  // Pines all round, in 2x2 cells.
   const CELLS_W = MAP_W / 2;
   const CELLS_H = MAP_H / 2;
-  const treeCell = (cx, cy) =>
-    cx < 0 || cy < 0 || cx >= CELLS_W || cy >= CELLS_H || cx === 0 || cy === 0 || cx === CELLS_W - 1 || cy === CELLS_H - 1;
-
   for (let cy = 0; cy < CELLS_H; cy++) {
     for (let cx = 0; cx < CELLS_W; cx++) {
-      if (!treeCell(cx, cy)) continue;
+      if (cx > 0 && cy > 0 && cx < CELLS_W - 1 && cy < CELLS_H - 1) continue;
       const x = cx * 2;
       const y = cy * 2;
-      const bottom = treeCell(cx, cy + 1) ? T.treeBottomOnTree : T.treeBottomOnGrass;
-      put(x, y, T.treeTop[0], true);
-      put(x + 1, y, T.treeTop[1], true);
-      put(x, y + 1, bottom[0], true);
-      put(x + 1, y + 1, bottom[1], true);
+      [[0, 0, TILES.treeTop[0]], [1, 0, TILES.treeTop[1]], [0, 1, TILES.treeBottom[0]], [1, 1, TILES.treeBottom[1]]].forEach(
+        ([dx, dy, tile]) => {
+          set(objects, x + dx, y + dy, tile);
+          block(x + dx, y + dy);
+        }
+      );
     }
   }
-  // Tips of the bottom row of trees, over the grass above them.
-  for (let cx = 1; cx < CELLS_W - 1; cx++) {
-    put(cx * 2, MAP_H - 3, T.treeTip[0], true);
-    put(cx * 2 + 1, MAP_H - 3, T.treeTip[1], true);
-  }
 
-  // The path in front of both stations.
-  rect(T.path, 3, 7, 14, 3);
+  /** The two stations. `door` is the tile you walk into; `sign` is read with A. */
+  const BUILDINGS = [
+    { station: 'drop', plan: SHOP, x: 3, y: 2, sign: { x: 9, y: 5 }, text: ['DROP STATION', 'Drop a wild Pokemon, then catch it by name.'] },
+    { station: 'battle', plan: HOUSE, x: 13, y: 2, sign: { x: 12, y: 5 }, text: ['BATTLE STATION', 'Take your team into a battle.'] },
+  ];
 
-  // A pond, some tall grass and a few rocks.
-  rect(T.pond, 3, 10, 4, 3, true);
-  for (let y = 10; y <= 12; y++) for (let x = 12; x <= 16; x++) put(x, y, T.tallGrass);
-  put(8, 11, T.rock, true);
-  put(17, 8, T.rock, true);
-  put(10, 4, T.rock, true);
-
-  // The stations, each with its sign by the door.
   for (const b of BUILDINGS) {
-    T.house.forEach((row, dy) => row.forEach((tile, dx) => put(b.x + dx, b.y + dy, tile, true)));
-    put(b.sign.x, b.sign.y, T.houseSign, true);
+    const { plan } = b;
+    plan.above.forEach((row, dy) => row.forEach((tile, dx) => {
+      set(above, b.x + dx, b.y + dy, tile);
+      block(b.x + dx, b.y + dy);
+    }));
+    const top = b.y + plan.above.length;
+    plan.body.forEach((row, dy) => row.forEach((tile, dx) => {
+      set(objects, b.x + dx, top + dy, tile);
+      block(b.x + dx, top + dy);
+    }));
+    for (const o of plan.overlay || []) set(overlays, b.x + o.dx, top + o.dy, o.tile);
+    b.door = { x: b.x + plan.door.dx, y: top + plan.body.length - 1 };
+
+    set(objects, b.sign.x, b.sign.y, TILES.signPost);
+    set(above, b.sign.x, b.sign.y - 1, TILES.signBoard);
+    block(b.sign.x, b.sign.y);
   }
 
-  const tileAt = (x, y) => (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H ? null : ground[y][x]);
-  const blocked = (x, y) => x < 0 || y < 0 || x >= MAP_W || y >= MAP_H || solid[y][x];
+  // The path along the front of both stations.
+  rect(ground, TILES.path, 3, 6, 16, 4);
+
+  // A pond: a shallow rim you can wade through, deep water in the middle.
+  rect(ground, TILES.shore, 3, 10, 8, 6, TILES.shallow);
+  for (let y = 10; y < 16; y++) for (let x = 3; x < 11; x++) terrain[y][x] = 'shallow';
+  for (let y = 12; y < 14; y++) {
+    for (let x = 5; x < 9; x++) {
+      set(ground, x, y, TILES.deep);
+      terrain[y][x] = 'deep';
+      block(x, y);
+    }
+  }
+
+  // Tall grass, and flowers here and there.
+  for (let y = 11; y < 16; y++) {
+    for (let x = 13; x < 19; x++) {
+      set(objects, x, y, TILES.tallGrass);
+      terrain[y][x] = 'tall';
+    }
+  }
+  [[11, 3], [11, 4], [12, 10], [19, 10], [2, 7], [19, 15]].forEach(([x, y], i) => set(objects, x, y, TILES.flowers[i % 3]));
+
+  const START = { x: 11, y: 8, facing: 'up' };
 
   // -------------------------------------------------------------------------
-  // Drawing the map
+  // Drawing
   // -------------------------------------------------------------------------
 
   function loadImage(src) {
@@ -152,41 +215,62 @@
     });
   }
 
-  function drawTile(g, atlas, tile, x, y) {
-    g.drawImage(atlas, (tile % ATLAS_COLUMNS) * TILE, Math.floor(tile / ATLAS_COLUMNS) * TILE, TILE, TILE, x, y, TILE, TILE);
+  async function loadSheets() {
+    const out = {};
+    await Promise.all(Object.entries(SHEETS).map(async ([key, sheet]) => {
+      out[key] = { img: await loadImage(sheet.src), columns: sheet.columns };
+    }));
+    return out;
   }
 
-  /** The whole town as one image. */
-  function drawMap(atlas) {
+  /** Draw a tile by name; animated tiles show the frame for `now`. */
+  function drawTile(g, sheets, name, x, y, now = 0) {
+    if (!name) return;
+    const sheet = sheets[name[0]];
+    let id = Number(name.slice(1));
+    const anim = ANIMS[name];
+    if (anim) id = anim.frames[Math.floor(now / anim.ms) % anim.frames.length];
+    g.drawImage(sheet.img, (id % sheet.columns) * TILE, Math.floor(id / sheet.columns) * TILE, TILE, TILE, x, y, TILE, TILE);
+  }
+
+  /** One layer as an image, leaving out animated tiles (drawn each frame). */
+  function drawLayer(sheets, layer, withAnimated = false) {
     const canvas = document.createElement('canvas');
     canvas.width = MAP_W * TILE;
     canvas.height = MAP_H * TILE;
     const g = canvas.getContext('2d');
     for (let y = 0; y < MAP_H; y++) {
-      for (let x = 0; x < MAP_W; x++) drawTile(g, atlas, ground[y][x], x * TILE, y * TILE);
+      for (let x = 0; x < MAP_W; x++) {
+        const name = layer[y][x];
+        if (name && (withAnimated || !ANIMS[name])) drawTile(g, sheets, name, x * TILE, y * TILE);
+      }
     }
     return canvas;
   }
 
-  // -------------------------------------------------------------------------
-  // The player
-  //
-  // objects/characters/hero.png: 16x24 cells, columns facing down, up and
-  // left (right is left mirrored); rows 0-2 walking (standing, then each
-  // foot), rows 3-5 running. Cut from soulcaliburfan's rip of the Emerald
-  // hero, feet aligned to the bottom of each cell.
-  // -------------------------------------------------------------------------
-
-  const HERO = '/sprites/objects/characters/hero.png';
-  const HERO_W = 16;
-  const HERO_H = 24;
-  const HERO_COLUMN = { down: 0, up: 1, left: 2, right: 2 };
-
-  /** Which row of the sheet: a step alternates feet, with standing between. */
-  function heroRow(step, running) {
-    const base = running ? 3 : 0;
-    return base + [0, 1, 0, 2][step];
+  /** The animated tiles, as [layer, x, y, name], so only those are redrawn. */
+  const animated = [];
+  for (const [index, layer] of [ground, objects].entries()) {
+    for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) if (ANIMS[layer[y][x]]) animated.push([index, x, y, layer[y][x]]);
   }
+
+  // -------------------------------------------------------------------------
+  // The player and effects
+  //
+  // characters/adventurer.png: 16x32 frames, 3 across (step, stand, step),
+  // rows facing down, left, right, up. animations/grass.png and
+  // splash_small.png: 16x16 frames side by side.
+  // -------------------------------------------------------------------------
+
+  const HERO = `${BASE}/characters/adventurer.png`;
+  const SHADOW = `${BASE}/characters/drop_shadow.png`;
+  const GRASS_FX = `${BASE}/animations/grass.png`;
+  const SPLASH_FX = `${BASE}/animations/splash_small.png`;
+  const HERO_W = 16;
+  const HERO_H = 32;
+  const HERO_ROW = { down: 0, left: 1, right: 2, up: 3 };
+  /** How long each effect frame shows, and how many times the effect plays. */
+  const FX = { grass: { ms: 150, loops: 2 }, splash: { ms: 90, loops: 1 } };
 
   // -------------------------------------------------------------------------
   // The game loop
@@ -212,14 +296,21 @@
     canvas.height = VIEW_H;
     g.imageSmoothingEnabled = false;
 
-    let atlas = null;
-    let map = null;
-    let hero = null;
-    loadImage(ATLAS).then((img) => {
-      atlas = img;
-      map = drawMap(img);
+    let sheets = null;
+    let layers = null;
+    const art = {};
+    loadSheets().then((loaded) => {
+      sheets = loaded;
+      layers = {
+        ground: drawLayer(loaded, ground),
+        objects: drawLayer(loaded, objects),
+        overlays: drawLayer(loaded, overlays),
+        above: drawLayer(loaded, above),
+      };
     }, (err) => console.error(err));
-    loadImage(HERO).then((img) => { hero = img; }, (err) => console.error(err));
+    for (const [key, src] of Object.entries({ hero: HERO, shadow: SHADOW, grass: GRASS_FX, splash: SPLASH_FX })) {
+      loadImage(src).then((img) => { art[key] = img; }, (err) => console.error(err));
+    }
 
     const player = {
       x: START.x,
@@ -232,6 +323,9 @@
       stepCount: 0,
     };
 
+    /** Effects playing out on tiles: { kind, x, y, started }. */
+    const effects = [];
+
     /** Directions held, most recent last. */
     const held = [];
     let heldSince = 0;
@@ -240,6 +334,7 @@
 
     const doorAt = (x, y) => BUILDINGS.find((b) => b.door.x === x && b.door.y === y) || null;
     const signAt = (x, y) => BUILDINGS.find((b) => b.sign.x === x && b.sign.y === y) || null;
+    const terrainAt = (x, y) => (inside(x, y) ? terrain[y][x] : null);
 
     function tryMove(now) {
       const dir = held[held.length - 1];
@@ -265,7 +360,7 @@
         return;
       }
 
-      if (blocked(nx, ny)) return;
+      if (!inside(nx, ny) || solid[ny][nx]) return;
 
       player.from = { x: player.x, y: player.y };
       player.x = nx;
@@ -273,6 +368,11 @@
       player.started = now;
       player.duration = running ? RUN_MS : WALK_MS;
       player.stepCount += 1;
+
+      // Grass rustles as you step in; water splashes behind you.
+      const ground = terrainAt(nx, ny);
+      if (ground === 'tall') effects.push({ kind: 'grass', x: nx, y: ny, started: now });
+      if (ground === 'shallow') effects.push({ kind: 'splash', x: nx, y: ny, started: now + (running ? 0 : 60) });
     }
 
     function interact() {
@@ -296,6 +396,22 @@
       };
     }
 
+    function drawEffects(now, camX, camY, front) {
+      for (let i = effects.length - 1; i >= 0; i--) {
+        const fx = effects[i];
+        const img = art[fx.kind];
+        const frames = img ? img.width / TILE : 1;
+        const tick = Math.floor((now - fx.started) / FX[fx.kind].ms);
+        if (tick >= frames * FX[fx.kind].loops) {
+          effects.splice(i, 1);
+          continue;
+        }
+        // Grass is drawn in front of the player; splashes on the water.
+        if (!img || tick < 0 || (fx.kind === 'grass') !== front) continue;
+        g.drawImage(img, (tick % frames) * TILE, 0, TILE, TILE, fx.x * TILE - camX, fx.y * TILE - camY, TILE, TILE);
+      }
+    }
+
     function frame(now) {
       if (player.from && now - player.started >= player.duration) {
         player.from = null;
@@ -308,43 +424,49 @@
       // Camera, centred on the player, kept inside the map.
       const camX = Math.max(0, Math.min(MAP_W * TILE - VIEW_W, Math.round(pos.x + TILE / 2 - VIEW_W / 2)));
       const camY = Math.max(0, Math.min(MAP_H * TILE - VIEW_H, Math.round(pos.y + TILE / 2 - VIEW_H / 2)));
+      const view = (img) => g.drawImage(img, camX, camY, VIEW_W, VIEW_H, 0, 0, VIEW_W, VIEW_H);
 
       g.fillStyle = '#000';
       g.fillRect(0, 0, VIEW_W, VIEW_H);
-      if (map) g.drawImage(map, camX, camY, VIEW_W, VIEW_H, 0, 0, VIEW_W, VIEW_H);
 
-      // Shadow, then the player, feet on the bottom of the tile. Steps
-      // alternate feet; running uses its own frames.
+      if (layers) {
+        view(layers.ground);
+        for (const [index, x, y, name] of animated) {
+          if (index === 0) drawTile(g, sheets, name, x * TILE - camX, y * TILE - camY, now);
+        }
+        view(layers.objects);
+        for (const [index, x, y, name] of animated) {
+          if (index === 1) drawTile(g, sheets, name, x * TILE - camX, y * TILE - camY, now);
+        }
+        view(layers.overlays);
+      }
+      drawEffects(now, camX, camY, false);
+
+      // The player: shadow, then the frame. Steps alternate feet.
       const sx = Math.round(pos.x - camX);
       const tileY = Math.round(pos.y - camY);
-      g.fillStyle = 'rgba(0,0,0,0.22)';
-      g.beginPath();
-      g.ellipse(sx + 8, tileY + 14.5, 5.5, 2, 0, 0, Math.PI * 2);
-      g.fill();
-      if (hero) {
-        const walking = player.from && pos.t > 0.25 && pos.t < 0.75;
-        const step = walking ? (player.stepCount % 2 ? 1 : 3) : 0;
-        const fast = Boolean(player.from) && player.duration === RUN_MS;
-        const srcX = HERO_COLUMN[player.facing] * HERO_W;
-        const srcY = heroRow(step, fast) * HERO_H;
-        const top = tileY + TILE - HERO_H;
-        if (player.facing === 'right') {
-          g.save();
-          g.translate(sx + HERO_W, top);
-          g.scale(-1, 1);
-          g.drawImage(hero, srcX, srcY, HERO_W, HERO_H, 0, 0, HERO_W, HERO_H);
-          g.restore();
-        } else {
-          g.drawImage(hero, srcX, srcY, HERO_W, HERO_H, sx, top, HERO_W, HERO_H);
-        }
+      const top = tileY + TILE - HERO_H;
+      const where = terrainAt(player.x, player.y);
+      const wading = where === 'shallow';
+      if (art.shadow && !wading) g.drawImage(art.shadow, sx, top);
+      if (art.hero) {
+        const walking = player.from && pos.t > 0.15 && pos.t < 0.85;
+        const column = walking ? (player.stepCount % 2 ? 0 : 2) : 1;
+        // Ankle-deep in water: the bottom of the sprite is under the surface.
+        const cut = wading && !player.from ? 3 : 0;
+        g.drawImage(art.hero, column * HERO_W, HERO_ROW[player.facing] * HERO_H, HERO_W, HERO_H - cut, sx, top, HERO_W, HERO_H - cut);
       }
 
-      // Standing in tall grass hides the feet: redraw the grass's lower half over them.
-      if (atlas && !player.from && tileAt(player.x, player.y) === T.tallGrass) {
-        const tile = T.tallGrass;
+      // Standing in tall grass hides the feet: the grass's lower half goes back on top.
+      if (sheets && !player.from && where === 'tall') {
+        const sheet = sheets.o;
+        const id = Number(TILES.tallGrass.slice(1));
         const half = TILE / 2;
-        g.drawImage(atlas, (tile % ATLAS_COLUMNS) * TILE, Math.floor(tile / ATLAS_COLUMNS) * TILE + half, TILE, half, sx, tileY + half, TILE, half);
+        g.drawImage(sheet.img, (id % sheet.columns) * TILE, Math.floor(id / sheet.columns) * TILE + half, TILE, half, sx, tileY + half, TILE, half);
       }
+      drawEffects(now, camX, camY, true);
+
+      if (layers) view(layers.above);
 
       // A quick fade on going through a door.
       if (fade) {
@@ -395,7 +517,13 @@
 
   /** The whole town at once, for checking the layout. */
   async function preview() {
-    return drawMap(await loadImage(ATLAS));
+    const sheets = await loadSheets();
+    const canvas = document.createElement('canvas');
+    canvas.width = MAP_W * TILE;
+    canvas.height = MAP_H * TILE;
+    const g = canvas.getContext('2d');
+    for (const layer of [ground, objects, overlays, above]) g.drawImage(drawLayer(sheets, layer, true), 0, 0);
+    return canvas;
   }
 
   window.World = { create, preview, VIEW_W, VIEW_H };
