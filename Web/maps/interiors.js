@@ -36,11 +36,11 @@ const CAST = {
   },
   professor_lab: {
     kay_wren: { name: 'PROF. A', sprite: 'professor', action: 'professor', lines: ['PROF. A: How is your POKéMON doing?', 'The MAIN CITY is south, past TOWN 2. That is where your journey really begins!'] },
-    allie: { name: 'Aide', sprite: 'scientist', wander: 2, lines: ['AIDE: The PROF. has POKéMON from every region. Isn\'t that amazing?'] },
+    allie: { name: 'Assistant', sprite: 'scientist', wander: 2, lines: ["ASSISTANT: The PROF. has POKéMON from every region. Isn't that amazing?"] },
   },
   healing_center: {
     tabanurse: { name: 'NURSE', sprite: 'nurse', action: 'nurse', lines: [] },
-    happy_guy: { name: 'Trainer', sprite: 'cooldude_green', wander: 2, lines: ['I always stop by the POKéMON CENTER in every town. If I white out, I wake up here!'] },
+    happy_guy: { name: 'Trainer', sprite: 'cooldude_blonde', wander: 2, lines: ['I always stop by the POKéMON CENTER in every town. If I white out, I wake up here!'] },
     shady_guy: { name: 'Hiker', sprite: 'miner', wander: 1, lines: ['The routes past the MAIN CITY gates get longer the further you go.'] },
   },
   tuxe_mart_taba: {
@@ -87,6 +87,11 @@ function buildRoom(id, outside, door) {
   room.warps.push({ x: room.exit.x, y: room.exit.y, to: out });
   room.outside = out;
 
+  // Stairs up (your house has a bedroom): "<this room>:up".
+  for (const t of room.teleports) {
+    if (UPSTAIRS[t.target]) room.warps.push({ x: t.x, y: t.y, to: { map: `${id}:up`, x: t.tx, y: t.ty, facing: 'down' } });
+  }
+
   const cast = CAST[file] || {};
   for (const [spot, person] of Object.entries(cast)) {
     const at = person.at || room.people[spot];
@@ -117,6 +122,26 @@ function buildRoom(id, outside, door) {
   return room;
 }
 
+/**
+ * Rooms upstairs, by file: where their stairs down are, and where you land
+ * downstairs. (Tuxemon's bedroom has no events of its own.)
+ */
+const UPSTAIRS = {
+  player_house_bedroom: { stairs: { x: 8, y: 1 }, landing: { x: 0, y: 2 }, name: 'Your room' },
+};
+
+/** The room upstairs from `downId` ("<downId>:up"). */
+function buildUpstairs(id, down) {
+  const t = down.teleports.find((x) => UPSTAIRS[x.target]);
+  if (!t) return null;
+  const up = UPSTAIRS[t.target];
+  const room = load(t.target, { id, name: up.name, exit: up.stairs });
+  room.warps.push({ x: up.stairs.x, y: up.stairs.y, to: { map: down.id, ...up.landing, facing: 'down' } });
+  room.spawn = { x: t.tx, y: t.ty, facing: 'down' };
+  room.outside = down.outside;
+  return room;
+}
+
 /** The battle room upstairs in the BATTLE TOWER, where the milestone waits. */
 let arenaCache = null;
 function arena() {
@@ -131,4 +156,4 @@ function arena() {
   return room;
 }
 
-module.exports = { buildRoom, arena, ROOMS };
+module.exports = { buildRoom, buildUpstairs, arena, ROOMS };

@@ -85,74 +85,177 @@ function labSteps(map, x, y) {
 // ---------------------------------------------------------------------------
 
 function town1() {
-  const map = new MapBuilder({ id: 'town-1', name: 'Town 1', kind: 'town', width: 24, height: 20 });
+  const map = new MapBuilder({ id: 'town-1', name: 'Town 1', kind: 'town', width: 26, height: 28 });
   map.encounterRate = 0;
-  map.border([[6, 9]]);
-  map.building(BUILDINGS.cottageRed, 3, 3, { station: 'home' });
-  map.building(BUILDINGS.lab, 13, 2, { station: 'lab' });
-  labSteps(map, 15, 12);
-  map.rect('ground', TILES.path, 3, 14, 18, 3);
-  map.rect('ground', TILES.path, 11, 16, 4, 4);
-  map.rect('ground', TILES.path, 5, 9, 3, 6);
-  map.sign(9, 9, ['TOWN 1', 'Where every story starts.']);
-  map.sign(21, 12, ["PROF. A'S POKéMON LAB"]);
-  flowers(map, [[2, 10], [9, 12], [10, 12], [21, 9], [20, 17], [3, 17], [8, 17]]);
+  map.border([[6, 13]]);
+
+  // Your house (top left) and the rival's (top right): PROF. A's family home.
+  map.building(BUILDINGS.cottageRed, 4, 3, { station: 'home' });
+  // {PLAYER} becomes the player's name in the browser.
+  map.sign(9, 9, ["{PLAYER_POSSESSIVE} HOUSE"]);
+  map.building(BUILDINGS.cottageBrown, 16, 3, { station: 'rival', lines: ["It's PROF. A's house. AIDE lives here too."] });
+  map.sign(15, 9, ["PROF. A and AIDE'S HOUSE"]);
+
+  // The lab, in the middle, with its front steps.
+  map.building(BUILDINGS.lab, 9, 12, { station: 'lab' });
+  labSteps(map, 11, 22);
+  map.sign(17, 20, ["PROF. A'S POKéMON LAB"]);
+
+  // Paths: out of each front door, across the top, round the lab, out south.
+  map.path(6, 9, 3, 3);
+  map.path(18, 9, 3, 3);
+  map.path(3, 11, 21, 3);
+  map.path(3, 13, 3, 12);
+  map.path(3, 23, 12, 3);
+  map.path(11, 23, 4, 5);
+
+  pond(map, 19, 14, 5, 5);
+  flowers(map, [[2, 9], [3, 9], [10, 10], [14, 10], [21, 10], [7, 17], [7, 19], [17, 24], [19, 22], [3, 21], [16, 25]]);
   map.npc({
-    id: 'neighbor', name: 'Neighbor', sprite: 'granny', x: 9, y: 15, facing: 'down',
+    id: 'neighbor', name: 'Neighbor', sprite: 'granny', x: 8, y: 24, facing: 'down',
     lines: ["Oh, you're off on a journey? How exciting!", 'The MAIN CITY is south, past TOWN 2. Everyone ends up there sooner or later.'],
   });
-  map.warp(12, 19, { map: 'path-a', x: 8, y: 1, facing: 'down' });
-  map.warp(13, 19, { map: 'path-a', x: 9, y: 1, facing: 'down' });
+  map.warp(12, 27, { map: 'path-a', x: 12, y: 1, facing: 'down' });
+  map.warp(13, 27, { map: 'path-a', x: 13, y: 1, facing: 'down' });
   // At the foot of the lab's steps, where the professor leaves you.
-  map.spawn = { x: 16, y: 14, facing: 'down' };
+  map.spawn = { x: 12, y: 23, facing: 'down' };
   return finish(map);
 }
 
-function path(id, name, levels, from, to) {
-  const map = new MapBuilder({ id, name, kind: 'route', width: 16, height: 24, levels, background: 'grass' });
-  map.border([[4, 0], [4, 11]]);
-  map.rect('ground', TILES.path, 7, 0, 3, 24);
-  map.sign(5, 3, [name.toUpperCase(), `North: ${from.name}  South: ${to.name}`]);
-  // Optional grass only: nothing here has to be fought.
-  map.grass(2, 6, 4, 4);
-  map.grass(10, 11, 4, 4);
-  map.grass(2, 16, 4, 3);
-  flowers(map, [[11, 5], [3, 12], [12, 19], [4, 21]]);
-  map.warp(8, 0, { map: from.id, x: from.x, y: from.y, facing: 'up' });
-  map.warp(9, 0, { map: from.id, x: from.x + 1, y: from.y, facing: 'up' });
-  map.warp(8, 23, { map: to.id, x: to.x, y: to.y, facing: to.facing || 'down' });
-  map.warp(9, 23, { map: to.id, x: to.x + 1, y: to.y, facing: to.facing || 'down' });
-  map.spawn = { x: 8, y: 1, facing: 'down' };
+/** A trainer on the way to the MAIN CITY: easy, with Pokemon about the starter's level. */
+const introTrainer = (t) => ({ sight: 4, ...t });
+
+function pathA() {
+  const map = new MapBuilder({ id: 'path-a', name: 'Path a', kind: 'route', width: 26, height: 40, levels: { lo: 2, hi: 4 }, background: 'grass' });
+  map.border([[6, 0], [6, 19]]);
+  map.sign(10, 3, ['PATH A', 'North: TOWN 1   South: TOWN 2']);
+
+  // Down from TOWN 1, then west along a wall of trees.
+  map.path(11, 0, 4, 7);
+  map.path(4, 5, 11, 3);
+  map.path(4, 5, 3, 14);
+  map.tree(8, 7);
+  map.tree(8, 9);
+  map.tree(8, 11);
+  // A field of grass to the east, behind the trees: wild POKéMON forever.
+  map.grass(14, 7, 8, 5);
+  flowers(map, [[11, 8], [11, 10], [12, 12], [22, 13], [3, 8]]);
+
+  // A ledge: hop down anywhere, but the way back up is the path.
+  map.ledge(2, 14, 2);
+  map.ledge(7, 14, 17);
+
+  // Grass right across the way: one battle, low-level.
+  map.patch('a1', 2, 16, 22, 2, 2, 3);
+
+  // East, past a YOUNGSTER who's watching the path.
+  map.path(4, 19, 18, 3);
+  map.trainer(introTrainer({
+    id: 'youngster', name: 'Youngster 1', sprite: 'cooldude', x: 22, y: 20, facing: 'left', sight: 6,
+    team: [{ species: 19, level: 3 }, { species: 16, level: 2 }],
+    before: ["Hey! I just got my first POKéMON too! Let's battle!"],
+  }));
+
+  // South past a meadow, with something lying in the grass.
+  map.path(19, 19, 3, 13);
+  map.grass(4, 23, 10, 6);
+  map.item(4, 25, 'path-a-berry', { item: 'oran-berry' });
+  map.ledge(14, 27, 4);
+  pond(map, 3, 31, 5, 4);
+
+  // Back west to the way out.
+  map.path(11, 30, 11, 3);
+  map.path(11, 30, 4, 10);
+  flowers(map, [[16, 34], [17, 36], [9, 35], [10, 37], [22, 33]]);
+
+  map.warp(12, 0, { map: 'town-1', x: 12, y: 26, facing: 'up' });
+  map.warp(13, 0, { map: 'town-1', x: 13, y: 26, facing: 'up' });
+  map.warp(12, 39, { map: 'town-2', x: 12, y: 1, facing: 'down' });
+  map.warp(13, 39, { map: 'town-2', x: 13, y: 1, facing: 'down' });
+  map.spawn = { x: 12, y: 1, facing: 'down' };
   return finish(map);
 }
 
 function town2() {
-  const map = new MapBuilder({ id: 'town-2', name: 'Town 2', kind: 'town', width: 24, height: 22 });
+  const map = new MapBuilder({ id: 'town-2', name: 'Town 2', kind: 'town', width: 26, height: 24 });
   map.encounterRate = 0;
-  map.border([[6, 0], [6, 10]]);
-  map.rect('ground', TILES.path, 11, 0, 4, 22);
-  map.building(BUILDINGS.center, 2, 2, { station: 'center' });
-  map.rect('ground', TILES.path, 5, 10, 6, 2);
-  map.building(BUILDINGS.martBlue, 16, 3, { station: 'mart' });
-  map.rect('ground', TILES.path, 15, 7, 4, 2);
-  map.building(BUILDINGS.cottageGrey, 16, 11, { lines: ['Hello! We moved here from the MAIN CITY. It was too busy for us!'] });
-  map.building(BUILDINGS.brick, 3, 14, { lines: ['My son went to the BATTLE TOWER. He says the routes outside the gates are tough!'] });
+  map.border([[6, 0], [6, 11]]);
+  map.path(11, 0, 4, 24);
+
+  map.building(BUILDINGS.center, 3, 3, { station: 'center' });
+  map.path(5, 11, 7, 3);
+  map.building(BUILDINGS.martBlue, 17, 4, { station: 'mart' });
+  map.path(14, 8, 8, 3);
+  map.building(BUILDINGS.cottageGrey, 17, 13, { lines: ['Hello! We moved here from the MAIN CITY. It was too busy for us!'] });
+  map.path(14, 19, 9, 3);
+  map.building(BUILDINGS.brick, 3, 15, { lines: ['My son went to the BATTLE TOWER. He says the routes outside the gates are tough!'] });
+  map.path(5, 19, 7, 3);
+
   map.sign(10, 3, ['TOWN 2', 'The last stop before the MAIN CITY.']);
-  map.sign(10, 12, ['POKéMON CENTER', 'Heal and rest. If you white out, you wake up at the last one you visited.']);
-  flowers(map, [[9, 8], [2, 12], [21, 9], [15, 18], [20, 18], [9, 19]]);
+  map.sign(9, 14, ['POKéMON CENTER', 'If you white out, you wake up at the last one you visited.']);
+  flowers(map, [[10, 7], [2, 13], [23, 11], [16, 22], [22, 22], [9, 22], [3, 21]]);
   map.npc({
     id: 'youngster', name: 'Youngster', sprite: 'cooldude_blue', x: 9, y: 16, facing: 'right',
     lines: ['The MAIN CITY has eight gates. Each one leads to a different kind of land!', 'You can only take on the next gate once the one before it is done, though.'],
   });
   map.npc({
-    id: 'gardener', name: 'Gardener', sprite: 'florist', x: 20, y: 9, facing: 'left',
+    id: 'gardener', name: 'Gardener', sprite: 'florist', x: 22, y: 10, facing: 'left',
     lines: ['Tall grass right across a path always has a POKéMON in it. Exactly one!'],
   });
-  map.warp(12, 0, { map: 'path-a', x: 8, y: 22, facing: 'up' });
-  map.warp(13, 0, { map: 'path-a', x: 9, y: 22, facing: 'up' });
-  map.warp(12, 21, { map: 'path-b', x: 8, y: 1, facing: 'down' });
-  map.warp(13, 21, { map: 'path-b', x: 9, y: 1, facing: 'down' });
-  map.spawn = { x: 6, y: 11, facing: 'down' };
+  map.warp(12, 0, { map: 'path-a', x: 12, y: 38, facing: 'up' });
+  map.warp(13, 0, { map: 'path-a', x: 13, y: 38, facing: 'up' });
+  map.warp(12, 23, { map: 'path-b', x: 12, y: 1, facing: 'down' });
+  map.warp(13, 23, { map: 'path-b', x: 13, y: 1, facing: 'down' });
+  map.spawn = { x: 7, y: 12, facing: 'down' };
+  return finish(map);
+}
+
+function pathB() {
+  const map = new MapBuilder({ id: 'path-b', name: 'Path b', kind: 'route', width: 26, height: 40, levels: { lo: 3, hi: 5 }, background: 'grass' });
+  map.border([[6, 0], [6, 19]]);
+  map.sign(10, 3, ['PATH B', 'North: TOWN 2   South: MAIN CITY']);
+
+  // Down and east, past a LASS in the flowers.
+  map.path(11, 0, 4, 9);
+  map.path(11, 7, 11, 3);
+  map.path(19, 7, 3, 9);
+  flowers(map, [[15, 4], [16, 5], [17, 4], [18, 5], [9, 6], [22, 10]]);
+  map.trainer(introTrainer({
+    id: 'lass', name: 'Lass 1', sprite: 'heroine', x: 22, y: 12, facing: 'left', sight: 3,
+    team: [{ species: 43, level: 4 }, { species: 29, level: 4 }],
+    before: ['Ooh, a new trainer! Show me your POKéMON!'],
+  }));
+  map.grass(3, 8, 7, 5);
+
+  // A stream across the way, waded at the ford.
+  for (let x = 2; x < 24; x++) {
+    for (let y = 17; y < 19; y++) {
+      const ford = x >= 18 && x <= 21;
+      map.set('ground', x, y, ford ? TILES.shallow : TILES.deep);
+      map.terrain[y][x] = ford ? 'shallow' : 'deep';
+      if (!ford) map.block(x, y);
+    }
+  }
+  map.path(19, 15, 3, 2);
+  map.path(19, 19, 3, 3);
+
+  // One patch of grass right across, then west to the city.
+  map.patch('b1', 2, 22, 22, 2, 2, 4);
+  map.path(11, 24, 11, 3);
+  map.path(11, 24, 4, 16);
+  map.ledge(2, 29, 9);
+  map.ledge(15, 29, 9);
+  map.grass(15, 31, 8, 5);
+  map.tree(4, 32);
+  map.tree(6, 32);
+  map.sign(10, 35, ['MAIN CITY AHEAD', 'Home of the BATTLE TOWER.']);
+  flowers(map, [[3, 26], [4, 27], [8, 37], [17, 38], [22, 27]]);
+
+  map.warp(12, 0, { map: 'town-2', x: 12, y: 22, facing: 'up' });
+  map.warp(13, 0, { map: 'town-2', x: 13, y: 22, facing: 'up' });
+  map.warp(12, 39, { map: 'main-city', x: 26, y: 42, facing: 'up' });
+  map.warp(13, 39, { map: 'main-city', x: 27, y: 42, facing: 'up' });
+  map.spawn = { x: 12, y: 1, facing: 'down' };
   return finish(map);
 }
 
@@ -162,15 +265,15 @@ function mainCity() {
   map.border(CITY_GAPS);
 
   // A paved plaza, and roads out to every gate.
-  map.rect('ground', TILES.path, 4, 4, CITY_W - 8, CITY_H - 8);
+  map.path(4, 4, CITY_W - 8, CITY_H - 8);
   for (const g of Object.values(GATES)) {
     const [[x, y]] = g.tiles;
-    if (y === 0) map.rect('ground', TILES.path, x - 1, 0, 4, 5);
-    else if (y === CITY_H - 1) map.rect('ground', TILES.path, x - 1, CITY_H - 5, 4, 5);
-    else if (x === 0) map.rect('ground', TILES.path, 0, y - 1, 5, 4);
-    else map.rect('ground', TILES.path, CITY_W - 5, y - 1, 5, 4);
+    if (y === 0) map.path(x - 1, 0, 4, 5);
+    else if (y === CITY_H - 1) map.path(x - 1, CITY_H - 5, 4, 5);
+    else if (x === 0) map.path(0, y - 1, 5, 4);
+    else map.path(CITY_W - 5, y - 1, 5, 4);
   }
-  map.rect('ground', TILES.path, 25, CITY_H - 5, 4, 5);
+  map.path(25, CITY_H - 5, 4, 5);
 
   // The Battle Tower in the middle.
   map.building(BUILDINGS.tower, 22, 14, { station: 'battle' });
@@ -210,11 +313,11 @@ function mainCity() {
   }
 
   // In from Path b, at the bottom middle.
-  map.warp(26, 45, { map: 'path-b', x: 8, y: 22, facing: 'up' });
-  map.warp(27, 45, { map: 'path-b', x: 9, y: 22, facing: 'up' });
+  map.warp(26, 45, { map: 'path-b', x: 12, y: 38, facing: 'up' });
+  map.warp(27, 45, { map: 'path-b', x: 13, y: 38, facing: 'up' });
 
   map.npc({
-    id: 'taxi', name: 'Taxi Driver', sprite: 'riverboatcaptain', x: 29, y: 41, facing: 'down',
+    id: 'taxi', name: 'Taxi Driver', sprite: 'riverboatcaptain', x: 23, y: 39, facing: 'down',
     lines: ["My FARFETCH'D taxi flies anywhere you've been! Press M to FLY."],
   });
   map.npc({
@@ -239,8 +342,8 @@ function mainCity() {
 
 const town1Map = town1();
 const town2Map = town2();
-const pathA = path('path-a', 'Path a', { lo: 2, hi: 4 }, { id: 'town-1', name: 'Town 1', x: 12, y: 18 }, { id: 'town-2', name: 'Town 2', x: 12, y: 1 });
-const pathB = path('path-b', 'Path b', { lo: 3, hi: 5 }, { id: 'town-2', name: 'Town 2', x: 12, y: 20 }, { id: 'main-city', name: 'Main City', x: 26, y: 44, facing: 'up' });
+const pathAMap = pathA();
+const pathBMap = pathB();
 const city = mainCity();
 
 /** The FLY scene, the first time you walk into the Main City. */
@@ -251,4 +354,4 @@ const FLY_SCENE = [
   'Take it whenever you like. Just press M (or the FLY button) to choose where to go!',
 ];
 
-module.exports = { maps: [town1Map, pathA, town2Map, pathB, city], GATES, FLY_SCENE, NURSE, CLERK, finish, flowers, pond };
+module.exports = { maps: [town1Map, pathAMap, town2Map, pathBMap, city], GATES, FLY_SCENE, NURSE, CLERK, finish, flowers, pond };

@@ -14,6 +14,13 @@
  */
 
 const { TILES, OBSTACLES, ROCKS } = require('./tiles');
+const { opacity } = require('./opacity');
+
+/** A building tile is a wall when at least this much of it is drawn. */
+const WALL_OPACITY = 0.45;
+
+/** The grass ledge you hop down (o444-446: left end, middle, right end). */
+const LEDGE = { l: 'o444', c: 'o445', r: 'o446' };
 
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
@@ -39,6 +46,8 @@ class MapBuilder {
     this.terrain = grid(this.ground.terrain || null);
     /** Which one-battle patch a tile is in, if any. */
     this.patchAt = grid(null);
+    /** Where the sand path runs; its edges are worked out in build(). */
+    this.pathMask = grid(false);
     this.signs = [];
     this.doors = [];
     this.warps = [];
@@ -143,12 +152,38 @@ class MapBuilder {
 
   /** A building from tiles.js, with its roof drawn over the player. */
   building(plan, x, y, door) {
-    plan.above.forEach((row, dy) => row.forEach((tile, dx) => this.set('above', x + dx, y + dy, tile).block(x + dx, y + dy)));
+    // The roof is drawn over you: you can walk behind a building, as in the games.
+    plan.above.forEach((row, dy) => row.forEach((tile, dx) => this.set('above', x + dx, y + dy, tile)));
     const top = y + plan.above.length;
-    plan.body.forEach((row, dy) => row.forEach((tile, dx) => this.set('objects', x + dx, top + dy, tile).block(x + dx, top + dy)));
+    // Walls are only where the picture is; see-through corners can be walked on.
+    plan.body.forEach((row, dy) => row.forEach((tile, dx) => {
+      this.set('objects', x + dx, top + dy, tile);
+      if (opacity(tile) >= WALL_OPACITY) this.block(x + dx, top + dy);
+    }));
     for (const o of plan.overlay || []) this.set('overlays', x + o.dx, top + o.dy, o.tile);
     // The door is the building's bottom-row tile you walk up into.
     this.doors.push({ x: x + plan.door.dx, y: top + plan.body.length - 1, ...door });
+    return this;
+  }
+
+  /**
+   * Sand path. Paint as many rectangles as you like; build() works out each
+   * tile's edge or corner from its neighbours, so joins and turns line up.
+   */
+  path(x0, y0, w, h) {
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) if (this.inside(x, y)) this.pathMask[y][x] = true;
+    return this;
+  }
+
+  /**
+   * A ledge across [x0, x0 + w): you can hop down over it, never up or along.
+   * Web/overworld.js lands you on the tile below.
+   */
+  ledge(x0, y, w) {
+    for (let x = x0; x < x0 + w; x++) {
+      this.set('ground', x, y, x === x0 ? LEDGE.l : x === x0 + w - 1 ? LEDGE.r : LEDGE.c);
+      this.terrain[y][x] = 'ledge';
+    }
     return this;
   }
 
@@ -242,8 +277,27 @@ class MapBuilder {
     return this;
   }
 
+  /** Turn the painted path into tiles, each edge facing the right way. */
+  layPaths() {
+    const on = (x, y) => (this.inside(x, y) ? this.pathMask[y][x] : true);
+    const P = TILES.path;
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        if (!this.pathMask[y][x]) continue;
+        const n = on(x, y - 1);
+        const s = on(x, y + 1);
+        const w = on(x - 1, y);
+        const e = on(x + 1, y);
+        const piece = !n && !w ? 'tl' : !n && !e ? 'tr' : !s && !w ? 'bl' : !s && !e ? 'br'
+          : !n ? 't' : !s ? 'b' : !w ? 'l' : !e ? 'r' : 'c';
+        this.layers.ground[y][x] = P[piece];
+      }
+    }
+  }
+
   build() {
     if (!this.spawn) throw new Error(`${this.id}: no spawn point`);
+    this.layPaths();
     for (const t of this.trainers) this.block(t.x, t.y);
     return {
       id: this.id,

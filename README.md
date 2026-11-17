@@ -290,6 +290,12 @@ The world, in order:
 - **The pause menu** (Esc, or START on a phone): POKéMON (the first six and
   a summary of each), BAG (`.inventory`; read-only in battle), the trainer
   card (`.me`) and FLY.
+- **The rival** (AIDE, PROF. A's son, until he's named) picks the starter
+  that beats yours, from a random region, and waits near the end of every
+  gate's last route as a hard trainer.
+- **The Town Map** (Map button, or MAP in the menu), the **PC** (POKéMON in
+  the menu, then PC: swap anything you own into your six, as `.swap` does),
+  and, for the owner, **DEV TOOLS** in the menu.
 - **People** wander and turn like in the games, and face you when you talk.
   On sea routes you SURF.
 - **Rewards:** hidden Poke Balls hold a shop item, reward spots pay coins

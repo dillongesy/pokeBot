@@ -1032,6 +1032,8 @@ function prepareFixed(userId, foe, rng = Math.random) {
     brought,
     // No "Battle again": that would be an ordinary .b, not this fight.
     again: false,
+    // Running from this one isn't a loss (see settle()).
+    softRun: Boolean(foe.softRun),
     opponent: {
       kind: wild ? encounter.WILD : encounter.TRAINER,
       name: wild ? `Wild ${built[0].name}` : foe.name || 'Trainer',
@@ -1094,7 +1096,11 @@ function settle(userId, state, setup, outcome = null) {
   const startedAt = setup.startedAt || new Map();
 
   // Blown away by Roar or Dragon Tail, or teleported off: no result at all.
-  payout.noContest = Boolean(state.endedBy);
+  // Running from a fight the website marked softRun (a wild POKéMON far
+  // weaker than your team, early on) counts as neither a win nor a loss,
+  // the same as being blown away by Dragon Tail.
+  setup.fled = outcome === 'fled';
+  payout.noContest = Boolean(state.endedBy) || (setup.fled && Boolean(setup.softRun));
 
   // Wins and losses are also counted by kind (an Elite Four member is a
   // milestone, though it pays like a trainer until the fourth falls).
@@ -1138,9 +1144,11 @@ function settle(userId, state, setup, outcome = null) {
     lines.push("**The battle ended.** It doesn't count as a win or a loss.");
   } else if (outcome === 'fled') {
     lines.push(
-      state.kind === 'wild'
-        ? '**You got away safely.** Nothing was lost.'
-        : '**You walked away.** Nothing was lost.'
+      setup.softRun
+        ? "**You got away safely.** It doesn't count as a win or a loss."
+        : state.kind === 'wild'
+          ? '**You got away safely.** Nothing was lost.'
+          : '**You walked away.** Nothing was lost.'
     );
   } else {
     lines.push(`**You were defeated.** Nothing was lost. Try again with \`.battle\`.`);
@@ -1399,6 +1407,7 @@ async function begin(message, setup) {
   return {
     won: state.winner === 0 && !state.endedBy,
     lost: state.winner === 1 && !state.endedBy,
+    fled: Boolean(setup.fled),
   };
 }
 

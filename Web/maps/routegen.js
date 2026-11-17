@@ -26,7 +26,8 @@
  */
 
 const { MapBuilder } = require('./builder');
-const { TILES, BUILDINGS, GROUNDS, BIOME_GROUND } = require('./tiles');
+const { TILES, BUILDINGS, GROUNDS, BIOME_GROUND, ROCKS } = require('./tiles');
+const ROCK = ROCKS[0];
 const worldplan = require('../worldplan');
 
 const WIDTH = 18;
@@ -94,7 +95,7 @@ const LOCALS = {
   forest: [['Bug Catcher', 'childactor'], ['Picnicker', 'picnicker'], ['Camper', 'cooldude_brown'], ['Beauty', 'florist']],
   beach: [['Swimmer', 'swimmer'], ['Beauty', 'beachcomber'], ['Sailor', 'riverboatcaptain'], ['Fisherman', 'fisher']],
   coast: [['Fisherman', 'fisher'], ['Sailor', 'riverboatcaptain'], ['Swimmer', 'swimmer_blue'], ['Bird Keeper', 'postboy']],
-  jungle: [['Ranger', 'rogue_green'], ['Bug Catcher', 'childactor'], ['Psychic', 'magician'], ['Camper', 'cooldude_green']],
+  jungle: [['Ranger', 'rogue_green'], ['Bug Catcher', 'childactor'], ['Psychic', 'magician'], ['Camper', 'cooldude_blonde']],
   'river valley': [['Fisherman', 'fisher'], ['Ranger', 'rogue'], ['Picnicker', 'picnicker'], ['Swimmer', 'swimmer_green']],
   mountain: [['Hiker', 'miner'], ['Black Belt', 'monk'], ['Bird Keeper', 'postboy'], ['Veteran', 'knight']],
   cave: [['Hiker', 'miner_blue'], ['Scientist', 'scientist'], ['Black Belt', 'monk_black'], ['Psychic', 'witch']],
@@ -105,7 +106,7 @@ const LOCALS = {
   snowfield: [['Ace Trainer', 'knight_yellow'], ['Veteran', 'granny_blue'], ['Hiker', 'miner_green'], ['Cool Trainer', 'cooldude_blue']],
   'ice cave': [['Scientist', 'scientist_brown'], ['Hiker', 'miner_blue'], ['Psychic', 'witch'], ['Cool Trainer', 'ninja_red']],
   blizzard: [['Ace Trainer', 'warrior'], ['Veteran', 'knightlord'], ['Cool Trainer', 'dragonrider_blue'], ['Black Belt', 'monk_blue']],
-  summit: [['Ace Trainer', 'dragonrider'], ['Veteran', 'knightlord'], ['Cool Trainer', 'dragonrider_fiery'], ['Psychic', 'oracle']],
+  summit: [['Ace Trainer', 'dragonrider'], ['Veteran', 'knightlord'], ['Cool Trainer', 'dragonrider_fiery'], ['Psychic', 'magician_blonde']],
 };
 
 const BOSS_SPRITES = ['boss', 'boss_blue', 'boss_green', 'boss_orange', 'boss_red', 'overseer', 'ceo'];
@@ -242,6 +243,8 @@ function buildRoute(n) {
     if (battle.kind === 'wild') pieces.push({ kind: 'wild', rows: 2 + (random() < 0.4 ? 1 : 0), battle, index: i });
     else pieces.push({ kind: battle.kind, rows: battle.kind === 'boss' ? 4 : 3, battle, index: i });
   });
+  // The rival waits near the end of every gate's last route: a hard fight, once per gate.
+  if (n === gate.routes[gate.routes.length - 1].number) pieces.push({ kind: 'gap', rows: 2 }, { kind: 'rival', rows: 4 });
   pieces.push({ kind: 'gap', rows: 3 }, { kind: 'exit', rows: 2 });
 
   // Pockets sit on even rows so their trees line up with the border's.
@@ -272,7 +275,7 @@ function buildRoute(n) {
   const midCell = MIDDLE / 2;
   map.border([[midCell, 0], [midCell, height / 2 - 1]]);
   // The sand path has grass edges: only on grass.
-  if (map.ground.tile === TILES.grass) map.rect('ground', TILES.path, MIDDLE - 1, 0, 3, 5);
+  if (map.ground.tile === TILES.grass) map.path(MIDDLE - 1, 0, 3, 5);
 
   let trainerCount = 0;
   let patchCount = 0;
@@ -313,9 +316,29 @@ function buildRoute(n) {
         // About four average .battle wins' worth of coins, on top of the battle's own.
         reward: boss ? { coins: 20 + Math.floor(n / 2) } : null,
       });
+    } else if (p.kind === 'rival') {
+      // His own starter (chosen against yours) leads; Web/overworld.js adds it per player.
+      const size = Math.min(5, 1 + gate.number);
+      const ace = route.levels.hi + 3;
+      map.trainer({
+        id: 'rival',
+        rival: true,
+        name: 'AIDE',
+        sprite: 'cooldude_red',
+        x: RIGHT,
+        y: p.y + 2,
+        facing: 'left',
+        sight: INNER - 1,
+        level: ace,
+        team: teamFor(random, pool, size, ace - 1),
+        before: [
+          gate.number === 1 ? "AIDE: There you are! I've been training nonstop. Let's see who's stronger!" : `AIDE: Gate ${gate.number} already? Don't think I've been slacking!`,
+        ],
+        reward: { coins: 40 + n },
+      });
     } else if (p.kind === 'rest') {
       map.place(`rest-${n}-${leg}`, p.name, p.y, p.y + p.rows - 1);
-      if (map.ground.tile === TILES.grass) map.rect('ground', TILES.path, MIDDLE - 2, p.y + 1, 5, 4);
+      if (map.ground.tile === TILES.grass) map.path(MIDDLE - 2, p.y + 1, 5, 4);
       map.sign(MIDDLE - 4, p.y + 2, [p.name.toUpperCase(), 'Take a breather before the next stretch.']);
       if (map.ground.border !== 'water') {
         // A rest house: someone with advice. No POKéMON CENTER on a route.
@@ -410,7 +433,7 @@ function buildStop(n) {
   const last = n === gate.routes[gate.routes.length - 1].number;
   const midCell = MIDDLE / 2;
   map.border(last ? [[midCell, 0]] : [[midCell, 0], [midCell, STOP_HEIGHT / 2 - 1]]);
-  if (map.ground.tile === TILES.grass) map.rect('ground', TILES.path, MIDDLE - 1, 0, 4, STOP_HEIGHT);
+  if (map.ground.tile === TILES.grass) map.path(MIDDLE - 1, 0, 4, STOP_HEIGHT);
   const flowerKinds = map.ground.flowers.length ? map.ground.flowers : TILES.flowers;
   const flower = (x, y) => map.set('objects', x, y, pickOf(random, flowerKinds));
 

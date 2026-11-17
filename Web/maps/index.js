@@ -38,6 +38,13 @@ for (const map of Object.values(MAPS)) {
 function get(id) {
   if (MAPS[id]) return MAPS[id];
   // Inside a building: "in:<map>:<door x>,<door y>" (interiors.js).
+  const upstairs = /^(in:[a-z0-9-]+:\d+,\d+):up$/.exec(String(id));
+  if (upstairs) {
+    const down = get(upstairs[1]);
+    const room = down && require('./interiors').buildUpstairs(id, down);
+    if (room) MAPS[id] = room;
+    return room || null;
+  }
   const inside = /^in:([a-z0-9-]+):(\d+),(\d+)$/.exec(String(id));
   if (inside) {
     const outside = get(inside[1]);
@@ -70,6 +77,10 @@ function get(id) {
   return built;
 }
 
+/** Characters that exist; anyone else is drawn as a stand-in rather than not at all. */
+const CHARACTERS = new Set(require('fs').readdirSync(require('path').join(__dirname, '..', 'sprites', 'tuxemon', 'characters')).map((f) => f.replace(/\.png$/, '')));
+const looks = (sprite) => (CHARACTERS.has(sprite) ? sprite : 'cooldude');
+
 /**
  * What the browser is sent: the picture and what blocks you, but not what
  * decides outcomes (which grass is a one-battle patch, trainers' teams).
@@ -92,11 +103,11 @@ function publicView(map, beaten, { opened = () => false, found = () => false } =
     doors: map.doors,
     warps: map.warps.map((w) => ({ x: w.x, y: w.y })),
     trainers: map.trainers.map((t) => ({
-      id: t.id, name: t.name, sprite: t.sprite, x: t.x, y: t.y, facing: t.facing, beaten: beaten(t.id),
+      id: t.id, name: t.name, sprite: looks(t.sprite), x: t.x, y: t.y, facing: t.facing, beaten: beaten(t.id),
     })),
     obstacles: (map.obstacles || []).map((o) => ({ ...o, open: opened(o) })),
     npcs: (map.npcs || []).map((n) => ({
-      id: n.id, name: n.name, sprite: n.sprite, x: n.x, y: n.y, facing: n.facing, lines: n.lines, action: n.action || null,
+      id: n.id, name: n.name, sprite: looks(n.sprite), x: n.x, y: n.y, facing: n.facing, lines: n.lines, action: n.action || null,
       // How far they wander from where they stand (0: they stay put).
       wander: n.wander != null ? n.wander : n.action ? 0 : 2,
     })),

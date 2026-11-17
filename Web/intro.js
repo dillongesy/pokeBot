@@ -134,10 +134,19 @@ function chooseStarter(userId, speciesId) {
   const shiny = Math.random() < 1 / rates.shinyRate;
   const row = store.grantPokemon(userId, mon, { shiny, gender, method: 'starter' });
 
+  // The rival takes the starter that beats yours (fire beats grass, water
+  // beats fire, grass beats water), from a random region.
+  const slot = STARTERS.find((r) => r.species.includes(id)).species.indexOf(id);
+  const region = STARTERS[Math.floor(Math.random() * STARTERS.length)];
+  const rival = starterInfo(region.species[(slot + 1) % 3]);
+  db.open()
+    .prepare('INSERT OR IGNORE INTO web_progress (discord_user_id, prestige, key, done_at) VALUES (?, ?, ?, ?)')
+    .run(userId, prestigeOf(userId), `rival:${rival.species}`, Date.now());
+
   // Out of the lab and into Town 1, where the journey starts.
   require('./overworld').moveTo(userId, 'town-1');
 
-  return { ok: true, pokemon: { name: row.display_name, species: id, shiny: Boolean(row.shiny) } };
+  return { ok: true, pokemon: { name: row.display_name, species: id, shiny: Boolean(row.shiny) }, rival };
 }
 
 const isOutfit = (name) => outfits().includes(String(name));

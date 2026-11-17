@@ -261,6 +261,41 @@
     }
 
     // -----------------------------------------------------------------------
+    // Keeping the end of a battle short, like the games
+    // -----------------------------------------------------------------------
+
+    /** The result: who won, then coins and TRAINER EXP in one line. */
+    function resultLines(lines) {
+      const out = [];
+      let coins = null;
+      let exp = null;
+      for (const line of lines) {
+        const c = /earned ([\d,]+) coins/i.exec(line);
+        const x = /\+?([\d,]+) trainer exp/i.exec(line);
+        if (c) coins = c[1];
+        else if (x && !/\//.test(line)) exp = x[1];
+        else if (/^Trainer EXP [\d,]+\/|Trainer Lv/i.test(line)) continue;
+        else out.push(line);
+      }
+      if (coins || exp) out.push(`You got ${[coins && `${coins} coins`, exp && `${exp} TRAINER EXP`].filter(Boolean).join(' and ')}!`);
+      return out;
+    }
+
+    /** EXP lines: only the POKéMON that's out, and never "earned nothing". */
+    function expWorthSaying(line) {
+      if (/earned nothing/i.test(line)) return false;
+      if (/gained [\d,]+ (exp|experience)/i.test(line) || /\+[\d,]+ exp/i.test(line)) {
+        return Boolean(snap && line.toLowerCase().includes(String(snap.mine.name).toLowerCase()));
+      }
+      return true;
+    }
+
+    /** After the battle: level-ups, moves, evolutions and unlocks; not quest or streak news. */
+    function worthSaying(line) {
+      return !/quest|daily|streak|overdrive|gold|leaderboard/i.test(line);
+    }
+
+    // -----------------------------------------------------------------------
     // Menus
     // -----------------------------------------------------------------------
 
@@ -638,7 +673,7 @@
       const turnKey = `d:${latest.id}:${(e.footer && e.footer.text) || ''}:${e.description || ''}`;
       if (e.description && !seen.has(turnKey)) {
         seen.add(turnKey);
-        const turn = linesOf(e.description).filter((l) => !/^what will/i.test(l));
+        const turn = linesOf(e.description).filter((l) => !/^what will/i.test(l)).filter(expWorthSaying);
         // HP drops after the first line (the attack), the rest after it all.
         if (later && turn.length) {
           queue.push({ line: turn[0] }, { apply: later }, ...turn.slice(1).map((line) => ({ line })));
@@ -651,14 +686,14 @@
       // The result, then everything posted after it.
       if (e.fields[2] && !seen.has(`r:${latest.id}`)) {
         seen.add(`r:${latest.id}`);
-        queue.push(...linesOf(e.fields[2].value).map((line) => ({ line })));
+        queue.push(...resultLines(linesOf(e.fields[2].value)).map((line) => ({ line })));
       }
       for (const m of feedAfter) {
         const key = `m:${m.id}:${m.content || ''}:${(m.embeds || []).map((x) => x.title + x.description).join()}`;
         if (seen.has(key)) continue;
         seen.add(key);
         const lines = [...linesOf(m.content), ...(m.embeds || []).flatMap((x) => [...linesOf(x.title), ...linesOf(x.description)])];
-        queue.push(...lines.map((line) => ({ line })));
+        queue.push(...lines.filter(worthSaying).map((line) => ({ line })));
       }
 
       if (mode !== 'wait' && mode !== 'done' && mode !== 'choice') {

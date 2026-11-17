@@ -26,7 +26,11 @@
   padding: calc(var(--gp) * 6);
 }
 .i-stage.dark { background: radial-gradient(circle at 50% 45%, #3a4a78 0, #141a30 70%); }
-.i-stage.lab { background: linear-gradient(#e8eef0 0 62%, #b8c4c8 62% 100%); background-size: cover; background-position: center 30%; image-rendering: pixelated; }
+/* A real room, drawn at game scale (intro.js roomScene). */
+.i-stage.room { background: #000 center / 100% 100% no-repeat; image-rendering: pixelated; }
+.i-stage.room.choosing { align-items: stretch; }
+.i-stage.room.choosing .i-show, .i-stage.room.choosing .i-table { background: rgba(248, 248, 248, .9); border-radius: calc(var(--gp) * 3); padding: calc(var(--gp) * 2); }
+.i-mon.got.rival { right: auto; left: calc(var(--gp) * 40); }
 .i-stage.wardrobe { background: #4878a8; justify-content: space-between; align-items: stretch; }
 
 .i-figure {

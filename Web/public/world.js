@@ -373,7 +373,8 @@
         const scene = events.find((e) => e.type === 'scene');
         reload().then(() => {
           if (scene) {
-            hooks.read(scene.lines);
+            if (hooks.scene) hooks.scene(scene);
+            else hooks.read(scene.lines);
             if (hooks.unlocked) hooks.unlocked();
           }
         });
@@ -429,7 +430,14 @@
 
       const [dx, dy] = DIRS[dir];
       const nx = player.x + dx;
-      const ny = player.y + dy;
+      let ny = player.y + dy;
+      // Ledges: hop down over them (two tiles in one go); never up or along.
+      let hop = false;
+      if (inside(nx, ny) && map.terrain[ny][nx] === 'ledge' && !(devState && devState.noclip)) {
+        if (dir !== 'down') return;
+        ny += 1;
+        hop = true;
+      }
 
       const noclip = Boolean(devState && devState.noclip);
       const door = doorAt(nx, ny);
@@ -453,7 +461,8 @@
       player.x = nx;
       player.y = ny;
       player.started = now;
-      player.duration = (running ? RUN_MS : WALK_MS) / speed;
+      player.duration = ((running ? RUN_MS : WALK_MS) / speed) * (hop ? 2 : 1);
+      player.hop = hop;
       player.stepCount += 1;
 
       queue.push({ dir, x: nx, y: ny });
@@ -509,9 +518,11 @@
     function position(now) {
       if (!player.from) return { x: player.x * TILE, y: player.y * TILE, t: 0 };
       const t = Math.min(1, (now - player.started) / player.duration);
+      // Hopping a ledge: up in an arc on the way down.
+      const lift = player.hop ? Math.sin(t * Math.PI) * 10 : 0;
       return {
         x: (player.from.x + (player.x - player.from.x) * t) * TILE,
-        y: (player.from.y + (player.y - player.from.y) * t) * TILE,
+        y: (player.from.y + (player.y - player.from.y) * t) * TILE - lift,
         t,
       };
     }
@@ -570,6 +581,24 @@
         if (approach.lines.length) hooks.read(approach.lines, done);
         else done();
       }
+    }
+
+    /** Cutscene extras: a "!" over someone, and Pokemon flying about. */
+    let alerted = null;
+    let playerHidden = false;
+    const flyers = [];
+
+    /**
+     * A Pokemon flying from one tile to another (fractions and off-screen
+     * are fine). Resolves when it arrives; `stay` keeps it there until
+     * clearFlyers().
+     */
+    function fly({ src, from, to, ms = 1200, arc = 24, size = 40, stay = false }) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.src = src;
+        flyers.push({ img, from, to, ms, arc, size, stay, started: performance.now(), done: resolve });
+      });
     }
 
     /** Someone walking up to you (the milestone leader); then `done`. */
@@ -664,6 +693,7 @@
         people.push({
           y: pos.y,
           draw: () => {
+            if (playerHidden) return;
             const walking = player.from && pos.t > 0.15 && pos.t < 0.85;
             const column = walking ? (player.stepCount % 2 ? 0 : 2) : 1;
             if (map.surf) {
@@ -699,6 +729,39 @@
         if (approach && !approach.startedAt && art.alert) {
           const t = approach.trainer;
           g.drawImage(art.alert, t.x * TILE - camX, t.y * TILE - camY - CHAR_H + 2);
+        }
+        // A "!" over anyone a cutscene points at.
+        if (alerted && now < alerted.until && art.alert) {
+          const n = (map.npcs || []).find((x) => x.id === alerted.id);
+          if (n) g.drawImage(art.alert, n.x * TILE - camX, n.y * TILE - camY - CHAR_H + 2);
+        }
+        // Pokemon in the air (FARFETCH'D's taxi).
+        for (let i = flyers.length - 1; i >= 0; i--) {
+          const f = flyers[i];
+          const t = Math.min(1, (now - f.started) / f.ms);
+          const ease = t * t * (3 - 2 * t);
+          const fx = (f.from.x + (f.to.x - f.from.x) * ease) * TILE;
+          const fy = (f.from.y + (f.to.y - f.from.y) * ease) * TILE - Math.sin(t * Math.PI) * f.arc - Math.abs(Math.sin(now / 90)) * 2;
+          if (f.img.complete && f.img.naturalWidth) {
+            const size = f.size;
+            g.save();
+            if (f.to.x > f.from.x) {
+              // Facing the way it flies.
+              g.translate(Math.round(fx - camX + TILE / 2), 0);
+              g.scale(-1, 1);
+              g.drawImage(f.img, -size / 2, Math.round(fy - camY - size + TILE), size, size);
+            } else {
+              g.drawImage(f.img, Math.round(fx - camX + TILE / 2 - size / 2), Math.round(fy - camY - size + TILE), size, size);
+            }
+            g.restore();
+          }
+          if (t >= 1 && !f.stay) {
+            flyers.splice(i, 1);
+            f.done();
+          } else if (t >= 1 && !f.resolved) {
+            f.resolved = true;
+            f.done();
+          }
         }
       }
 
@@ -772,6 +835,19 @@
         character(n.sprite);
       },
       walkUp,
+      fly,
+      clearFlyers: () => { flyers.length = 0; },
+      alert(id, ms = 900) {
+        alerted = { id, until: performance.now() + ms };
+        return new Promise((r) => setTimeout(r, ms));
+      },
+      /** Where you stand, for cutscenes. */
+      get player() {
+        return { x: player.x, y: player.y, facing: player.facing };
+      },
+      set hidden(on) {
+        playerHidden = Boolean(on);
+      },
       get mapId() {
         return map && map.id;
       },

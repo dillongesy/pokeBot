@@ -46,6 +46,7 @@ function party(userId) {
       const art = battleCommand.spritesFor(row.species_id, row.form_folder, Boolean(row.shiny));
       return {
         id: row.id,
+        number: row.party_number,
         name: row.nickname || row.display_name,
         species: row.display_name,
         level: row.level,
@@ -174,4 +175,87 @@ function itemSprite(res, slug) {
   fs.createReadStream(file).pipe(res);
 }
 
-module.exports = { party, bag, trainer, tower, shop, buy, itemSprite, catalog };
+// ---------------------------------------------------------------------------
+// The PC: every Pokemon you own, to swap into your team
+// ---------------------------------------------------------------------------
+
+const PC_PAGE = 30;
+
+/** One page of everything you own, strongest first. */
+function pc(userId, page = 0) {
+  const battleCommand = require('../Commands/battle');
+  const total = store.countParty(userId);
+  const pages = Math.max(1, Math.ceil(total / PC_PAGE));
+  const at = Math.max(0, Math.min(pages - 1, Number(page) || 0));
+  const { cap } = store.battleTeam(userId);
+  const rows = store.listParty(userId, { sort: 'level', direction: 'desc', limit: PC_PAGE, offset: at * PC_PAGE });
+  return {
+    page: at,
+    pages,
+    total,
+    cap,
+    mons: rows.map((row) => ({
+      id: row.id,
+      number: row.party_number,
+      name: row.nickname || row.display_name,
+      level: row.level,
+      shiny: Boolean(row.shiny),
+      sprite: battleCommand.spritesFor(row.species_id, row.form_folder, Boolean(row.shiny)).front,
+      tooHigh: row.level > cap,
+    })),
+  };
+}
+
+/** Swap two party slots, exactly as .swap does (refused mid-battle or mid-trade). */
+function swap(userId, a, b) {
+  const text = require('../Commands/party').runSwap(userId, [Number(a), Number(b)]);
+  return { ok: /^Moved/.test(text), text: String(text).replace(/\*\*|`/g, '') };
+}
+
+// ---------------------------------------------------------------------------
+// The Town Map
+// ---------------------------------------------------------------------------
+
+/**
+ * The world, for the Town Map: the way in, the eight gates with their routes
+ * and stops, which of them you've been to, and where you are now (a room
+ * counts as the place it's in).
+ */
+function townMap(userId) {
+  const db = require('../Utils/db');
+  const maps = require('./maps');
+  const plan = require('./worldplan').plan();
+  const row = store.getUser(userId);
+  const prestige = (row && row.prestige) || 0;
+  const visited = new Set(
+    db.open()
+      .prepare("SELECT key FROM web_progress WHERE discord_user_id = ? AND prestige = ? AND key LIKE 'visited:%'")
+      .all(userId, prestige)
+      .map((r) => r.key.split(':')[1])
+  );
+  const pos = db.open().prepare('SELECT map FROM web_position WHERE discord_user_id = ?').get(userId);
+  let here = pos ? pos.map : 'town-1';
+  // Indoors: the place the building is in.
+  for (let i = 0; i < 3 && /^in:/.test(here); i++) here = here.split(':')[1];
+  if (here === 'tower-arena') here = 'main-city';
+  const name = (id) => {
+    const m = maps.get(id);
+    return m ? m.name : id;
+  };
+  return {
+    here,
+    intro: ['town-1', 'path-a', 'town-2', 'path-b'].map((id) => ({ id, name: name(id), visited: visited.has(id) })),
+    gates: plan.gates.map((g) => ({
+      number: g.number,
+      region: g.region,
+      biomes: g.biomes,
+      stops: g.routes.map((r) => ({
+        route: { id: `route-${r.number}`, name: r.name, visited: visited.has(`route-${r.number}`) },
+        stop: { id: `stop-${r.number}`, name: r.stop.name, kind: r.stop.kind, visited: visited.has(`stop-${r.number}`) },
+      })),
+    })),
+    city: { id: 'main-city', name: name('main-city'), visited: visited.has('main-city') },
+  };
+}
+
+module.exports = { party, bag, trainer, tower, shop, buy, itemSprite, catalog, pc, swap, townMap };

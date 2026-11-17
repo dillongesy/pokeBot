@@ -296,24 +296,34 @@
   /** The pause menu, the bag, the MART (menu.js). */
   let menuUI = null;
 
+  function openMap() {
+    if (station || dialog || battleUI.open || introUI.open || menuUI.open || world.busy) return;
+    world.releaseAll();
+    menuUI.map();
+  }
+
   function openMenu() {
     if (station || dialog || battleUI.open || introUI.open || menuUI.open || world.busy) return;
     world.releaseAll();
     menuUI.pause();
   }
 
-  /** The inside of PROF. A's lab, as a picture, for the opening's lab scene. */
-  let labPicture = null;
-  async function labBackground() {
-    if (labPicture) return labPicture;
+  /** A real room as a picture (the lab, AIDE's house), for the opening's scenes. */
+  async function roomPicture(kind) {
     try {
-      const map = await fetch('/api/scene/lab').then((r) => r.json());
-      const canvas = await window.World.preview(map);
-      labPicture = canvas.toDataURL();
+      const map = await fetch(`/api/scene/${kind}`).then((r) => r.json());
+      return await window.World.preview(map);
     } catch {
-      labPicture = null;
+      return null;
     }
-    return labPicture;
+  }
+
+  /** "DILLON'S HOUSE", "JAMES' HOUSE": names on signs. */
+  function fillName(line) {
+    const name = String((me && me.username) || 'YOUR').toUpperCase();
+    return String(line)
+      .replace(/\{PLAYER_POSSESSIVE\}/g, /S$/.test(name) ? `${name}'` : `${name}'S`)
+      .replace(/\{PLAYER\}/g, name);
   }
   /** The opening and the wardrobe (intro.js). */
   let introUI = null;
@@ -387,11 +397,9 @@
       if (!flyPlaces.length) list.append(el('p', 'hint', "You haven't been anywhere you can fly to yet."));
       for (const place of flyPlaces) {
         const b = el('button', 'btn btn-secondary', escape(place.name));
-        b.addEventListener('click', async () => {
-          const r = await post('/api/fly', { key: place.key });
+        b.addEventListener('click', () => {
           closePanel();
-          if (r.ok) await world.refresh();
-          else if (r.text) showDialog([r.text]);
+          flyTo(place.key);
         });
         list.append(b);
       }
@@ -544,6 +552,7 @@
   // -------------------------------------------------------------------------
 
   function showDialog(lines, done = null) {
+    lines = lines.map(fillName);
     world.releaseAll();
     if (dialog) {
       clearInterval(dialog.timer);
@@ -815,6 +824,53 @@
     'We hope to see you again!',
   ];
 
+  // -------------------------------------------------------------------------
+  // FARFETCH'D: the taxi scene, and flying
+  // -------------------------------------------------------------------------
+
+  const FARFETCHD = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/83.png';
+  const say = (lines) => new Promise((resolve) => showDialog(lines, resolve));
+
+  /** The first time in the MAIN CITY: the taxi driver and his FARFETCH'D. */
+  async function taxiScene() {
+    world.setFrozen(true);
+    await world.alert('taxi', 900);
+    await new Promise((resolve) => world.walkUp('taxi', [
+      'TAXI DRIVER: Hey! You there, the new trainer!',
+      "TAXI DRIVER: Have you seen my FARFETCH'D? It flew off this morning and I can't find it anywhere!",
+    ], resolve));
+    const p = world.player;
+    await world.fly({ src: FARFETCHD, from: { x: p.x + 9, y: p.y - 9 }, to: { x: p.x + 1, y: p.y - 1 }, ms: 1300, arc: 30, size: 56, stay: true });
+    await say(["FARFETCH'D: Faaar-fetch'd!"]);
+    await say([
+      "TAXI DRIVER: There you are! ...Oh, it looks like it found YOU. It must like you!",
+      "TAXI DRIVER: My FARFETCH'D runs the city's sky taxi. It can FLY anyone to any place they've been before.",
+      "TAXI DRIVER: Here, take my TAXI PASS. Hold it up anywhere and FARFETCH'D will come and get you.",
+    ]);
+    await say(['You got the TAXI PASS!', 'Now you can FLY to any place you have been. Press M, or choose FLY in the MENU.']);
+    world.clearFlyers();
+    await world.fly({ src: FARFETCHD, from: { x: p.x + 1, y: p.y - 1 }, to: { x: p.x + 12, y: p.y - 10 }, ms: 1100, arc: 10 });
+    world.setFrozen(false);
+    refreshFly();
+  }
+
+  /** FLY: FARFETCH'D swoops in, carries you off, and drops you there. */
+  async function flyTo(key) {
+    world.setFrozen(true);
+    const p = world.player;
+    await world.fly({ src: FARFETCHD, from: { x: p.x + 9, y: p.y - 8 }, to: { x: p.x, y: p.y }, ms: 900, arc: 20, stay: true });
+    world.hidden = true;
+    world.clearFlyers();
+    await world.fly({ src: FARFETCHD, from: { x: p.x, y: p.y }, to: { x: p.x - 10, y: p.y - 10 }, ms: 900, arc: 0 });
+    const r = await post('/api/fly', { key });
+    if (r.ok) await world.refresh();
+    const q = world.player;
+    await world.fly({ src: FARFETCHD, from: { x: q.x - 10, y: q.y - 9 }, to: { x: q.x, y: q.y }, ms: 900, arc: 10 });
+    world.hidden = false;
+    world.setFrozen(false);
+    if (!r.ok && r.text) showDialog([r.text]);
+  }
+
   /** The Drop Station is a counter, not a room. */
   function enterBuilding(which) {
     if (which === 'drop') openPanel('drop', 'door');
@@ -937,18 +993,37 @@
       // Grass or a trainer: the battle is already running on the server.
       encounter: () => openBattle(),
       loaded: () => showDevTag(),
+      // A scene on arriving somewhere (the taxi driver in the MAIN CITY).
+      scene: (scene) => (scene.id === 'fly' ? taxiScene() : showDialog(scene.lines)),
       unlocked: () => refreshFly(),
       post,
     });
     makeBattleUI();
-    introUI = window.IntroScreen.create($('intro'), { post, name: () => me.globalName || me.username, labBackground });
+    // The professor calls you by your Discord username.
+    introUI = window.IntroScreen.create($('intro'), { post, name: () => me.username, scene: roomPicture });
     menuUI = window.MenuScreen.create($('menu'), {
       post,
       get: (p) => fetch(p).then((r) => r.json()),
       fly: () => openFly(),
       name: () => me.globalName || me.username,
+      // The owner's dev tools in the menu (the server refuses anyone else).
+      dev: data.owner ? {
+        state: () => world.dev,
+        run: async (cmd, ...args) => {
+          const r = await post('/api/dev', { cmd, args });
+          if (r.reload) await world.refresh();
+          showDevTag();
+          return r;
+        },
+        speed: (n) => {
+          if (n) world.setSpeed(n);
+          showDevTag();
+          return world.speed;
+        },
+      } : null,
     });
     $('hud-menu').addEventListener('click', openMenu);
+    $('hud-map').addEventListener('click', openMap);
     $('hud-fly').addEventListener('click', openFly);
     refreshFly();
     bindControls();

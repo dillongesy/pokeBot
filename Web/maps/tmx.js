@@ -79,7 +79,7 @@ function decode(data, width, height) {
  * @returns {object} a built map, plus `people` (where the room's own people
  *          stand, by Tuxemon's name for them) and `exit` (the doormat)
  */
-function load(file, { id, name }) {
+function load(file, { id, name, exit: knownExit = null }) {
   const xml = fs.readFileSync(path.join(ROOMS_DIR, `${file}.tmx`), 'utf8');
   const head = /<map\b[^>]*>/.exec(xml)[0];
   const width = Number(attr(head, 'width'));
@@ -126,15 +126,18 @@ function load(file, { id, name }) {
   }
 
   // Events: the way out, and where people stand.
-  let exit = null;
+  let exit = knownExit;
   const people = {};
+  /** Every teleport: where it is, and where it leads (another room's file and tile). */
+  const teleports = [];
   const events = group('Events');
   objectRe.lastIndex = 0;
   while ((m = objectRe.exec(events))) {
     const body = m[2] || '';
     const x = Math.floor(Number(attr(m[1], 'x')) / 16);
     const y = Math.floor(Number(attr(m[1], 'y')) / 16);
-    const teleport = /value="transition_teleport player,([^,"]+)/.exec(body);
+    const teleport = /value="transition_teleport player,([^,"]+),(\d+),(\d+)/.exec(body);
+    if (teleport) teleports.push({ x, y, target: teleport[1].replace(/\.tmx$/, ''), tx: Number(teleport[2]), ty: Number(teleport[3]) });
     // The way out leads outdoors (a town or city), not upstairs.
     if (teleport && !exit && /town|city/i.test(teleport[1])) exit = { x, y };
     const npcRe = /value="create_npc ([^,"]+),(\d+),(\d+)/g;
@@ -172,6 +175,7 @@ function load(file, { id, name }) {
     spawn: { x: exit.x, y: exit.y - 1, facing: 'up' },
     exit,
     people,
+    teleports,
   };
 }
 

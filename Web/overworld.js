@@ -250,7 +250,12 @@ function step(userId, body) {
   const map = maps.get(p.map);
   p.facing = dir;
   const nx = p.x + delta[0];
-  const ny = p.y + delta[1];
+  let ny = p.y + delta[1];
+  // A ledge: only ever hopped down, landing on the tile beyond it.
+  if (map.terrain[ny] && map.terrain[ny][nx] === 'ledge') {
+    if (dir !== 'down') return { ok: false, reason: 'blocked', player: position(p), events: [] };
+    ny += 1;
+  }
 
   // Walking up into a door opens its station; you stay outside.
   const door = map.doors.find((d) => d.x === nx && d.y === ny);
@@ -303,7 +308,7 @@ function step(userId, body) {
     // The first time in the Main City: the taxi driver, and FLY.
     if (to.id === 'main-city' && !isDone(userId, FLY_KEY)) {
       markDone(userId, FLY_KEY);
-      events.push({ type: 'scene', lines: require('./maps/world').FLY_SCENE });
+      events.push({ type: 'scene', id: 'fly', lines: require('./maps/world').FLY_SCENE });
     }
     return { ok: true, player: position(p), events };
   }
@@ -366,17 +371,40 @@ function sightCheck(userId, p, map) {
       // They walk up to the tile next to you (the browser shows it).
       const walk = i - 1;
       p.facing = { up: 'down', down: 'up', left: 'right', right: 'left' }[t.facing];
-      begin(userId, p, { kind: 'trainer', name: t.name, team: t.team }, key, t.reward);
+      const team = t.rival ? [{ species: rivalOf(userId), level: t.level, evolve: true }, ...t.team] : t.team;
+      begin(userId, p, { kind: 'trainer', name: t.name, team }, key, t.reward);
       return { type: 'trainer', id: t.id, name: t.name, walk, lines: t.before };
     }
   }
   return null;
 }
 
+/**
+ * Early on (Gates 1-3 and the paths to the MAIN CITY), when a wild POKéMON
+ * is far weaker than your team, you can run from it without it counting as
+ * a loss (or a win), the same as a battle ended by Dragon Tail. It still
+ * fights normally, and beating it pays as usual. Running from a one-battle
+ * patch this way counts the patch as done, so you can move on.
+ */
+const OUTMATCHED_BY = 10;
+const LAST_SOFT_ROUTE = 30;
+
+function earlyMap(map) {
+  const route = /^route-(\d+)$/.exec(map.id);
+  return route ? Number(route[1]) <= LAST_SOFT_ROUTE : ['path-a', 'path-b', 'testroute'].includes(map.id);
+}
+
+/** Your strongest POKéMON that will fight (one that obeys, in your first six). */
+function strongest(userId) {
+  const { team } = store.battleTeam(userId);
+  return team.length ? Math.max(...team.map((mon) => mon.level || 0)) : 0;
+}
+
 function startWild(userId, p, map, key, fixedLevel = null) {
   const { lo, hi } = map.levels;
   // A patch's battle is at the level the plan gave it; optional grass varies.
   const level = fixedLevel || lo + Math.floor(Math.random() * (hi - lo + 1));
+  const softRun = earlyMap(map) && strongest(userId) >= level + OUTMATCHED_BY;
   let species;
   if (map.pool && map.pool.length) {
     // The biome's own Pokemon, common ones more often (routegen.js).
@@ -397,7 +425,7 @@ function startWild(userId, p, map, key, fixedLevel = null) {
       species = 1 + Math.floor(Math.random() * 800);
     }
   }
-  begin(userId, p, { kind: 'wild', team: [{ species, level }] }, key);
+  begin(userId, p, { kind: 'wild', team: [{ species, level }], softRun }, key);
   return { type: 'wild' };
 }
 
@@ -416,6 +444,8 @@ function begin(userId, p, foe, key, reward = null) {
         notify(userId, 'world', { message: result.error, player: position(p) });
         return;
       }
+      // Ran from a far weaker wild POKéMON early on: the patch is done with.
+      if (result.fled && foe.softRun && key) markDone(userId, key);
       if (result.won && key) {
         const first = !isDone(userId, key);
         markDone(userId, key);
@@ -474,6 +504,17 @@ function pay(userId, reward) {
     return `${qty > 1 ? `${qty} x ` : ''}${String(name).toUpperCase()}`;
   }
   return null;
+}
+
+/**
+ * The rival's starter: the one he picked against yours in the lab (stored
+ * per prestige by Web/intro.js), or, for anyone without one, a fire starter.
+ */
+function rivalOf(userId) {
+  const row = db.open()
+    .prepare("SELECT key FROM web_progress WHERE discord_user_id = ? AND prestige = ? AND key LIKE 'rival:%'")
+    .get(userId, prestigeOf(userId));
+  return row ? Number(row.key.split(':')[1]) : 4;
 }
 
 const FLY_KEY = 'fly:unlocked';
@@ -588,7 +629,11 @@ function ghostStep(dev, body) {
   const map = maps.get(g.map);
   g.facing = body.dir;
   const nx = g.x + delta[0];
-  const ny = g.y + delta[1];
+  let ny = g.y + delta[1];
+  if (!dev.noclip && map.terrain[ny] && map.terrain[ny][nx] === 'ledge') {
+    if (body.dir !== 'down') return refuse('blocked');
+    ny += 1;
+  }
   const door = map.doors.find((d) => d.x === nx && d.y === ny);
   if (door && body.dir === 'up' && !dev.noclip) {
     const room = door.station !== 'drop' && maps.get(`in:${map.id}:${door.x},${door.y}`);

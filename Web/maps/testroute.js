@@ -27,7 +27,7 @@ const map = new MapBuilder({
 map.border([[3, 0]]);
 map.tree(10, 16);
 
-map.rect('ground', TILES.path, 6, 0, 2, 8);
+map.path(6, 0, 2, 8);
 map.sign(4, 4, ['TEST ROUTE', 'North: Dev Town']);
 
 // Grass right across the route: one battle each.

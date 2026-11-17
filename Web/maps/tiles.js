@@ -46,8 +46,9 @@ const HOUSE = {
     ['b517', 'b518', 'b519', 'b520', 'b521'],
     ['b564', 'b565', 'b566', 'b567', 'b568'],
   ],
-  overlay: [{ dx: 4, dy: 1, tile: 'b181' }, { dx: 4, dy: 2, tile: 'b228' }],
-  door: { dx: 4 },
+  // The door sits one in from the drainpipe on the right.
+  overlay: [{ dx: 3, dy: 1, tile: 'b181' }, { dx: 3, dy: 2, tile: 'b228' }],
+  door: { dx: 3 },
 };
 
 /**

@@ -22,7 +22,7 @@ map.building(HOUSE, 13, 2, { station: 'battle' });
 map.sign(12, 5, ['BATTLE STATION', 'Take your team into a battle.']);
 
 // The path along the front of both stations.
-map.rect('ground', TILES.path, 3, 6, 16, 4);
+map.path(3, 6, 16, 4);
 
 // A pond: a shallow rim you can wade through, deep water in the middle.
 map.rect('ground', TILES.shore, 3, 10, 7, 6, TILES.shallow);

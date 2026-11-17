@@ -62,11 +62,52 @@
 
     let open = false;
     let typing = null;
-    /** The inside of the lab (a picture of the real room), behind the lab scenes. */
-    let labImage = null;
-    if (hooks.labBackground) hooks.labBackground().then((url) => { labImage = url; labLook(); });
-    function labLook() {
-      stage.style.backgroundImage = stage.classList.contains('lab') && labImage ? `url(${labImage})` : '';
+    /** Pictures of the real rooms (the lab, AIDE's house), loaded once. */
+    const rooms = {};
+    const pictures = new Map();
+    function picture(src) {
+      if (!pictures.has(src)) {
+        pictures.set(src, new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = src;
+        }));
+      }
+      return pictures.get(src);
+    }
+
+    /**
+     * A room, drawn exactly as walking around in it looks: real scale,
+     * centred on `focus`, dark round the edges where the room ends, with
+     * everyone standing where they are.
+     *
+     * @param {'lab'|'rival'} kind
+     * @param {{x,y}} focus   the tile in the middle of the view
+     * @param {Array<{sprite,x,y,facing}>} cast
+     */
+    async function roomScene(kind, focus, cast) {
+      if (!rooms[kind] && hooks.scene) rooms[kind] = await hooks.scene(kind);
+      const room = rooms[kind];
+      const w = 240;
+      const h = Math.max(80, Math.round((240 * stage.clientHeight) / Math.max(1, stage.clientWidth)));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const g = canvas.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      g.fillStyle = '#000';
+      g.fillRect(0, 0, w, h);
+      const camX = focus.x * 16 + 8 - w / 2;
+      const camY = focus.y * 16 + 8 - h / 2;
+      if (room) g.drawImage(room, -camX, -camY);
+      for (const who of [...cast].sort((a, b) => a.y - b.y)) {
+        const img = await picture(`${CHARACTERS}/${who.sprite}.png`);
+        if (img) g.drawImage(img, 16, ROW[who.facing] * 32, 16, 32, who.x * 16 - camX, who.y * 16 - 16 - camY, 16, 32);
+      }
+      stage.className = 'i-stage room';
+      stage.style.backgroundImage = `url(${canvas.toDataURL()})`;
+      stage.replaceChildren();
     }
     /** The current step's key handler and its "A when the text is done". */
     let onKey = null;
@@ -154,9 +195,9 @@
     // Scenes
     // -----------------------------------------------------------------------
 
-    function professorScene(dark = true) {
-      stage.className = `i-stage ${dark ? 'dark' : 'lab'}`;
-      labLook();
+    function professorScene() {
+      stage.className = 'i-stage dark';
+      stage.style.backgroundImage = '';
       const prof = figure('professor', 'big');
       pose(prof, 'down');
       stage.replaceChildren(prof);
@@ -240,8 +281,8 @@
       return new Promise((resolve) => {
         const all = regions.flatMap((r) => r.starters.map((s) => ({ ...s, region: r.region })));
         let at = 0;
-        stage.className = 'i-stage lab';
-        labLook();
+        // Over the lab as it is: the room stays behind the table.
+        stage.classList.add('choosing');
         const show = el('div', 'i-show');
         const big = el('img', 'i-mon');
         big.alt = '';
@@ -285,7 +326,10 @@
           const s = all[at];
           const type1 = (s.types[0] || 'normal').toUpperCase();
           const yes = (await ask(`So, you want ${s.name.toUpperCase()}, the ${type1}-type POKéMON?`)) === 0;
-          if (yes) resolve(s);
+          if (yes) {
+            stage.classList.remove('choosing');
+            resolve(s);
+          }
           else {
             text.textContent = 'Choose a POKéMON.';
             onKey = keys;
@@ -311,8 +355,10 @@
 
     async function play(data, current) {
       show();
-      const name = hooks.name();
-      professorScene(true);
+      const name = hooks.name().toUpperCase();
+      const RIVAL = 'AIDE';
+      const RIVAL_LOOK = 'cooldude_red';
+      professorScene();
       await say([
         'Hello there! Welcome to the world of POKéMON!',
         'My name is A. People call me the POKéMON PROF!',
@@ -322,27 +368,64 @@
       ]);
       const outfit = await wardrobe(data.outfits, current);
       await hooks.post('/api/intro', { action: 'outfit', outfit });
-      professorScene(true);
+      professorScene();
       const me = figure(outfit, 'big me');
       pose(me, 'down');
       stage.append(me);
-      await say([`Right! So your name is ${name.toUpperCase()}!`, 'Come with me to my LAB. I have something for you.']);
-
-      professorScene(false);
       await say([
-        "Here we are. These POKéMON come from every region there is.",
-        `Each of them is LV${data.level}. Take whichever you like!`,
+        `Right! So your name is ${name}!`,
+        `${name}, my son ${RIVAL} lives right next door to you. He has been waiting all morning!`,
+        "Let's go and get him first.",
+      ]);
+
+      // AIDE's house: PROF. A's family home.
+      await roomScene('rival', { x: 5, y: 3 }, [
+        { sprite: RIVAL_LOOK, x: 4, y: 4, facing: 'right' },
+        { sprite: 'professor', x: 6, y: 5, facing: 'up' },
+        { sprite: outfit, x: 7, y: 5, facing: 'up' },
+      ]);
+      await say([
+        `${RIVAL}: Dad! Is this the new trainer?`,
+        `${RIVAL}: So you're ${name}. I'm ${RIVAL}. Today we BOTH get our first POKéMON!`,
+        `${RIVAL}: Race you to the lab!`,
+      ]);
+
+      // The lab.
+      const labCast = (rivalFacing = 'up') => [
+        { sprite: 'professor', x: 10, y: 6, facing: 'down' },
+        { sprite: outfit, x: 9, y: 9, facing: 'up' },
+        { sprite: RIVAL_LOOK, x: 11, y: 9, facing: rivalFacing },
+      ];
+      await roomScene('lab', { x: 10, y: 7 }, labCast());
+      await say([
+        'PROF. A: Here we are. These POKéMON come from every region there is.',
+        `PROF. A: Each of them is LV${data.level}. ${name}, you choose first!`,
       ]);
       for (;;) {
         const chosen = await lab(data.regions);
         const result = await hooks.post('/api/intro', { action: 'starter', species: chosen.species });
-        professorScene(false);
+        await roomScene('lab', { x: 10, y: 7 }, labCast());
         if (result.ok) {
           const got = el('img', 'i-mon got');
           got.src = chosen.sprite || '';
           got.alt = '';
           stage.append(got);
-          await say([`${name.toUpperCase()} received the ${result.pokemon.name.toUpperCase()} from PROF. A!`]);
+          await say([`${name} received the ${result.pokemon.name.toUpperCase()} from PROF. A!`]);
+          if (result.rival) {
+            await roomScene('lab', { x: 10, y: 7 }, labCast('left'));
+            const his = el('img', 'i-mon got rival');
+            his.src = result.rival.sprite || '';
+            his.alt = '';
+            stage.append(his);
+            const mine = (chosen.types[0] || 'normal').toUpperCase();
+            const theirs = (result.rival.types[0] || 'normal').toUpperCase();
+            await say([
+              `${RIVAL}: Then I'll take this one!`,
+              `${RIVAL} received the ${result.rival.name.toUpperCase()} from PROF. A!`,
+              `${RIVAL}: Heh. ${theirs} beats ${mine}! You'll need more than that to keep up with me.`,
+              `${RIVAL}: I'll be waiting for you out past the gates of the MAIN CITY. Every single one. Don't fall behind!`,
+            ]);
+          }
           break;
         }
         if (result.reason === 'already') {
@@ -351,9 +434,10 @@
         }
         await say(["Hmm, that didn't work. Let's try again."]);
       }
+      await roomScene('lab', { x: 10, y: 7 }, labCast('up'));
       await say([
-        `${name.toUpperCase()}! Your very own POKéMON legend is about to unfold!`,
-        "A world of dreams and adventures with POKéMON awaits! Let's go!",
+        `PROF. A: ${name}! Your very own POKéMON legend is about to unfold!`,
+        "PROF. A: A world of dreams and adventures with POKéMON awaits! Let's go!",
       ]);
       hide();
     }

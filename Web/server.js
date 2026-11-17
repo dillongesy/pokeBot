@@ -348,11 +348,14 @@ async function handle(req, res) {
   if (req.method === 'GET' && pathname === '/api/stream') return stream(req, res, session);
   if (req.method === 'GET' && pathname === '/api/world') return send(res, 200, overworld.view(session.id));
   if (req.method === 'GET' && pathname === '/api/intro') return send(res, 200, intro.view(session.id));
-  if (req.method === 'GET' && pathname === '/api/scene/lab') {
-    const lab = require('./maps').get('room:professor_lab');
-    return send(res, 200, require('./maps').publicView(lab, () => false));
+  const scene = /^\/api\/scene\/(lab|rival)$/.exec(pathname);
+  if (req.method === 'GET' && scene) {
+    const room = require('./maps').get(scene[1] === 'lab' ? 'room:professor_lab' : 'room:taba_house2');
+    return send(res, 200, { ...require('./maps').publicView(room, () => false), people: room.people });
   }
   if (req.method === 'GET' && pathname === '/api/party') return send(res, 200, menus.party(session.id));
+  if (req.method === 'GET' && pathname === '/api/townmap') return send(res, 200, menus.townMap(session.id));
+  if (req.method === 'GET' && pathname === '/api/pc') return send(res, 200, menus.pc(session.id, url.searchParams.get('page')));
   if (req.method === 'GET' && pathname === '/api/bag') return send(res, 200, menus.bag(session.id));
   if (req.method === 'GET' && pathname === '/api/trainer') return send(res, 200, menus.trainer(session.id));
   if (req.method === 'GET' && pathname === '/api/shop') return send(res, 200, menus.shop(session.id));
@@ -367,7 +370,7 @@ async function handle(req, res) {
   const filePath = /^\/api\/file\/([a-z]+)\/(web-\d+)\/(\d+)$/.exec(pathname);
   if (req.method === 'GET' && filePath) return file(res, session, filePath[1], filePath[2], filePath[3]);
 
-  if (req.method === 'POST' && ['/api/run', '/api/press', '/api/step', '/api/dev', '/api/intro', '/api/pickup', '/api/fly', '/api/shop', '/api/tower'].includes(pathname)) {
+  if (req.method === 'POST' && ['/api/run', '/api/press', '/api/step', '/api/dev', '/api/intro', '/api/pickup', '/api/fly', '/api/shop', '/api/tower', '/api/swap'].includes(pathname)) {
     if (!sameOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
     let body;
     try {
@@ -379,6 +382,7 @@ async function handle(req, res) {
     if (pathname === '/api/pickup') return send(res, 200, overworld.pickup(session.id));
     if (pathname === '/api/fly') return send(res, 200, overworld.fly(session.id, body.key));
     if (pathname === '/api/shop') return send(res, 200, menus.buy(session.id, body.id, body.qty));
+    if (pathname === '/api/swap') return send(res, 200, menus.swap(session.id, body.a, body.b));
     if (pathname === '/api/tower') return send(res, 200, overworld.tower(session.id, String(body.action || '')));
     if (pathname === '/api/intro') {
       if (body.action === 'outfit') {
