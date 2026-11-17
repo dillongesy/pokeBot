@@ -30,6 +30,13 @@ html, body {
 
 [hidden] { display: none !important; }
 
+.build-tag {
+  position: fixed; top: 6px; right: 8px; z-index: 50;
+  font-family: var(--pixel); font-size: 8px;
+  color: var(--muted); pointer-events: none;
+}
+.build-tag.dev-on { color: var(--warn); }
+
 button { font: inherit; color: inherit; cursor: pointer; }
 
 /* ---------- Login ---------- */
@@ -83,7 +90,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px 20px;
+  padding: 26px 16px 20px;
   min-height: 100vh;
 }
 
@@ -119,6 +126,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .pill.cooling { background: var(--bg-2); color: var(--paper); border-color: var(--frame); }
 .pill-battle { background: var(--accent); }
+.pill-fly { background: var(--frame); cursor: pointer; }
+.fly-list { display: grid; gap: 8px; }
+.catch input.qty { width: 4.5em; flex: none; }
+.fly-list button { text-align: left; }
 .hud-logout { color: var(--muted); font-size: 18px; }
 
 .screen {
@@ -396,6 +407,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   box-shadow: 0 4px 0 var(--ink);
 }
 .ab .btn-a { margin-bottom: 26px; }
+.ab .btn-start { width: 54px; height: 24px; border-radius: 12px; font-size: 8px; background: #556080; align-self: flex-start; }
 .ab button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
 .keys { color: var(--muted); margin: 0; text-align: center; font-size: 18px; }
 

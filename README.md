@@ -242,6 +242,68 @@ To turn it on:
 
 Without `WEB_URL` the site doesn't start at all.
 
+**Who can log in:** only `DISCORD_OWNER_ID` while the site is being built.
+Add `WEB_PUBLIC=1` to `.env` (and restart) to open it to everyone.
+
+### The overworld
+
+The server decides the world ([Web/overworld.js](Web/overworld.js)). The
+browser draws it and shows each step straight away, but every step is sent to
+`/api/step` and checked: next to where you stand, onto something walkable, not
+during a battle, and not faster than running. A refused step puts you back
+where the server says you are. Grass battles, trainers and whiting out are
+decided there too, and progress (patches and trainers beaten, places visited)
+is stored per prestige in `web_progress`, so a prestige restarts the world.
+
+Maps are built on the server in [Web/maps/](Web/maps/) (see `builder.js`); the
+browser gets them without the parts that decide outcomes. The whole world's
+layout and balance comes from [Web/worldplan.js](Web/worldplan.js):
+`node Web/worldplan.js` prints every route, its levels and battle count, and
+how it compares with `.b`.
+
+The world, in order:
+
+- **The opening** ([Web/intro.js](Web/intro.js)): Professor A, choosing an
+  outfit (any of Tuxemon's characters), and a Lv 5 starter from any region.
+  Everyone plays it once, and again after each prestige; the starter is given
+  at most once per prestige. Nobody can walk until it's done.
+- **Town 1 -> Path a -> Town 2 -> Path b -> Main City**
+  ([Web/maps/world.js](Web/maps/world.js)). Your house in Town 1 is the
+  wardrobe. The Main City has the Battle Tower (milestones only: on the web,
+  routes are what `.b` is on Discord), the Drop Station and eight gates.
+- **Routes 1-79 and the stop after each** are generated from the plan
+  ([Web/maps/routegen.js](Web/maps/routegen.js)), with exactly the plan's
+  battles at the plan's levels, biome Pokemon, rest stops, and hidden Poke
+  Balls behind field-move obstacles. Route N+1 opens once Route N is cleared
+  and milestone N is beaten.
+- **Towns** have a POKéMON CENTER (entering one makes it where you wake
+  after a white-out), a MART (the bot's own `.shop` and `.buy`), homes with
+  people inside and townsfolk to talk to. Generated towns are laid out from
+  their own seed, so no two are alike.
+- **Inside buildings** are Tuxemon's own rooms (Web/maps/tuxemon, read by
+  Web/maps/tmx.js): your house (MOM changes your clothes), the lab, POKéMON
+  CENTERs (the NURSE), MARTs (the CLERK opens a game-style shop that sells
+  exactly what `.shop` sells, through the same purchase code as `.buy`),
+  homes, and the BATTLE TOWER: the receptionist sends you up to the battle
+  room when your milestone is ready, the leader walks up, and the battle
+  opens with a stadium-style VS.
+- **The pause menu** (Esc, or START on a phone): POKéMON (the first six and
+  a summary of each), BAG (`.inventory`; read-only in battle), the trainer
+  card (`.me`) and FLY.
+- **People** wander and turn like in the games, and face you when you talk.
+  On sea routes you SURF.
+- **Rewards:** hidden Poke Balls hold a shop item, reward spots pay coins
+  (50 + 2 x the route number), bosses pay a coin bonus on the win, and the end
+  of each gate holds a Lootbox. All small next to what the battles pay, so
+  the web stays even with `.b`, and all come back after a prestige.
+- **FLY** opens the first time you reach the Main City (the taxi driver's
+  scene): M, or the Fly button, goes anywhere you've been.
+
+The owner (`DISCORD_OWNER_ID`) gets a dev console in the browser:
+`dev.help()`. Exploring mode, noclip, warp, an overlay of one-battle grass
+and trainer sight, and walking speed. Nothing done while exploring is saved
+or counts.
+
 ## Commands
 
 The prefix is `.`, and every command is also available as a slash command.

@@ -7,13 +7,18 @@ open-source monster-catching game: https://github.com/Tuxemon/Tuxemon
 Tilesets ("Core Outdoor", "Core Buildings", "Core Set Pieces") by rubberduck,
 built on work by Buch (commissioned by luke83), George_, Kelvin Shadewing,
 Midi, PastTheFuture, ArMM1998, Redshrike, Mike Bramson and other Tuxemon
-contributors. Player sprite and animations by Tuxemon contributors; splash
+contributors. Indoor rooms (houses, the lab, POKéMON CENTER, MART, the
+BATTLE TOWER and its battle room) are Tuxemon's own maps, with its indoor
+floor, wall and stair tilesets. Characters, the surfboard and the battle
+backgrounds are Tuxemon's too. Player sprite and animations by Tuxemon
+contributors; splash
 based on "Fishing Splash" by Jesse McCarthy, adapted by Sanglorian.
 
 Licences: CC BY-SA, CC BY, CC0 and the XYG Open Source License, per piece.
 The full list of every asset, author and licence:
 https://github.com/Tuxemon/Tuxemon/blob/development/ATTRIBUTIONS.md
 
-Pokemon artwork and sprites in battles and drops are from PokeAPI's sprite
+Pokemon artwork and sprites in battles and drops, and the Poke Ball icon,
+are from PokeAPI's sprite
 collection (https://github.com/PokeAPI/sprites). Pokemon is (c) Nintendo,
 Creatures Inc. and GAME FREAK inc.; this is an unofficial fan project.

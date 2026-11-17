@@ -12,14 +12,16 @@
 (function () {
   const $ = (id) => document.getElementById(id);
 
-  const STATION_NAMES = { drop: 'DROP STATION', battle: 'BATTLE STATION' };
+  const STATION_NAMES = { drop: 'DROP STATION', battle: 'BATTLE TOWER', fly: 'FLY', mart: 'POKéMON MART' };
 
   let me = null;
   let world = null;
-  const feeds = { drop: [], battle: [] };
+  const feeds = { drop: [], battle: [], mart: [] };
   let status = { dropReadyIn: 0, inBattle: false, busy: null };
   let statusAt = Date.now();
   let station = null;
+  /** How the open station was reached: 'door', or 'encounter' for a battle the world started. */
+  let stationFrom = null;
   let dialog = null;
 
   // -------------------------------------------------------------------------
@@ -43,8 +45,13 @@
       const data = JSON.parse(e.data);
       feeds.drop = data.stations.drop || [];
       feeds.battle = data.stations.battle || [];
+      feeds.mart = data.stations.mart || [];
       setStatus(data.status);
       renderPanel();
+      // Reloaded mid-battle: straight back into it.
+      const card = lastCard();
+      battleSnap = data.battle || null;
+      if (data.battle && card && window.BattleScreen.hasLiveButtons(card) && !battleUI.open) openBattle();
     });
 
     events.addEventListener('update', (e) => {
@@ -63,6 +70,21 @@
         feeds[update.station] = [];
       }
       if (update.station === station) renderPanel();
+      if (update.station === 'battle') {
+        battleSnap = update.battle || null;
+        battleUI.update(feeds.battle, battleSnap);
+      }
+    });
+
+    // The overworld moved you (a battle ended, you whited out). Its words
+    // wait until the battle screen is closed.
+    events.addEventListener('world', (e) => {
+      const data = JSON.parse(e.data);
+      if (world) world.sync(data.player, data.refresh);
+      if (data.message) {
+        if (battleUI.open) afterBattle.push(data.message);
+        else showDialog([data.message]);
+      }
     });
 
     events.addEventListener('status', (e) => {
@@ -256,102 +278,81 @@
   }
 
   // -------------------------------------------------------------------------
-  // Battles
+  // Battles: the full-screen battle (battle.js)
   // -------------------------------------------------------------------------
 
-  /** The battle card: two side-by-side fields and both sprites. */
-  const isBattleCard = (m) => {
-    const e = m.embeds && m.embeds[0];
-    return Boolean(e && e.fields && e.fields.length >= 2 && e.fields[0].inline && e.fields[1].inline && (e.image || e.thumbnail));
-  };
-
-  /** Still being played: it has buttons other than the finished card's. */
-  const isLive = (m) =>
-    (m.components || []).some((row) =>
-      (row.components || []).some((c) => c.custom_id && !['bt:log', 'bt:again'].includes(c.custom_id))
-    );
-
-  /** One side's lines on the card, read back into numbers. */
-  function sideOf(field) {
-    const lines = String(field.value || '').split('\n');
-    const first = lines[0] || '';
-    const hpLine = lines.find((l) => /[█░]/.test(l)) || '';
-    const hp = /(\d+)\/(\d+)/.exec(hpLine);
-    const expLine = lines.find((l) => l.startsWith('EXP')) || null;
-    let exp = null;
-    if (expLine) {
-      const full = (expLine.match(/▰/g) || []).length;
-      const empty = (expLine.match(/▱/g) || []).length;
-      exp = full + empty ? full / (full + empty) : 0;
-    }
-    return {
-      trainer: field.name,
-      name: (/\*\*(.+?)\*\*/.exec(first) || [, first])[1],
-      shiny: first.startsWith('✨'),
-      level: (/Lv\.(\d+)/.exec(first) || [])[1] || '?',
-      status: (/`([A-Z]{3})`/.exec(first) || [])[1] || null,
-      hp: hp ? Number(hp[1]) : 0,
-      maxHp: hp ? Number(hp[2]) : 1,
-      exp,
-      dots: lines.find((l) => /^[●○]+$/.test(l.trim())) || '',
-    };
+  /** The newest battle card in the Battle channel, or null. */
+  function lastCard() {
+    for (let i = feeds.battle.length - 1; i >= 0; i--) if (window.BattleScreen.isCard(feeds.battle[i])) return feeds.battle[i];
+    return null;
   }
 
-  function infoBox(side, which) {
-    const box = el('div', `info ${which}`);
-    const pct = Math.max(0, Math.min(100, (side.hp / side.maxHp) * 100));
-    const tone = pct > 50 ? '' : pct > 20 ? ' mid' : ' low';
-    box.innerHTML =
-      `<div class="info-name"><b>${side.shiny ? '✨ ' : ''}${escape(side.name)}</b>` +
-      `<span>${side.status ? `<span class="status-tag">${side.status}</span> ` : ''}Lv${escape(side.level)}</span></div>` +
-      `<div class="hp"><span>HP</span><div class="hp-track"><div class="hp-fill${tone}" style="width:${pct}%"></div></div></div>` +
-      (which === 'mine' ? `<div class="hp-num">${side.hp}/${side.maxHp}</div>` : '') +
-      (side.exp != null ? `<div class="exp-track"><div class="exp-fill" style="width:${side.exp * 100}%"></div></div>` : '') +
-      `<div class="dots">${escape(side.dots)}</div>`;
-    return box;
+  /** Words from the world (a white-out) that wait for the battle screen to close. */
+  const afterBattle = [];
+  /** The latest battle snapshot from the server, for opening the screen mid-battle. */
+  let battleSnap = null;
+
+  let battleUI = null;
+  /** The pause menu, the bag, the MART (menu.js). */
+  let menuUI = null;
+
+  function openMenu() {
+    if (station || dialog || battleUI.open || introUI.open || menuUI.open || world.busy) return;
+    world.releaseAll();
+    menuUI.pause();
   }
 
-  function battleView(message) {
-    const e = message.embeds[0];
-    const mine = sideOf(e.fields[0]);
-    const foe = sideOf(e.fields[1]);
-    const result = e.fields[2] || null;
-
-    const wrap = el('div', 'battle');
-    const field = el('div', `field${e.color === 0xf1c40f ? ' milestone' : ''}`);
-    field.append(el('div', 'base foe'), el('div', 'base mine'));
-    if (e.thumbnail && e.thumbnail.url) {
-      const img = el('img', 'sprite foe');
-      img.src = e.thumbnail.url;
-      img.alt = foe.name;
-      field.append(img);
+  /** The inside of PROF. A's lab, as a picture, for the opening's lab scene. */
+  let labPicture = null;
+  async function labBackground() {
+    if (labPicture) return labPicture;
+    try {
+      const map = await fetch('/api/scene/lab').then((r) => r.json());
+      const canvas = await window.World.preview(map);
+      labPicture = canvas.toDataURL();
+    } catch {
+      labPicture = null;
     }
-    if (e.image && e.image.url) {
-      const img = el('img', 'sprite mine');
-      img.src = e.image.url;
-      img.alt = mine.name;
-      field.append(img);
-    }
-    field.append(infoBox(foe, 'foe'), infoBox(mine, 'mine'));
-    wrap.append(el('div', 'embed-title', md(e.title || 'Battle!')), field);
+    return labPicture;
+  }
+  /** The opening and the wardrobe (intro.js). */
+  let introUI = null;
+  function makeBattleUI() {
+    battleUI = window.BattleScreen.create($('battle'), {
+      press: (messageId, customId, values = []) => post('/api/press', { station: 'battle', messageId, customId, values }),
+      background: () => (world && world.background) || 'grass',
+      bag: () => menuUI.bag(),
+      milestone: () => towerFight,
+      closed: () => {
+        document.body.classList.remove('in-battle');
+        leaveArena();
+        if (afterBattle.length) showDialog(afterBattle.splice(0));
+      },
+    });
+  }
 
-    if (result) {
-      wrap.append(el('div', 'battle-log battle-result', `<b>${md(result.name)}</b>${md(result.value)}`));
-    }
-    wrap.append(el('div', 'battle-log', md(e.description || 'What will you do?')));
-    if (e.footer && e.footer.text) wrap.append(el('p', 'turn', escape(e.footer.text)));
-
-    const rows = components(message, 'battle');
-    if (rows) wrap.append(rows);
-    return wrap;
+  /**
+   * Go to the battle screen. `stale` is a card already in the feed that
+   * belongs to an earlier battle, so it isn't shown while the new one starts.
+   */
+  function openBattle() {
+    if (station) closePanel();
+    world.releaseAll();
+    document.body.classList.add('in-battle');
+    // A finished card is the last battle's. A live one is this battle's: a
+    // trainer's starts while they walk up, so it can be here already.
+    const card = lastCard();
+    battleUI.show(card && !window.BattleScreen.hasLiveButtons(card) ? card.id : null);
+    battleUI.update(feeds.battle, battleSnap);
   }
 
   // -------------------------------------------------------------------------
   // Station screens
   // -------------------------------------------------------------------------
 
-  function openPanel(which) {
+  function openPanel(which, from = 'door') {
     station = which;
+    stationFrom = from;
     world.releaseAll();
     const panel = $('panel');
     panel.dataset.station = which;
@@ -372,12 +373,31 @@
     station = null;
     $('panel').hidden = true;
     document.body.classList.remove('in-station');
-    world.leave(was);
+    if (stationFrom === 'door') world.leave(was);
+    footBuilt = null;
   }
 
   function renderPanel() {
     if (!station) return;
     const body = $('panel-body');
+    if (station === 'fly') {
+      body.replaceChildren();
+      $('panel-foot').replaceChildren();
+      const list = el('div', 'fly-list');
+      if (!flyPlaces.length) list.append(el('p', 'hint', "You haven't been anywhere you can fly to yet."));
+      for (const place of flyPlaces) {
+        const b = el('button', 'btn btn-secondary', escape(place.name));
+        b.addEventListener('click', async () => {
+          const r = await post('/api/fly', { key: place.key });
+          closePanel();
+          if (r.ok) await world.refresh();
+          else if (r.text) showDialog([r.text]);
+        });
+        list.append(b);
+      }
+      body.append(list);
+      return;
+    }
     const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
     const scrolled = body.scrollTop;
     body.replaceChildren();
@@ -392,32 +412,22 @@
       timer.remove();
     }
 
-    if (station === 'drop') {
+    if (station === 'mart') {
+      const recent = feeds.mart.slice(-4);
+      if (!recent.length) body.append(el('p', 'hint', `${CLERK[0]} Press <b>Show stock</b> to see what's for sale, then type an item's id (like fire-stone) to buy it.`));
+      for (const m of recent) body.append(messageView(m, 'mart'));
+    } else if (station === 'drop') {
       const recent = feeds.drop.slice(-6);
       if (!recent.length) {
         body.append(el('p', 'hint', 'Press <b>Drop</b> to find a wild Pokemon, then type its name below to catch it.'));
       }
       for (const m of recent) body.append(messageView(m, 'drop'));
     } else {
-      const feed = feeds.battle;
-      let last = -1;
-      for (let i = feed.length - 1; i >= 0; i--) {
-        if (isBattleCard(feed[i])) { last = i; break; }
-      }
-      const liveHere = last >= 0 && isLive(feed[last]);
-
-      if (status.inBattle && !liveHere) {
+      const card = lastCard();
+      if (status.inBattle && !(card && window.BattleScreen.hasLiveButtons(card))) {
         body.append(el('p', 'hint', "You're in a battle on Discord. Finish it there, or wait for it to time out."));
-      }
-      if (last < 0) {
-        const before = feed.slice(-4);
-        if (!before.length) {
-          body.append(el('p', 'hint', 'Take your team into a battle. <b>Milestone</b> takes on your next Gym Leader, Elite Four or Champion when one is ready.'));
-        }
-        for (const m of before) body.append(messageView(m, 'battle'));
       } else {
-        body.append(battleView(feed[last]));
-        for (const m of feed.slice(last + 1)) body.append(messageView(m, 'battle'));
+        body.append(el('p', 'hint', 'Every milestone is fought here. <b>Milestone</b> takes on your next Gym Leader, Elite Four or Champion once your Trainer EXP bar is full. Fill it on the routes outside the gates (or with .b on Discord).'));
       }
     }
 
@@ -478,14 +488,40 @@
         });
 
         foot.append(drop, form, note);
+      } else if (station === 'mart') {
+        const stock = el('button', 'btn btn-primary btn-big', 'Show stock');
+        stock.addEventListener('click', () => post('/api/run', { station: 'mart', action: 'shop' }));
+        const form = el('form', 'catch');
+        const input = el('input');
+        input.placeholder = 'Item id, e.g. fire-stone';
+        input.autocomplete = 'off';
+        input.spellcheck = false;
+        input.maxLength = 48;
+        const qty = el('input');
+        qty.type = 'number';
+        qty.min = '1';
+        qty.max = '99';
+        qty.value = '1';
+        qty.className = 'qty';
+        const buy = el('button', 'btn btn-success', 'Buy');
+        buy.type = 'submit';
+        form.append(input, qty, buy);
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          if (!input.value.trim()) return;
+          await post('/api/run', { station: 'mart', action: 'buy', text: input.value, qty: qty.value });
+          input.value = '';
+        });
+        foot.append(stock, form);
       } else if (station === 'battle') {
-        const battle = el('button', 'btn btn-danger btn-big', 'Battle');
-        battle.id = 'battle-button';
         const milestone = el('button', 'btn btn-primary btn-big', 'Milestone');
         milestone.id = 'milestone-button';
-        battle.addEventListener('click', () => post('/api/run', { station: 'battle', action: 'battle' }));
-        milestone.addEventListener('click', () => post('/api/run', { station: 'battle', action: 'milestone' }));
-        foot.append(battle, milestone);
+        const go = (action) => {
+          openBattle();
+          post('/api/run', { station: 'battle', action });
+        };
+        milestone.addEventListener('click', () => go('milestone'));
+        foot.append(milestone);
       }
     }
 
@@ -507,13 +543,31 @@
   // Signs
   // -------------------------------------------------------------------------
 
-  function showDialog(lines) {
+  function showDialog(lines, done = null) {
     world.releaseAll();
-    const text = lines.join('\n');
-    dialog = { text, shown: 0, timer: null };
+    if (dialog) {
+      clearInterval(dialog.timer);
+      if (dialog.done) dialog.done();
+    }
+    // Pages of what fits the box: two short lines, or one long one. A turns the page.
+    const pages = [];
+    for (const line of lines) {
+      const last = pages[pages.length - 1];
+      if (last && last.length < 2 && last[0].length + line.length <= 70) last.push(line);
+      else pages.push([line]);
+    }
+    dialog = { pages, page: -1, text: '', shown: 0, timer: null, done };
     $('dialog').hidden = false;
+    nextPage();
+  }
+
+  function nextPage() {
+    dialog.page += 1;
+    const text = dialog.pages[dialog.page].join('\n');
+    Object.assign(dialog, { text, shown: 0 });
     const p = $('dialog-text');
     p.textContent = '';
+    clearInterval(dialog.timer);
     dialog.timer = setInterval(() => {
       dialog.shown += 1;
       p.textContent = text.slice(0, dialog.shown);
@@ -529,9 +583,15 @@
       $('dialog-text').textContent = dialog.text;
       return;
     }
+    if (dialog.page < dialog.pages.length - 1) {
+      nextPage();
+      return;
+    }
     clearInterval(dialog.timer);
+    const done = dialog.done;
     dialog = null;
     $('dialog').hidden = true;
+    if (done) done();
   }
 
   // -------------------------------------------------------------------------
@@ -559,9 +619,34 @@
     const typing = () => ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement && document.activeElement.tagName);
 
     window.addEventListener('keydown', (e) => {
+      if (menuUI.open && !typing()) {
+        const key = KEY_DIRS[e.key] || (A_KEYS.has(e.key) ? 'a' : B_KEYS.has(e.key) || e.key === 'Escape' ? 'b' : null);
+        if (key) {
+          e.preventDefault();
+          if (!e.repeat || KEY_DIRS[e.key]) menuUI.input(key);
+        }
+        return;
+      }
+      if (introUI.open && !typing()) {
+        const key = KEY_DIRS[e.key] || (A_KEYS.has(e.key) ? 'a' : B_KEYS.has(e.key) || e.key === 'Escape' ? 'b' : null);
+        if (key) {
+          e.preventDefault();
+          if (!e.repeat || KEY_DIRS[e.key]) introUI.input(key);
+        }
+        return;
+      }
+      if (battleUI.open && !typing()) {
+        const key = KEY_DIRS[e.key] || (A_KEYS.has(e.key) ? 'a' : B_KEYS.has(e.key) || e.key === 'Escape' ? 'b' : null);
+        if (key) {
+          e.preventDefault();
+          if (!e.repeat || KEY_DIRS[e.key]) battleUI.input(key);
+        }
+        return;
+      }
       if (e.key === 'Escape') {
         if (dialog) advanceDialog();
-        else closePanel();
+        else if (station) closePanel();
+        else openMenu();
         return;
       }
       if (typing() || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -572,6 +657,12 @@
       if (dir) {
         e.preventDefault();
         if (!station && !dialog) world.press(dir);
+        return;
+      }
+      if ((e.key === 'm' || e.key === 'M') && !e.repeat) {
+        e.preventDefault();
+        if (station === 'fly') closePanel();
+        else openFly();
         return;
       }
       if (A_KEYS.has(e.key)) {
@@ -604,6 +695,9 @@
       const up = () => world.release(dir);
       button.addEventListener('pointerdown', (e) => {
         e.preventDefault();
+        if (menuUI.open) return menuUI.input(dir);
+        if (introUI.open) return introUI.input(dir);
+        if (battleUI.open) return battleUI.input(dir);
         button.setPointerCapture(e.pointerId);
         if (!station && !dialog) world.press(dir);
       });
@@ -613,8 +707,10 @@
     }
     const a = document.querySelector('.btn-a');
     const b = document.querySelector('.btn-b');
-    a.addEventListener('pointerdown', (e) => { e.preventDefault(); buttonA(); });
-    b.addEventListener('pointerdown', (e) => { e.preventDefault(); world.setRunning(true); buttonB(); });
+    a.addEventListener('pointerdown', (e) => { e.preventDefault(); if (menuUI.open) menuUI.input('a'); else if (introUI.open) introUI.input('a'); else if (battleUI.open) battleUI.input('a'); else buttonA(); });
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); if (menuUI.open) return menuUI.input('b'); if (introUI.open) return introUI.input('b'); if (battleUI.open) return battleUI.input('b'); world.setRunning(true); buttonB(); });
+    const startButton = document.querySelector('.btn-start');
+    if (startButton) startButton.addEventListener('pointerdown', (e) => { e.preventDefault(); openMenu(); });
     for (const type of ['pointerup', 'pointercancel', 'pointerleave']) {
       b.addEventListener(type, () => world.setRunning(false));
     }
@@ -636,6 +732,179 @@
   // Start
   // -------------------------------------------------------------------------
 
+  // -------------------------------------------------------------------------
+  // The owner's dev console (browser console: dev.help()). The server checks
+  // it's the owner on every call; this only adds the shortcuts.
+  // -------------------------------------------------------------------------
+
+  function installDev() {
+    const call = async (cmd, ...args) => {
+      const r = await post('/api/dev', { cmd, args });
+      if (r.reload && world) await world.refresh();
+      showDevTag();
+      console.log(r.text || r.error || r);
+      return undefined;
+    };
+    window.dev = {
+      help() {
+        console.log([
+          'dev.explore()          explore on/off: nothing you do is saved, no battles, doors shut',
+          'dev.noclip()           walk through anything (turns exploring on)',
+          'dev.warp(map, x, y)    jump to a map (x, y optional; turns exploring on)',
+          'dev.maps()             every map',
+          'dev.where()            where you are, exploring and for real',
+          'dev.overlay()          show one-battle grass (red) and trainer sight (yellow)',
+          'dev.speed(n)           walk n times faster in this tab (1 = normal)',
+          'dev.off()              all off, back where you really are',
+          'Each toggle takes true/false too: dev.noclip(false).',
+        ].join('\n'));
+      },
+      explore: (on) => call('explore', on),
+      noclip: (on) => call('noclip', on),
+      overlay: (on) => call('overlay', on),
+      warp: (map, x, y) => call('warp', map, x, y),
+      maps: () => call('maps'),
+      where: () => call('where'),
+      off: () => call('off'),
+      speed(n = 1) {
+        world.setSpeed(Math.max(0.25, Math.min(8, Number(n) || 1)));
+        console.log(`Speed x${world.speed}.`);
+        showDevTag();
+      },
+    };
+    console.log('%cDev console ready: dev.help()', 'color:#f2c14e;font-weight:bold');
+  }
+
+  /** "Dev Build A" in the corner, plus what dev mode is doing. */
+  function showDevTag() {
+    const tag = document.querySelector('.build-tag');
+    if (!tag || !world) return;
+    const d = world.dev || {};
+    const bits = [d.exploring && 'EXPLORING', d.noclip && 'NOCLIP', d.overlay && 'OVERLAY', world.speed !== 1 && `x${world.speed}`].filter(Boolean);
+    tag.textContent = ['Dev Build A', ...bits].join(' · ');
+    tag.classList.toggle('dev-on', bits.length > 0);
+  }
+
+  // -------------------------------------------------------------------------
+  // FLY (after the Main City's taxi driver)
+  // -------------------------------------------------------------------------
+
+  let flyPlaces = [];
+
+  async function refreshFly() {
+    const r = await fetch('/api/fly').then((x) => x.json()).catch(() => null);
+    $('hud-fly').hidden = !(r && r.unlocked);
+    return r;
+  }
+
+  async function openFly() {
+    if (station || dialog || battleUI.open || introUI.open || world.busy) return;
+    const r = await refreshFly();
+    if (!r || !r.unlocked) return showDialog(["You don't have a way to FLY yet. Reach the MAIN CITY first."]);
+    flyPlaces = r.places;
+    openPanel('fly', 'menu');
+  }
+
+  // -------------------------------------------------------------------------
+  // Buildings without a screen of their own
+  // -------------------------------------------------------------------------
+
+  const NURSE = [
+    'Welcome to our POKéMON CENTER!',
+    'Your POKéMON are fighting fit! If you are ever out of usable POKéMON, you will wake up here.',
+    'We hope to see you again!',
+  ];
+
+  /** The Drop Station is a counter, not a room. */
+  function enterBuilding(which) {
+    if (which === 'drop') openPanel('drop', 'door');
+  }
+
+  /**
+   * Talking to someone. Most just talk; some do something (world.js tells us
+   * who, and `done` lets them get back to wandering).
+   */
+  async function talk(npc, done) {
+    const finish = () => done && done();
+    switch (npc.action) {
+      case 'nurse':
+        return showDialog(NURSE, finish);
+      case 'shop':
+        world.setFrozen(true);
+        await menuUI.shop();
+        world.setFrozen(false);
+        return finish();
+      case 'mom':
+        return showDialog(npc.lines, async () => {
+          if (await menuUI.ask('MOM: Do you want to change your clothes?')) await changeClothes();
+          finish();
+        });
+      case 'tower':
+        return towerDesk(finish);
+      default:
+        return showDialog(npc.lines && npc.lines.length ? npc.lines : ['...'], finish);
+    }
+  }
+
+  async function changeClothes() {
+    world.releaseAll();
+    const outfits = await fetch('/api/intro').then((r) => r.json()).then((d) => d.outfits).catch(() => null);
+    const current = await fetch('/api/world').then((r) => r.json()).then((w) => w.player.outfit).catch(() => 'adventurer');
+    if (outfits) {
+      await introUI.changeOutfit(outfits, current);
+      await world.refresh();
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // The BATTLE TOWER
+  // -------------------------------------------------------------------------
+
+  /** Who stands in for each kind of leader on the overworld (Tuxemon characters). */
+  const LEADER_LOOKS = {
+    rock: 'miner', ground: 'miner_yellow', water: 'swimmer_blue', grass: 'florist', electric: 'scientist', fire: 'firefighter',
+    psychic: 'magician', poison: 'ninja_red', ghost: 'goth', ice: 'knight_yellow', fighting: 'monk', flying: 'postboy',
+    bug: 'childactor', dragon: 'dragonrider', dark: 'rogue', steel: 'knight', fairy: 'catgirl', normal: 'cooldude',
+  };
+  const leaderLook = (next) => LEADER_LOOKS[next.type] || (next.kind === 'champion' ? 'knightlord' : 'ceo');
+  /** The milestone being fought, for the battle's opening (battle.js). */
+  let towerFight = null;
+
+  async function towerDesk(done) {
+    const t = await fetch('/api/tower').then((r) => r.json());
+    if (!t.next) return showDialog(['RECEPTIONIST: Welcome to the BATTLE TOWER!', 'You have beaten every milestone there is. Amazing!'], done);
+    if (!t.ready) {
+      return showDialog([
+        'RECEPTIONIST: Welcome to the BATTLE TOWER!',
+        `Your next challenge is ${t.next.title.toUpperCase()}.`,
+        `Come back when your TRAINER EXP bar is full. ${t.remaining.toLocaleString()} TRAINER EXP to go!`,
+      ], done);
+    }
+    showDialog(['RECEPTIONIST: Welcome to the BATTLE TOWER!', `${t.next.title.toUpperCase()} is waiting for you upstairs.`], async () => {
+      done();
+      if (!(await menuUI.ask('Are you ready to battle?'))) return showDialog(['RECEPTIONIST: Come back when you are ready!']);
+      const r = await post('/api/tower', { action: 'enter' });
+      if (!r.ok) return showDialog([r.text]);
+      await world.refresh();
+      world.setFrozen(true);
+      towerFight = { title: t.next.title, name: t.next.name, look: leaderLook(t.next), slug: String(t.next.name).toLowerCase().replace(/[^a-z0-9]+/g, '-') };
+      world.addNpc({ id: 'leader', name: t.next.name, sprite: towerFight.look, x: r.leader.x, y: r.leader.y, facing: 'down' });
+      world.walkUp('leader', [`${t.next.title.toUpperCase()}: So you're the challenger everyone is talking about.`, 'Show me what you have!'], () => {
+        openBattle();
+        post('/api/run', { station: 'battle', action: 'milestone' });
+      });
+    });
+  }
+
+  /** After a milestone: back down to the lobby. */
+  async function leaveArena() {
+    if (world.mapId !== 'tower-arena') return;
+    await post('/api/tower', { action: 'leave' });
+    towerFight = null;
+    world.setFrozen(false);
+    await world.refresh();
+  }
+
   function avatarOf(user) {
     if (user.avatar) return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`;
     const index = Number((BigInt(user.id) >> 22n) % 6n);
@@ -647,6 +916,7 @@
     if (res.status === 401) {
       $('login').hidden = false;
       $('login-error').hidden = !location.search.includes('login=failed');
+      $('login-locked').hidden = !location.search.includes('login=locked');
       return;
     }
     const data = await res.json();
@@ -657,13 +927,40 @@
     $('hud-avatar').src = avatarOf(me);
     setStatus(data.status);
 
+    if (data.owner) installDev();
+
     world = window.World.create($('world'), {
-      enter: openPanel,
+      enter: (which) => enterBuilding(which),
+      talk,
       read: showDialog,
       paused: () => Boolean(station || dialog),
+      // Grass or a trainer: the battle is already running on the server.
+      encounter: () => openBattle(),
+      loaded: () => showDevTag(),
+      unlocked: () => refreshFly(),
+      post,
     });
+    makeBattleUI();
+    introUI = window.IntroScreen.create($('intro'), { post, name: () => me.globalName || me.username, labBackground });
+    menuUI = window.MenuScreen.create($('menu'), {
+      post,
+      get: (p) => fetch(p).then((r) => r.json()),
+      fly: () => openFly(),
+      name: () => me.globalName || me.username,
+    });
+    $('hud-menu').addEventListener('click', openMenu);
+    $('hud-fly').addEventListener('click', openFly);
+    refreshFly();
     bindControls();
     connect();
+
+    // The opening, for anyone who hasn't had their starter (this prestige).
+    const opening = await fetch('/api/intro').then((r) => r.json()).catch(() => null);
+    if (opening && opening.needed) {
+      const current = await fetch('/api/world').then((r) => r.json()).then((w) => w.player.outfit).catch(() => 'adventurer');
+      await introUI.play(opening, current);
+      await world.refresh();
+    }
   }
 
   start();

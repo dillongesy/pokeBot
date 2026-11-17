@@ -17,6 +17,17 @@ characters/adventurer.png               the player: 16x32 frames, 3 across
                                         (step, stand, step), rows facing
                                         down, left, right, up.
 characters/drop_shadow.png              shadow under characters.
+characters/*.png                        all 207 of Tuxemon's overworld
+                                        characters (mods/tuxemon/sprites), in
+                                        the same layout as adventurer.png: for
+                                        trainers, NPCs and the outfit choice.
+bubbles/exclamation.png                 the "!" when a trainer spots you.
+animations/surfboard.png                what you ride on the sea (gfx/items).
+tilesets/core_indoor_*.png (+ .tsx)     floors, walls and stairs for rooms.
+The rooms themselves are Tuxemon's .tmx maps, kept in Web/maps/tuxemon and
+read by Web/maps/tmx.js.
+battle/*.png                            battle backgrounds, one per biome
+                                        (mods/tuxemon/gfx/ui/combat/*_background.png).
 
 Licence
 -------

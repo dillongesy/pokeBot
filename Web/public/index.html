@@ -4,12 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>PokeDropper</title>
+  <link rel="icon" type="image/png" href="/icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/battle.css">
+  <link rel="stylesheet" href="/intro.css">
+  <link rel="stylesheet" href="/menu.css">
 </head>
 <body>
+  <div class="build-tag">Dev Build A</div>
   <!-- Shown until /api/me says who is logged in. -->
   <main id="login" class="login" hidden>
     <div class="login-card">
@@ -17,6 +22,7 @@
       <p>Your Discord trainer, in a world you can walk around.</p>
       <a class="login-button" href="/auth/login">Log in with Discord</a>
       <p class="login-error" id="login-error" hidden>Discord login didn't work. Try again.</p>
+      <p class="login-error" id="login-locked" hidden>The website isn't open yet. Play on Discord for now!</p>
     </div>
   </main>
 
@@ -29,6 +35,8 @@
       <div class="hud-status">
         <span id="hud-battle" class="pill pill-battle" hidden>In battle</span>
         <span id="hud-drop" class="pill">Drop ready</span>
+        <button id="hud-fly" class="pill pill-fly" hidden>Fly (M)</button>
+        <button id="hud-menu" class="pill pill-fly">Menu (Esc)</button>
         <a class="hud-logout" href="/auth/logout">Log out</a>
       </div>
     </header>
@@ -52,6 +60,15 @@
         <footer class="panel-foot" id="panel-foot"></footer>
       </section>
 
+      <!-- A battle, full screen (battle.js). -->
+      <div id="battle"></div>
+
+      <!-- The opening and the wardrobe (intro.js). -->
+      <div id="intro"></div>
+
+      <!-- The pause menu, the bag, the MART (menu.js). -->
+      <div id="menu"></div>
+
       <div class="connection" id="connection" hidden>Reconnecting…</div>
     </div>
 
@@ -64,16 +81,20 @@
         <button data-dir="down" class="d-down" aria-label="Down"></button>
       </div>
       <div class="ab">
+        <button data-key="start" class="btn-start">START</button>
         <button data-key="b" class="btn-b">B</button>
         <button data-key="a" class="btn-a">A</button>
       </div>
     </div>
 
-    <p class="keys">Arrows / WASD to move · Z, Enter or Space is A · X or Shift is B (hold to run)</p>
+    <p class="keys">Arrows / WASD to move · Z, Enter or Space is A · X or Shift is B (hold to run) · Esc is the menu · M is FLY</p>
     <p class="credits"><a href="/sprites/CREDITS.txt" target="_blank" rel="noopener">Art credits</a></p>
   </main>
 
   <script src="/world.js"></script>
+  <script src="/battle.js"></script>
+  <script src="/intro.js"></script>
+  <script src="/menu.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

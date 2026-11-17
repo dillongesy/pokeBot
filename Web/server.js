@@ -18,6 +18,18 @@
  *   POST /api/run               start something at a station
  *   POST /api/press             a button on one of the station's messages
  *   GET  /api/file/...          an image or file a message carries
+ *   GET  /api/world             the map you're on and where you stand
+ *   POST /api/step              one step (checked by Web/overworld.js)
+ *   POST /api/dev               the owner's dev console (DISCORD_OWNER_ID only)
+ *   GET  /api/intro             the opening: is it needed, starters, outfits
+ *   POST /api/intro             pick an outfit, or the starter (once per prestige)
+ *   POST /api/pickup            pick up the Poke Ball you're facing
+ *   GET  /api/fly               where you can fly to
+ *   POST /api/fly               fly there
+ *   GET  /api/party|bag|trainer the pause menu (Web/menus.js)
+ *   GET  /api/shop              the MART's stock; POST /api/shop buys
+ *   GET  /api/tower             the next milestone; POST /api/tower goes up or down
+ *   GET  /api/item-sprite/<id>  an item's picture
  *
  * Station actions run the bot's real commands through Web/virtual.js.
  */
@@ -28,9 +40,13 @@ const path = require('path');
 
 const auth = require('./auth');
 const virtual = require('./virtual');
+const overworld = require('./overworld');
+const intro = require('./intro');
+const menus = require('./menus');
 const store = require('../Utils/store');
 const partylock = require('../Utils/partylock');
 const crashlog = require('../Utils/crashlog');
+const admin = require('../Utils/admin');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SPRITES_DIR = path.join(__dirname, 'sprites');
@@ -49,11 +65,19 @@ const TYPES = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
-/** The stations, and the actions each one offers. */
+/**
+ * The stations, and the actions each one offers. The Battle Tower only holds
+ * milestones: on the web, routes are what .battle is on Discord.
+ */
 const STATIONS = {
   drop: ['drop', 'catch'],
-  battle: ['battle', 'milestone'],
+  battle: ['milestone'],
+  // The POKéMON MART: the bot's own .shop and .buy, so stock and prices match Discord.
+  mart: ['shop', 'buy'],
 };
+
+/** The latest login seen per player, so the overworld can start battles as them. */
+const sessions = new Map();
 
 let client = null;
 let commands = null;
@@ -115,6 +139,13 @@ function statusOf(userId) {
   };
 }
 
+/** The player's live battle as data (Commands/battle.js webView), or null. */
+function battleSnapshot(userId) {
+  const battleCommand = require('../Commands/battle');
+  const state = battleCommand.active.get(userId);
+  return state ? battleCommand.webView(state) : null;
+}
+
 // ---------------------------------------------------------------------------
 // Live updates
 // ---------------------------------------------------------------------------
@@ -136,7 +167,8 @@ function channelsOf(session) {
     if (!watched.has(channel.id)) {
       watched.add(channel.id);
       channel.on('update', (update) => {
-        push(session.id, 'update', update);
+        // Battle updates carry the battle as data too, for the battle screen.
+        push(session.id, 'update', channel.station === 'battle' ? { ...update, battle: battleSnapshot(session.id) } : update);
         push(session.id, 'status', statusOf(session.id));
       });
     }
@@ -157,7 +189,7 @@ function stream(req, res, session) {
   for (const channel of channelsOf(session)) {
     snapshot[channel.station] = channel.messages.map((m) => m.toJSON());
   }
-  res.write(`event: snapshot\ndata: ${JSON.stringify({ stations: snapshot, status: statusOf(session.id) })}\n\n`);
+  res.write(`event: snapshot\ndata: ${JSON.stringify({ stations: snapshot, status: statusOf(session.id), battle: battleSnapshot(session.id) })}\n\n`);
 
   if (!streams.has(session.id)) streams.set(session.id, new Set());
   streams.get(session.id).add(res);
@@ -205,6 +237,19 @@ async function run(session, body) {
 
   if (action === 'drop') {
     await runCommand(channel, 'd');
+    return { body: { ok: true } };
+  }
+
+  if (action === 'shop') {
+    await runCommand(channel, 'shop');
+    return { body: { ok: true } };
+  }
+  if (action === 'buy') {
+    // An item id like the shop shows ("fire-stone"), and how many.
+    const item = String(body.text || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 48);
+    const qty = Math.max(1, Math.min(99, Number.parseInt(body.qty, 10) || 1));
+    if (!item) return { body: { ok: false, reason: 'empty' } };
+    await runCommand(channel, 'buy', [item, String(qty)]);
     return { body: { ok: true } };
   }
 
@@ -295,22 +340,60 @@ async function handle(req, res) {
 
   const session = auth.sessionOf(req);
   if (!session) return send(res, 401, { error: 'Not logged in.' });
+  sessions.set(session.id, session);
 
   if (req.method === 'GET' && pathname === '/api/me') {
-    return send(res, 200, { user: session, status: statusOf(session.id) });
+    return send(res, 200, { user: session, status: statusOf(session.id), owner: admin.isOwner(session.id) });
   }
   if (req.method === 'GET' && pathname === '/api/stream') return stream(req, res, session);
+  if (req.method === 'GET' && pathname === '/api/world') return send(res, 200, overworld.view(session.id));
+  if (req.method === 'GET' && pathname === '/api/intro') return send(res, 200, intro.view(session.id));
+  if (req.method === 'GET' && pathname === '/api/scene/lab') {
+    const lab = require('./maps').get('room:professor_lab');
+    return send(res, 200, require('./maps').publicView(lab, () => false));
+  }
+  if (req.method === 'GET' && pathname === '/api/party') return send(res, 200, menus.party(session.id));
+  if (req.method === 'GET' && pathname === '/api/bag') return send(res, 200, menus.bag(session.id));
+  if (req.method === 'GET' && pathname === '/api/trainer') return send(res, 200, menus.trainer(session.id));
+  if (req.method === 'GET' && pathname === '/api/shop') return send(res, 200, menus.shop(session.id));
+  if (req.method === 'GET' && pathname === '/api/tower') return send(res, 200, menus.tower(session.id));
+  const sprite = /^\/api\/item-sprite\/([a-z0-9-]+)$/.exec(pathname);
+  if (req.method === 'GET' && sprite) return menus.itemSprite(res, sprite[1]);
+  if (req.method === 'GET' && pathname === '/api/fly') {
+    const { unlocked, places } = overworld.flyPlaces(session.id);
+    return send(res, 200, { unlocked, places });
+  }
 
   const filePath = /^\/api\/file\/([a-z]+)\/(web-\d+)\/(\d+)$/.exec(pathname);
   if (req.method === 'GET' && filePath) return file(res, session, filePath[1], filePath[2], filePath[3]);
 
-  if (req.method === 'POST' && (pathname === '/api/run' || pathname === '/api/press')) {
+  if (req.method === 'POST' && ['/api/run', '/api/press', '/api/step', '/api/dev', '/api/intro', '/api/pickup', '/api/fly', '/api/shop', '/api/tower'].includes(pathname)) {
     if (!sameOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
     let body;
     try {
       body = await readJson(req);
     } catch {
       return send(res, 400, { error: 'Bad request.' });
+    }
+    if (pathname === '/api/step') return send(res, 200, overworld.step(session.id, body));
+    if (pathname === '/api/pickup') return send(res, 200, overworld.pickup(session.id));
+    if (pathname === '/api/fly') return send(res, 200, overworld.fly(session.id, body.key));
+    if (pathname === '/api/shop') return send(res, 200, menus.buy(session.id, body.id, body.qty));
+    if (pathname === '/api/tower') return send(res, 200, overworld.tower(session.id, String(body.action || '')));
+    if (pathname === '/api/intro') {
+      if (body.action === 'outfit') {
+        if (!intro.isOutfit(body.outfit)) return send(res, 400, { error: 'No such outfit.' });
+        overworld.setOutfit(session.id, String(body.outfit));
+        return send(res, 200, { ok: true });
+      }
+      if (body.action === 'starter') return send(res, 200, intro.chooseStarter(session.id, body.species));
+      return send(res, 400, { error: 'Unknown action.' });
+    }
+    if (pathname === '/api/dev') {
+      // Only the owner in .env, checked here on every call, not just in the page.
+      if (!admin.isOwner(session.id)) return send(res, 403, { error: 'Not allowed.' });
+      const args = Array.isArray(body.args) ? body.args.slice(0, 4) : [];
+      return send(res, 200, overworld.dev(session.id, String(body.cmd || ''), args));
     }
     const result = await (pathname === '/api/run' ? run : press)(session, body);
     return send(res, result.status || 200, result.body);
@@ -331,6 +414,22 @@ function start({ client: bot, byAlias, port = Number(process.env.WEB_PORT) || 84
   commands = byAlias;
   catcher = require('../Commands/catch');
 
+  // Battles the overworld starts (grass, trainers) run in the player's Battle
+  // Station channel, so they show up like any other battle.
+  overworld.configure({
+    fight(userId, foe) {
+      const session = sessions.get(userId);
+      if (!session) return Promise.resolve({ error: 'Log in again to battle.' });
+      const battleCommand = require('../Commands/battle');
+      const setup = battleCommand.prepareFixed(userId, foe);
+      if (setup.error) return Promise.resolve({ error: setup.error });
+      const channel = virtual.channelFor(session, 'battle', client);
+      channelsOf(session);
+      return battleCommand.begin(channel.messageFrom('.b'), setup);
+    },
+    notify: (userId, event, data) => push(userId, event, data),
+  });
+
   if (!auth.configured()) {
     console.warn('web: DISCORD_CLIENT_SECRET or WEB_URL missing in .env, so Discord login will not work.');
   }
@@ -345,6 +444,14 @@ function start({ client: bot, byAlias, port = Number(process.env.WEB_PORT) || 84
   });
 
   server.listen(port, host, () => console.log(`web: listening on http://${host}:${port}`));
+  // Build the MART's catalogue now, so the first customer doesn't wait.
+  setImmediate(() => {
+    try {
+      menus.catalog();
+    } catch (err) {
+      console.error('web: could not build the shop catalogue:', err.message);
+    }
+  });
   return server;
 }
 

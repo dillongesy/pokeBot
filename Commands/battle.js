@@ -146,6 +146,73 @@ function expBar(mon) {
   return `EXP \`${'▰'.repeat(filled)}${'▱'.repeat(EXP_WIDTH - filled)}\``;
 }
 
+/** How far a Pokemon is through its level, 0 to 1, for an EXP bar. */
+function expFraction(mon) {
+  if (mon.level >= MAX_LEVEL) return 1;
+  const species = loadSpecies(mon.speciesId);
+  const growth = (species && species.breeding && species.breeding.growthRate) || 'medium';
+  const start = experienceForLevel(growth, mon.level);
+  const span = Math.max(1, experienceForLevel(growth, mon.level + 1) - start);
+  return Math.max(0, Math.min(1, ((mon.exp || 0) - start) / span));
+}
+
+/**
+ * The battle as plain data, for the website's battle screen (Web/public/
+ * battle.js), which draws it like the handheld games instead of reading the
+ * Discord card. Sent alongside the card; the buttons stay the card's.
+ *
+ * @param {object} state  a live battle from Utils/battle.js
+ */
+function webView(state) {
+  const [playerSide, foeSide] = state.sides;
+  const mine = battle.activeOf(playerSide);
+  const theirs = battle.activeOf(foeSide);
+
+  const picture = (mon, back) => {
+    const looks = mon.appearance || mon;
+    const art = spritesFor(looks.speciesId, looks.form, mon.shiny);
+    return back ? art.back || art.front : art.front || art.back;
+  };
+  const card = (mon, back) => ({
+    name: mon.name,
+    level: mon.level,
+    hp: Math.max(0, mon.hp),
+    maxHp: mon.maxHp,
+    status: mon.status || null,
+    gender: mon.gender || null,
+    shiny: Boolean(mon.shiny),
+    sprite: picture(mon, back),
+    exp: back && playerSide.isPlayer !== false && mon.exp != null ? expFraction(mon) : null,
+  });
+
+  return {
+    kind: state.kind,
+    turn: state.turn,
+    foeName: foeSide.name,
+    mine: card(mine, true),
+    foe: card(theirs, false),
+    team: playerSide.team.map((mon, index) => ({
+      index,
+      name: mon.name,
+      level: mon.level,
+      hp: Math.max(0, mon.hp),
+      maxHp: mon.maxHp,
+      status: mon.status || null,
+      fainted: Boolean(mon.fainted),
+      active: index === playerSide.active,
+      sprite: picture(mon, false),
+    })),
+    // The opponent's party as balls: true while that one can still fight.
+    foeTeam: foeSide.team.map((mon) => !mon.fainted),
+    moves: mine.moves.map((entry) => ({
+      name: (entry.data && entry.data.displayName) || entry.name,
+      type: (entry.data && entry.data.type) || 'normal',
+      pp: entry.pp,
+      maxPp: entry.maxPp,
+    })),
+  };
+}
+
 /** The trainer's bar for the battle recap: "Trainer Lv.6 `▰▰▰▱▱▱▱▱▱▱` 1,240 / 3,000". */
 function trainerBar(standing) {
   const filled = Math.max(0, Math.min(EXP_WIDTH, Math.floor(standing.fraction * EXP_WIDTH)));
@@ -925,6 +992,56 @@ function prepare(userId, wantsMilestone, rng = Math.random, memberName = null) {
 }
 
 /**
+ * A battle against an opponent chosen by someone else: the website's
+ * overworld (a grass patch or a route trainer). Same checks as prepare(),
+ * but the opponent is given instead of rolled, at fixed levels.
+ *
+ * @param {string} userId
+ * @param {object} foe
+ * @param {'wild'|'trainer'} foe.kind
+ * @param {string} [foe.name]           a trainer's name ("Youngster a")
+ * @param {Array<{species:number, level:number}>} foe.team
+ *        Wild Pokemon move along their evolution line to suit the level (no
+ *        level 40 Caterpie); a trainer's team is used exactly as given.
+ */
+function prepareFixed(userId, foe, rng = Math.random) {
+  if (active.has(userId)) {
+    return { error: 'You are already in a battle. Finish that one first.' };
+  }
+
+  const { team, refused, cap, brought } = store.battleTeam(userId);
+  if (!team.length) {
+    return {
+      error: brought
+        ? `None of the first six in your party will listen to you (trainer level commands up to ${cap}).`
+        : 'You have no Pokemon to fight with.',
+    };
+  }
+
+  const wild = foe.kind === encounter.WILD;
+  const built = foe.team
+    .map((m) => (wild || m.evolve ? encounter.ageAppropriate(m.species, m.level, rng) : encounter.wildCombatant(m.species, m.level, { rng })))
+    .filter(Boolean);
+  if (!built.length) return { error: 'Nothing turned up.' };
+
+  return {
+    kind: wild ? encounter.WILD : encounter.TRAINER,
+    team,
+    refused,
+    cap,
+    brought,
+    // No "Battle again": that would be an ordinary .b, not this fight.
+    again: false,
+    opponent: {
+      kind: wild ? encounter.WILD : encounter.TRAINER,
+      name: wild ? `Wild ${built[0].name}` : foe.name || 'Trainer',
+      team: built,
+      level: Math.max(...built.map((mon) => mon.level)),
+    },
+  };
+}
+
+/**
  * Apply and describe the end-of-battle rewards.
  *
  * Called on every exit, including fleeing and timing out. Experience is earned
@@ -1216,6 +1333,18 @@ async function run(message, args) {
     return;
   }
 
+  await begin(message, setup);
+}
+
+/**
+ * Fight a prepared battle to the end (prepare() or prepareFixed()).
+ *
+ * @returns {Promise<{won: boolean, lost: boolean}>} lost is false when the
+ *          player ran, timed out or the battle broke
+ */
+async function begin(message, setup) {
+  const userId = message.author.id;
+
   const state = battle.create({
     player: { name: message.author.username, team: setup.team },
     opponent: { name: setup.opponent.name, team: setup.opponent.team },
@@ -1266,6 +1395,11 @@ async function run(message, args) {
     livebuttons.release(card, userId);
     partylock.release(userId);
   }
+
+  return {
+    won: state.winner === 0 && !state.endedBy,
+    lost: state.winner === 1 && !state.endedBy,
+  };
 }
 
 /**
@@ -1805,7 +1939,9 @@ async function conclude({ userId, state, setup, card, log, outcome = null, edit 
   const keepLog = Boolean(card && typeof card.createMessageComponentCollector === 'function');
   const payload = {
     embeds: [finished],
-    components: keepLog ? [new ActionRowBuilder().addComponents(logButton(), againButton())] : [],
+    components: keepLog
+      ? [new ActionRowBuilder().addComponents(...(setup.again === false ? [logButton()] : [logButton(), againButton()]))]
+      : [],
   };
 
   if (edit) await edit.update(payload).catch(() => {});
@@ -1881,6 +2017,9 @@ module.exports = {
   TURN_MS,
   active,
   prepare,
+  prepareFixed,
+  begin,
+  webView,
   settle,
   payKnockouts,
   narrate,

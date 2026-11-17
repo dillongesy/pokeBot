@@ -67,6 +67,16 @@ function cookie(name, value, { maxAge = null } = {}) {
 }
 
 /** The logged-in player from the request's cookie, or null. */
+/**
+ * Who may use the site. While it's being built, only the owner
+ * (DISCORD_OWNER_ID in .env); WEB_PUBLIC=1 opens it to everyone. With no
+ * owner set and WEB_PUBLIC off, nobody gets in.
+ */
+function allowed(userId) {
+  if (process.env.WEB_PUBLIC === '1') return true;
+  return require('../Utils/admin').isOwner(String(userId));
+}
+
 function sessionOf(req) {
   const raw = parseCookies(req.headers.cookie)[SESSION_COOKIE];
   if (!raw) return null;
@@ -80,6 +90,8 @@ function sessionOf(req) {
   try {
     const session = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
     if (!session.id || session.exp < Date.now()) return null;
+    // A cookie from before the site was locked doesn't get round the lock.
+    if (!allowed(session.id)) return null;
     return session;
   } catch {
     return null;
@@ -144,6 +156,10 @@ async function callback(req, res, url) {
     }).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`users/@me ${r.status}`))));
 
     const user = { id: me.id, username: me.username, globalName: me.global_name || null, avatar: me.avatar || null };
+    if (!allowed(user.id)) {
+      redirect(res, '/?login=locked', [cookie(STATE_COOKIE, '', { maxAge: 0 })]);
+      return;
+    }
     redirect(res, '/', [sessionCookie(user), cookie(STATE_COOKIE, '', { maxAge: 0 })]);
   } catch (err) {
     console.error('web: Discord login failed:', err.message);

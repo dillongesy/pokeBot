@@ -424,6 +424,7 @@ module.exports = {
   TEAM_SIZE: battle.TEAM_SIZE,
   playerTeam,
   levelAnchor,
+  ageAppropriate,
   opponentFor,
 };
 

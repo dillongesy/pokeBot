@@ -28,13 +28,46 @@ const DB_FILE = path.join(__dirname, '..', 'Data', 'pokedropper.db');
  * Stored in SQLite's `PRAGMA user_version`, so an out-of-date file fails
  * clearly at startup instead of with "no such column" errors later.
  */
-const SCHEMA_VERSION = 18;
+const SCHEMA_VERSION = 19;
 
 /**
  * Which Elite Four members a player has beaten on the milestone in front of
  * them. `milestone` is its 1-based ladder order. Rows are deleted when that
  * milestone is cleared, so a prestige starts the four again.
  */
+/**
+ * The website's overworld (Web/overworld.js).
+ *
+ * web_position: where each player stands, and the last town they visited
+ * (where a black-out sends them).
+ *
+ * web_progress: one row per thing done in the world - a grass patch or a
+ * trainer beaten, a place visited. Keyed by the prestige it happened in, so a
+ * prestige starts the world over without deleting anything.
+ */
+const WEB_WORLD = `
+CREATE TABLE web_position (
+  discord_user_id TEXT PRIMARY KEY REFERENCES users(discord_user_id) ON DELETE CASCADE,
+  map             TEXT NOT NULL,
+  x               INTEGER NOT NULL,
+  y               INTEGER NOT NULL,
+  facing          TEXT NOT NULL,
+  last_town       TEXT,
+  -- Which character sprite the player walks around as (Web/intro.js).
+  outfit          TEXT,
+  updated_at      INTEGER NOT NULL
+);
+
+CREATE TABLE web_progress (
+  discord_user_id TEXT NOT NULL REFERENCES users(discord_user_id) ON DELETE CASCADE,
+  prestige        INTEGER NOT NULL,
+  key             TEXT NOT NULL,
+  done_at         INTEGER NOT NULL,
+
+  PRIMARY KEY (discord_user_id, prestige, key)
+);
+`;
+
 const ELITE_FOUR_WINS = `
 CREATE TABLE elite_four_wins (
   discord_user_id TEXT NOT NULL REFERENCES users(discord_user_id) ON DELETE CASCADE,
@@ -465,7 +498,8 @@ CREATE TABLE admins (
 
 ${DAILY_QUESTS}
 ${ELITE_FOUR_WINS}
-${USER_GUILDS}`;
+${USER_GUILDS}
+${WEB_WORLD}`;
 
 // ---------------------------------------------------------------------------
 // Migrations
@@ -485,6 +519,8 @@ ${USER_GUILDS}`;
  * back-pay) were removed after the server reached 13.
  */
 const MIGRATIONS = {
+  // The website's overworld.
+  18: WEB_WORLD,
   13: splitGenderForms,
   15: partyNumbersAsSlots,
   16: heldFormsMatchItems,

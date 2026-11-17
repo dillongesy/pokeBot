@@ -1,22 +1,25 @@
 'use strict';
 
 /**
- * The overworld: a small town on a 240x160 canvas (the GBA's screen), scaled
- * up with crisp pixels.
+ * The overworld, drawn on a 240x160 canvas (the GBA's screen) scaled up with
+ * crisp pixels.
+ *
+ * Maps come from the server (GET /api/world), which also checks every step
+ * (POST /api/step, see Web/overworld.js). Steps are shown straight away and
+ * sent in order; if the server refuses one, the player snaps back to where
+ * the server says they are. Grass battles and trainers are decided there and
+ * arrive as events on a step's answer.
  *
  * Every picture comes from the Tuxemon assets in Web/sprites/tuxemon (served
- * at /sprites/tuxemon): the town is laid out below from tile numbers in its
- * tilesets, the player is Tuxemon's adventurer, and the grass and splash
- * effects are its animations. Credits: /sprites/CREDITS.txt.
+ * at /sprites/tuxemon). Credits: /sprites/CREDITS.txt.
  *
- * The town has three layers, as Tuxemon's own maps do: the ground, things on
- * it (trees, buildings, tall grass), and what is drawn over the player (roofs,
+ * Maps have three layers, as Tuxemon's own do: the ground, things on it
+ * (trees, buildings, tall grass), and what is drawn over the player (roofs,
  * the tops of signs).
  *
  * Movement is on the grid: tap a direction to turn, hold it to walk, hold B
  * (X / Shift) to run. Walk into a door to go in; face a sign and press A
- * (Z / Enter / Space) to read it. Tall grass rustles as you go through it;
- * shallow water splashes; deep water can't be entered.
+ * (Z / Enter / Space) to read it.
  */
 
 (function () {
@@ -27,14 +30,23 @@
   const RUN_MS = 110;
   // A tap shorter than this only turns the player.
   const TURN_MS = 90;
+  // Steps shown ahead of the server's answers, at most.
+  const MAX_AHEAD = 3;
+  // How long a trainer takes per tile walking up, and the "!" before it.
+  const TRAINER_STEP_MS = 220;
+  const ALERT_MS = 700;
 
   const BASE = '/sprites/tuxemon';
 
-  /** The tilesets, by the letter used in tile names below ("o111"). */
+  /** The tilesets, by the letter used in tile names ("o111"). */
   const SHEETS = {
     o: { src: `${BASE}/tilesets/core_outdoor.png`, columns: 37 },
     b: { src: `${BASE}/tilesets/core_buildings.png`, columns: 47 },
     s: { src: `${BASE}/tilesets/core_set_pieces.png`, columns: 31 },
+    // Indoors (Tuxemon's rooms, Web/maps/tmx.js).
+    f: { src: `${BASE}/tilesets/core_indoor_floors.png`, columns: 46 },
+    w: { src: `${BASE}/tilesets/core_indoor_walls.png`, columns: 46 },
+    t: { src: `${BASE}/tilesets/core_indoor_stairs.png`, columns: 45 },
   };
 
   /**
@@ -50,161 +62,42 @@
   };
 
   // -------------------------------------------------------------------------
-  // Tile names in the Tuxemon tilesets
+  // Pictures
+  //
+  // characters/*.png: 16x32 frames, 3 across (step, stand, step), rows facing
+  // down, left, right, up. animations/grass.png and splash_small.png: 16x16
+  // frames side by side. bubbles/exclamation.png: a 16x16 "!".
   // -------------------------------------------------------------------------
 
-  const TILES = {
-    grass: 'o111',
-    tallGrass: 'o1246',
-    // A pine: two tiles of top over two of trunk.
-    treeTop: ['o1319', 'o1320'],
-    treeBottom: ['o1356', 'o1357'],
-    // Sand path on grass, as a rectangle.
-    path: { tl: 'o116', t: 'o117', tr: 'o118', l: 'o153', c: 'o154', r: 'o155', bl: 'o190', b: 'o191', br: 'o192' },
-    // Water's edge on grass, around shallow water.
-    shore: { tl: 'o571', t: 'o572', tr: 'o573', l: 'o608', r: 'o610', bl: 'o645', b: 'o646', br: 'o647' },
-    shallow: 'o1268',
-    deep: 'o941',
-    flowers: ['o1482', 'o1556', 'o1704'],
-    // A signpost: its post, and its board drawn over the player.
-    signPost: 's199',
-    signBoard: 's168',
+  const CHAR_W = 16;
+  const CHAR_H = 32;
+  const ROW = { down: 0, left: 1, right: 2, up: 3 };
+  /** How long each effect frame shows, and how many times the effect plays. */
+  const FX = { grass: { ms: 150, loops: 2 }, splash: { ms: 90, loops: 1 } };
+
+  const DIRS = {
+    up: [0, -1],
+    down: [0, 1],
+    left: [-1, 0],
+    right: [1, 0],
   };
+  const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
 
-  /** The blue-roofed shop: a row of roof drawn over the player, then 3 rows. */
-  const SHOP = {
-    above: [['b245', 'b246', 'b247', 'b248', 'b249']],
-    body: [
-      ['b292', 'b293', 'b294', 'b295', 'b296'],
-      ['b339', 'b340', 'b341', 'b342', 'b343'],
-      ['b386', 'b387', 'b388', 'b389', 'b390'],
-    ],
-    door: { dx: 2 },
-  };
-
-  /** The red-roofed house; its door is drawn on, in the last column. */
-  const HOUSE = {
-    above: [['b423', 'b424', 'b425', 'b426', 'b427']],
-    body: [
-      ['b470', 'b471', 'b472', 'b473', 'b474'],
-      ['b517', 'b518', 'b519', 'b520', 'b521'],
-      ['b564', 'b565', 'b566', 'b567', 'b568'],
-    ],
-    overlay: [{ dx: 4, dy: 1, tile: 'b181' }, { dx: 4, dy: 2, tile: 'b228' }],
-    door: { dx: 4 },
-  };
-
-  // -------------------------------------------------------------------------
-  // The town
-  // -------------------------------------------------------------------------
-
-  const MAP_W = 22;
-  const MAP_H = 18;
-
-  const grid = (fill) => Array.from({ length: MAP_H }, () => Array(MAP_W).fill(fill));
-  const ground = grid(TILES.grass);
-  const objects = grid(null);
-  const overlays = grid(null);
-  const above = grid(null);
-  const solid = grid(false);
-  /** null, 'tall' (grass), 'shallow' or 'deep' (water). */
-  const terrain = grid(null);
-
-  const inside = (x, y) => x >= 0 && y >= 0 && x < MAP_W && y < MAP_H;
-  function set(layer, x, y, tile) {
-    if (inside(x, y)) layer[y][x] = tile;
-  }
-  function block(x, y) {
-    if (inside(x, y)) solid[y][x] = true;
-  }
-
-  /** A rectangle drawn with a 9-piece set (corners, edges, middle). */
-  function rect(layer, set9, x0, y0, w, h, middle = set9.c) {
-    for (let y = y0; y < y0 + h; y++) {
-      for (let x = x0; x < x0 + w; x++) {
-        const top = y === y0;
-        const bottom = y === y0 + h - 1;
-        const left = x === x0;
-        const right = x === x0 + w - 1;
-        const piece =
-          top ? (left ? 'tl' : right ? 'tr' : 't')
-          : bottom ? (left ? 'bl' : right ? 'br' : 'b')
-          : left ? 'l' : right ? 'r' : null;
-        set(layer, x, y, piece ? set9[piece] : middle);
-      }
+  const images = new Map();
+  /** An image by URL, loaded once; null until it has arrived. */
+  function image(src) {
+    let entry = images.get(src);
+    if (!entry) {
+      entry = { img: null };
+      images.set(src, entry);
+      const img = new Image();
+      img.onload = () => { entry.img = img; };
+      img.onerror = () => console.error(`could not load ${src}`);
+      img.src = src;
     }
+    return entry.img;
   }
-
-  // Pines all round, in 2x2 cells.
-  const CELLS_W = MAP_W / 2;
-  const CELLS_H = MAP_H / 2;
-  for (let cy = 0; cy < CELLS_H; cy++) {
-    for (let cx = 0; cx < CELLS_W; cx++) {
-      if (cx > 0 && cy > 0 && cx < CELLS_W - 1 && cy < CELLS_H - 1) continue;
-      const x = cx * 2;
-      const y = cy * 2;
-      [[0, 0, TILES.treeTop[0]], [1, 0, TILES.treeTop[1]], [0, 1, TILES.treeBottom[0]], [1, 1, TILES.treeBottom[1]]].forEach(
-        ([dx, dy, tile]) => {
-          set(objects, x + dx, y + dy, tile);
-          block(x + dx, y + dy);
-        }
-      );
-    }
-  }
-
-  /** The two stations. `door` is the tile you walk into; `sign` is read with A. */
-  const BUILDINGS = [
-    { station: 'drop', plan: SHOP, x: 3, y: 2, sign: { x: 9, y: 5 }, text: ['DROP STATION', 'Drop a wild Pokemon, then catch it by name.'] },
-    { station: 'battle', plan: HOUSE, x: 13, y: 2, sign: { x: 12, y: 5 }, text: ['BATTLE STATION', 'Take your team into a battle.'] },
-  ];
-
-  for (const b of BUILDINGS) {
-    const { plan } = b;
-    plan.above.forEach((row, dy) => row.forEach((tile, dx) => {
-      set(above, b.x + dx, b.y + dy, tile);
-      block(b.x + dx, b.y + dy);
-    }));
-    const top = b.y + plan.above.length;
-    plan.body.forEach((row, dy) => row.forEach((tile, dx) => {
-      set(objects, b.x + dx, top + dy, tile);
-      block(b.x + dx, top + dy);
-    }));
-    for (const o of plan.overlay || []) set(overlays, b.x + o.dx, top + o.dy, o.tile);
-    b.door = { x: b.x + plan.door.dx, y: top + plan.body.length - 1 };
-
-    set(objects, b.sign.x, b.sign.y, TILES.signPost);
-    set(above, b.sign.x, b.sign.y - 1, TILES.signBoard);
-    block(b.sign.x, b.sign.y);
-  }
-
-  // The path along the front of both stations.
-  rect(ground, TILES.path, 3, 6, 16, 4);
-
-  // A pond: a shallow rim you can wade through, deep water in the middle.
-  rect(ground, TILES.shore, 3, 10, 8, 6, TILES.shallow);
-  for (let y = 10; y < 16; y++) for (let x = 3; x < 11; x++) terrain[y][x] = 'shallow';
-  for (let y = 12; y < 14; y++) {
-    for (let x = 5; x < 9; x++) {
-      set(ground, x, y, TILES.deep);
-      terrain[y][x] = 'deep';
-      block(x, y);
-    }
-  }
-
-  // Tall grass, and flowers here and there.
-  for (let y = 11; y < 16; y++) {
-    for (let x = 13; x < 19; x++) {
-      set(objects, x, y, TILES.tallGrass);
-      terrain[y][x] = 'tall';
-    }
-  }
-  [[11, 3], [11, 4], [12, 10], [19, 10], [2, 7], [19, 15]].forEach(([x, y], i) => set(objects, x, y, TILES.flowers[i % 3]));
-
-  const START = { x: 11, y: 8, facing: 'up' };
-
-  // -------------------------------------------------------------------------
-  // Drawing
-  // -------------------------------------------------------------------------
+  const character = (sprite) => image(`${BASE}/characters/${sprite}.png`);
 
   function loadImage(src) {
     return new Promise((resolve, reject) => {
@@ -215,18 +108,25 @@
     });
   }
 
-  async function loadSheets() {
-    const out = {};
-    await Promise.all(Object.entries(SHEETS).map(async ([key, sheet]) => {
-      out[key] = { img: await loadImage(sheet.src), columns: sheet.columns };
-    }));
-    return out;
+  let sheetsPromise = null;
+  function loadSheets() {
+    if (!sheetsPromise) {
+      sheetsPromise = (async () => {
+        const out = {};
+        await Promise.all(Object.entries(SHEETS).map(async ([key, sheet]) => {
+          out[key] = { img: await loadImage(sheet.src), columns: sheet.columns };
+        }));
+        return out;
+      })();
+    }
+    return sheetsPromise;
   }
 
   /** Draw a tile by name; animated tiles show the frame for `now`. */
   function drawTile(g, sheets, name, x, y, now = 0) {
     if (!name) return;
     const sheet = sheets[name[0]];
+    if (!sheet) return;
     let id = Number(name.slice(1));
     const anim = ANIMS[name];
     if (anim) id = anim.frames[Math.floor(now / anim.ms) % anim.frames.length];
@@ -234,13 +134,13 @@
   }
 
   /** One layer as an image, leaving out animated tiles (drawn each frame). */
-  function drawLayer(sheets, layer, withAnimated = false) {
+  function drawLayer(sheets, map, layer, withAnimated = false) {
     const canvas = document.createElement('canvas');
-    canvas.width = MAP_W * TILE;
-    canvas.height = MAP_H * TILE;
+    canvas.width = map.width * TILE;
+    canvas.height = map.height * TILE;
     const g = canvas.getContext('2d');
-    for (let y = 0; y < MAP_H; y++) {
-      for (let x = 0; x < MAP_W; x++) {
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
         const name = layer[y][x];
         if (name && (withAnimated || !ANIMS[name])) drawTile(g, sheets, name, x * TILE, y * TILE);
       }
@@ -248,47 +148,34 @@
     return canvas;
   }
 
-  /** The animated tiles, as [layer, x, y, name], so only those are redrawn. */
-  const animated = [];
-  for (const [index, layer] of [ground, objects].entries()) {
-    for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) if (ANIMS[layer[y][x]]) animated.push([index, x, y, layer[y][x]]);
+  /** Everything about a map that is drawn, prepared once per map. */
+  function prepare(sheets, map) {
+    const animated = [];
+    for (const [index, layer] of [map.layers.ground, map.layers.objects].entries()) {
+      for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) if (ANIMS[layer[y][x]]) animated.push([index, x, y, layer[y][x]]);
+    }
+    return {
+      ground: drawLayer(sheets, map, map.layers.ground),
+      objects: drawLayer(sheets, map, map.layers.objects),
+      overlays: drawLayer(sheets, map, map.layers.overlays),
+      overlays2: map.layers.overlays2 ? drawLayer(sheets, map, map.layers.overlays2) : null,
+      above: drawLayer(sheets, map, map.layers.above),
+      animated,
+    };
   }
-
-  // -------------------------------------------------------------------------
-  // The player and effects
-  //
-  // characters/adventurer.png: 16x32 frames, 3 across (step, stand, step),
-  // rows facing down, left, right, up. animations/grass.png and
-  // splash_small.png: 16x16 frames side by side.
-  // -------------------------------------------------------------------------
-
-  const HERO = `${BASE}/characters/adventurer.png`;
-  const SHADOW = `${BASE}/characters/drop_shadow.png`;
-  const GRASS_FX = `${BASE}/animations/grass.png`;
-  const SPLASH_FX = `${BASE}/animations/splash_small.png`;
-  const HERO_W = 16;
-  const HERO_H = 32;
-  const HERO_ROW = { down: 0, left: 1, right: 2, up: 3 };
-  /** How long each effect frame shows, and how many times the effect plays. */
-  const FX = { grass: { ms: 150, loops: 2 }, splash: { ms: 90, loops: 1 } };
 
   // -------------------------------------------------------------------------
   // The game loop
   // -------------------------------------------------------------------------
 
-  const DIRS = {
-    up: [0, -1],
-    down: [0, 1],
-    left: [-1, 0],
-    right: [1, 0],
-  };
-
   /**
    * @param {HTMLCanvasElement} canvas
    * @param {object} hooks
    * @param {(station: string) => void} hooks.enter      walked into a door
-   * @param {(lines: string[]) => void} hooks.read       read a sign
+   * @param {(lines: string[], done?: Function) => void} hooks.read   show text
    * @param {() => boolean} hooks.paused                 a menu is open
+   * @param {(kind: 'wild'|'trainer') => void} hooks.encounter  a battle is starting
+   * @param {(path: string, body: object) => Promise<object>} hooks.post
    */
   function create(canvas, hooks) {
     const g = canvas.getContext('2d');
@@ -297,25 +184,30 @@
     g.imageSmoothingEnabled = false;
 
     let sheets = null;
-    let layers = null;
+    let map = null;
+    let drawn = null;
+    /** The owner's dev mode, from the server ({exploring, noclip, overlay, reveal}), or null. */
+    let devState = null;
+    /** Walking speed, x1 normally (dev.speed). */
+    let speed = 1;
+
     const art = {};
-    loadSheets().then((loaded) => {
-      sheets = loaded;
-      layers = {
-        ground: drawLayer(loaded, ground),
-        objects: drawLayer(loaded, objects),
-        overlays: drawLayer(loaded, overlays),
-        above: drawLayer(loaded, above),
-      };
-    }, (err) => console.error(err));
-    for (const [key, src] of Object.entries({ hero: HERO, shadow: SHADOW, grass: GRASS_FX, splash: SPLASH_FX })) {
+    for (const [key, src] of Object.entries({
+      shadow: `${BASE}/characters/drop_shadow.png`,
+      grass: `${BASE}/animations/grass.png`,
+      splash: `${BASE}/animations/splash_small.png`,
+      alert: `${BASE}/bubbles/exclamation.png`,
+      ball: '/icon.png',
+      surfboard: `${BASE}/animations/surfboard.png`,
+    })) {
       loadImage(src).then((img) => { art[key] = img; }, (err) => console.error(err));
     }
 
     const player = {
-      x: START.x,
-      y: START.y,
-      facing: START.facing,
+      sprite: 'adventurer',
+      x: 0,
+      y: 0,
+      facing: 'down',
       // Mid-step: where from, when it started, how long it takes.
       from: null,
       started: 0,
@@ -325,20 +217,206 @@
 
     /** Effects playing out on tiles: { kind, x, y, started }. */
     const effects = [];
+    /** A trainer walking up: { trainer, alertAt, walk, startedAt }. */
+    let approach = null;
 
     /** Directions held, most recent last. */
     const held = [];
     let heldSince = 0;
     let running = false;
     let fade = 0;
+    /** No walking until a battle the server started is over. */
+    let frozen = false;
 
-    const doorAt = (x, y) => BUILDINGS.find((b) => b.door.x === x && b.door.y === y) || null;
-    const signAt = (x, y) => BUILDINGS.find((b) => b.sign.x === x && b.sign.y === y) || null;
-    const terrainAt = (x, y) => (inside(x, y) ? terrain[y][x] : null);
+    // Steps waiting to be sent, and in flight. Sent one at a time, in order.
+    const queue = [];
+    let sending = false;
+    let generation = 0;
+
+    async function load() {
+      const res = await fetch('/api/world');
+      if (res.status === 401) return location.reload();
+      const data = await res.json();
+      sheets = await loadSheets();
+      devState = data.dev || null;
+      player.sprite = data.player.outfit || 'adventurer';
+      setMap(data.map);
+      place(data.player);
+      frozen = Boolean(data.busy);
+      if (hooks.loaded) hooks.loaded();
+    }
+
+    function setMap(next) {
+      map = next;
+      drawn = prepare(sheets, map);
+      effects.length = 0;
+      approach = null;
+      // Each person remembers where they belong, to wander round it.
+      for (const n of map.npcs || []) {
+        Object.assign(n, { homeX: n.x, homeY: n.y, from: null, started: 0, next: performance.now() + 800 + Math.random() * 2500 });
+      }
+      for (const t of map.trainers) character(t.sprite);
+      for (const n of map.npcs || []) character(n.sprite);
+    }
+
+    function place(pos) {
+      player.x = pos.x;
+      player.y = pos.y;
+      player.facing = pos.facing;
+      player.from = null;
+      player.stepCount = 0;
+    }
+
+    const inside = (x, y) => map && x >= 0 && y >= 0 && x < map.width && y < map.height;
+    const doorAt = (x, y) => map.doors.find((d) => d.x === x && d.y === y) || null;
+    const signAt = (x, y) => map.signs.find((s) => s.x === x && s.y === y) || null;
+    const trainerAt = (x, y) => map.trainers.find((t) => t.x === x && t.y === y) || null;
+    const npcAt = (x, y) => (map.npcs || []).find((n) => n.x === x && n.y === y) || null;
+    const NPC_STEP_MS = 300;
+
+    /**
+     * People amble about like in the games: now and then they turn, or take
+     * a step, never more than `wander` tiles from home, never into you, a
+     * wall, a door or an exit. They stop while you talk to them.
+     */
+    function wander(now) {
+      if (!map) return;
+      for (const n of map.npcs || []) {
+        if (n.from && now - n.started >= NPC_STEP_MS) n.from = null;
+        if (n.from || n.talking || now < n.next || hooks.paused()) continue;
+        n.next = now + 1200 + Math.random() * 2600;
+        if (!n.wander) continue;
+        const dir = Object.keys(DIRS)[Math.floor(Math.random() * 4)];
+        n.facing = dir;
+        if (Math.random() < 0.45) continue; // just a look round
+        const nx = n.x + DIRS[dir][0];
+        const ny = n.y + DIRS[dir][1];
+        if (Math.abs(nx - n.homeX) > n.wander || Math.abs(ny - n.homeY) > n.wander) continue;
+        if (!inside(nx, ny) || map.solid[ny][nx] || doorAt(nx, ny) || warpAt(nx, ny) || npcAt(nx, ny) || trainerAt(nx, ny)) continue;
+        if ((nx === player.x && ny === player.y) || (player.from && nx === player.from.x && ny === player.from.y)) continue;
+        n.from = { x: n.x, y: n.y };
+        n.x = nx;
+        n.y = ny;
+        n.started = now;
+      }
+    }
+
+    function npcPosition(n, now) {
+      if (!n.from) return { x: n.x * TILE, y: n.y * TILE, t: 0 };
+      const t = Math.min(1, (now - n.started) / NPC_STEP_MS);
+      return { x: (n.from.x + (n.x - n.from.x) * t) * TILE, y: (n.from.y + (n.y - n.from.y) * t) * TILE, t };
+    }
+    const obstacleAt = (x, y) => (map.obstacles || []).find((o) => o.x === x && o.y === y) || null;
+    const itemAt = (x, y) => (map.items || []).find((i) => i.x === x && i.y === y && !i.found) || null;
+    /** Solid, unless it's an obstacle you can get past or a Poke Ball already taken. */
+    function blocked(x, y) {
+      if (trainerAt(x, y) || npcAt(x, y)) return true;
+      if ((map.npcs || []).some((n) => n.from && n.from.x === x && n.from.y === y)) return true;
+      if (!map.solid[y][x]) return false;
+      const o = obstacleAt(x, y);
+      if (o) return !o.open;
+      const i = (map.items || []).find((it) => it.x === x && it.y === y);
+      if (i) return !i.found;
+      return true;
+    }
+    const terrainAt = (x, y) => (inside(x, y) ? map.terrain[y][x] : null);
+    const warpAt = (x, y) => map.warps.some((w) => w.x === x && w.y === y);
+
+    /** Throw away steps the server hasn't seen and go where it says. */
+    function snap(pos) {
+      generation += 1;
+      queue.length = 0;
+      if (pos.map !== map.id) {
+        reload();
+        return;
+      }
+      place(pos);
+    }
+
+    async function reload() {
+      generation += 1;
+      queue.length = 0;
+      fade = performance.now();
+      await load();
+    }
+
+    async function pump() {
+      if (sending) return;
+      sending = true;
+      try {
+        while (queue.length) {
+          const next = queue[0];
+          const gen = generation;
+          let answer;
+          try {
+            answer = await hooks.post('/api/step', { dir: next.dir });
+          } catch {
+            answer = null;
+          }
+          if (gen !== generation) continue;
+          queue.shift();
+          if (!answer || !answer.player) {
+            reload();
+            break;
+          }
+          handle(answer, next);
+        }
+      } finally {
+        sending = false;
+      }
+    }
+
+    function handle(answer, sent) {
+      const events = answer.events || [];
+      if (events.some((e) => e.type === 'map')) {
+        // A scene on arrival (the taxi driver) plays once the new map is up.
+        const scene = events.find((e) => e.type === 'scene');
+        reload().then(() => {
+          if (scene) {
+            hooks.read(scene.lines);
+            if (hooks.unlocked) hooks.unlocked();
+          }
+        });
+        return;
+      }
+      const at = answer.player;
+      if (!answer.ok || at.x !== sent.x || at.y !== sent.y) {
+        snap(at);
+      }
+      for (const e of events) {
+        if (e.type === 'note') hooks.read([e.text]);
+        if (e.type === 'wild') {
+          snap(at);
+          startEncounter('wild');
+        }
+        if (e.type === 'trainer') startTrainer(e, at);
+      }
+    }
+
+    function startEncounter(kind) {
+      frozen = true;
+      held.length = 0;
+      generation += 1;
+      queue.length = 0;
+      fade = performance.now();
+      hooks.encounter(kind);
+    }
+
+    /** A trainer spotted you: "!", they walk up, they speak, the battle starts. */
+    function startTrainer(e, at) {
+      frozen = true;
+      held.length = 0;
+      generation += 1;
+      queue.length = 0;
+      place(at);
+      const trainer = map.trainers.find((t) => t.id === e.id);
+      if (!trainer) return startEncounter('trainer');
+      approach = { trainer, alertAt: performance.now(), walk: e.walk, startedAt: 0, lines: e.lines || [] };
+    }
 
     function tryMove(now) {
       const dir = held[held.length - 1];
-      if (!dir) return;
+      if (!dir || !map) return;
 
       // A tap turns; holding walks.
       if (player.facing !== dir) {
@@ -347,42 +425,84 @@
         return;
       }
       if (now - heldSince < TURN_MS && player.stepCount === 0) return;
+      if (queue.length >= MAX_AHEAD) return;
 
       const [dx, dy] = DIRS[dir];
       const nx = player.x + dx;
       const ny = player.y + dy;
 
+      const noclip = Boolean(devState && devState.noclip);
       const door = doorAt(nx, ny);
-      if (door && dir === 'up') {
+      if (door && dir === 'up' && !noclip) {
         held.length = 0;
+        // The server hears about it too (a POKéMON CENTER becomes where you
+        // wake after a white-out). Exploring, it explains doors are shut.
+        queue.push({ dir, x: player.x, y: player.y });
+        pump();
         fade = now;
-        hooks.enter(door.station);
+        // Most doors lead into a room (the server's answer moves you there);
+        // the Drop Station is a counter.
+        if (door.station === 'drop' && !(devState && devState.exploring)) hooks.enter('drop', door);
         return;
       }
 
-      if (!inside(nx, ny) || solid[ny][nx]) return;
+      if (!inside(nx, ny)) return;
+      if (!noclip && blocked(nx, ny)) return;
 
       player.from = { x: player.x, y: player.y };
       player.x = nx;
       player.y = ny;
       player.started = now;
-      player.duration = running ? RUN_MS : WALK_MS;
+      player.duration = (running ? RUN_MS : WALK_MS) / speed;
       player.stepCount += 1;
+
+      queue.push({ dir, x: nx, y: ny });
+      pump();
 
       // Grass rustles as you step in; water splashes behind you.
       const ground = terrainAt(nx, ny);
-      if (ground === 'tall') effects.push({ kind: 'grass', x: nx, y: ny, started: now });
+      if (ground === 'tall' && !map.surf) effects.push({ kind: 'grass', x: nx, y: ny, started: now });
+      if (map.surf) effects.push({ kind: 'splash', x: player.from.x, y: player.from.y, started: now });
       if (ground === 'shallow') effects.push({ kind: 'splash', x: nx, y: ny, started: now + (running ? 0 : 60) });
+
+      // Walking off the map: stop and wait for the next one.
+      if (warpAt(nx, ny)) held.length = 0;
     }
 
     function interact() {
+      if (!map || frozen) return;
       const [dx, dy] = DIRS[player.facing];
       const x = player.x + dx;
       const y = player.y + dy;
       const sign = signAt(x, y);
-      if (sign) hooks.read(sign.text);
+      if (sign) hooks.read(sign.lines);
+      // Someone in front of you, or behind the counter in front of you.
+      let npc = npcAt(x, y);
+      if (!npc && inside(x, y) && map.solid[y][x]) npc = npcAt(x + dx, y + dy);
+      if (npc && !npc.from) {
+        npc.facing = OPPOSITE[player.facing];
+        npc.talking = true;
+        const done = () => {
+          npc.talking = false;
+          npc.next = performance.now() + 1500;
+        };
+        if (hooks.talk) hooks.talk(npc, done);
+        else hooks.read(npc.lines, done);
+      }
+      const o = obstacleAt(x, y);
+      if (o && !o.open) hooks.read([o.says, `(${o.hm.toUpperCase()} opens after ${o.after} milestones.)`]);
+      if (itemAt(x, y)) {
+        hooks.post('/api/pickup', {}).then((r) => {
+          if (r && r.text) hooks.read([r.text]);
+          if (r && r.ok) reload();
+        });
+      }
       const door = doorAt(x, y);
-      if (door) hooks.enter(door.station);
+      if (door && player.facing === 'up') {
+        queue.push({ dir: 'up', x: player.x, y: player.y });
+        pump();
+        if (door.station === 'drop') hooks.enter('drop', door);
+      }
     }
 
     /** Where the player is drawn, in pixels, including mid-step. */
@@ -412,63 +532,177 @@
       }
     }
 
+    /** A character standing (or mid-step) with its feet on tile (px, py). */
+    function drawCharacter(img, px, py, facing, column, camX, camY, cut = 0) {
+      const sx = Math.round(px - camX);
+      const top = Math.round(py - camY) + TILE - CHAR_H;
+      if (art.shadow && !cut) g.drawImage(art.shadow, sx, top);
+      if (img) g.drawImage(img, column * CHAR_W, ROW[facing] * CHAR_H, CHAR_W, CHAR_H - cut, sx, top, CHAR_W, CHAR_H - cut);
+    }
+
+    /** The dev overlay: one-battle grass in red, trainers' sight in yellow. */
+    function drawReveal(camX, camY) {
+      const reveal = devState && devState.overlay && devState.reveal;
+      if (!reveal) return;
+      g.fillStyle = 'rgba(230,40,40,0.35)';
+      for (const [x, y] of reveal.patches) g.fillRect(x * TILE - camX, y * TILE - camY, TILE, TILE);
+      g.fillStyle = 'rgba(250,210,40,0.4)';
+      for (const [x, y] of reveal.sight) g.fillRect(x * TILE - camX, y * TILE - camY, TILE, TILE);
+    }
+
+    /** Where each trainer is drawn: in place, or partway through walking up. */
+    function trainerPosition(t, now) {
+      if (!approach || approach.trainer !== t || !approach.startedAt) return { x: t.x * TILE, y: t.y * TILE, moving: false };
+      const [dx, dy] = DIRS[t.facing];
+      const tiles = Math.min(approach.walk, (now - approach.startedAt) / TRAINER_STEP_MS);
+      return { x: (t.x + dx * tiles) * TILE, y: (t.y + dy * tiles) * TILE, moving: tiles < approach.walk, tiles };
+    }
+
+    function stepApproach(now) {
+      if (!approach) return;
+      if (!approach.startedAt && now - approach.alertAt >= ALERT_MS) approach.startedAt = now;
+      if (approach.startedAt && now - approach.startedAt >= approach.walk * TRAINER_STEP_MS && !approach.talked) {
+        approach.talked = true;
+        const done = () => {
+          approach = null;
+          startEncounter('trainer');
+        };
+        if (approach.lines.length) hooks.read(approach.lines, done);
+        else done();
+      }
+    }
+
+    /** Someone walking up to you (the milestone leader); then `done`. */
+    let leaderWalk = null;
+    function walkUp(npcId, lines, done) {
+      const n = (map.npcs || []).find((x) => x.id === npcId);
+      if (!n) return done();
+      n.wander = 0;
+      n.talking = true;
+      leaderWalk = { n, lines, done, next: performance.now() + 600 };
+    }
+    function stepLeader(now) {
+      if (!leaderWalk || now < leaderWalk.next) return;
+      const { n } = leaderWalk;
+      if (n.from && now - n.started < NPC_STEP_MS) return;
+      n.from = null;
+      const dx = Math.sign(player.x - n.x);
+      const dy = Math.sign(player.y - n.y);
+      const far = Math.abs(player.x - n.x) + Math.abs(player.y - n.y);
+      if (far <= 1) {
+        n.facing = dy < 0 ? 'up' : dy > 0 ? 'down' : dx < 0 ? 'left' : 'right';
+        player.facing = OPPOSITE[n.facing];
+        const { lines, done } = leaderWalk;
+        leaderWalk = null;
+        hooks.read(lines, done);
+        return;
+      }
+      const dir = dy ? (dy < 0 ? 'up' : 'down') : dx < 0 ? 'left' : 'right';
+      n.facing = dir;
+      n.from = { x: n.x, y: n.y };
+      n.x += DIRS[dir][0];
+      n.y += DIRS[dir][1];
+      n.started = now;
+      leaderWalk.next = now + NPC_STEP_MS;
+    }
+
     function frame(now) {
       if (player.from && now - player.started >= player.duration) {
         player.from = null;
         if (!held.length) player.stepCount = 0;
       }
-      if (!player.from && !hooks.paused()) tryMove(now);
-
-      const pos = position(now);
-
-      // Camera, centred on the player, kept inside the map.
-      const camX = Math.max(0, Math.min(MAP_W * TILE - VIEW_W, Math.round(pos.x + TILE / 2 - VIEW_W / 2)));
-      const camY = Math.max(0, Math.min(MAP_H * TILE - VIEW_H, Math.round(pos.y + TILE / 2 - VIEW_H / 2)));
-      const view = (img) => g.drawImage(img, camX, camY, VIEW_W, VIEW_H, 0, 0, VIEW_W, VIEW_H);
+      if (!player.from && !frozen && !approach && !leaderWalk && !hooks.paused()) tryMove(now);
+      stepApproach(now);
+      stepLeader(now);
+      wander(now);
 
       g.fillStyle = '#000';
       g.fillRect(0, 0, VIEW_W, VIEW_H);
 
-      if (layers) {
-        view(layers.ground);
-        for (const [index, x, y, name] of animated) {
-          if (index === 0) drawTile(g, sheets, name, x * TILE - camX, y * TILE - camY, now);
+      if (map && drawn) {
+        const pos = position(now);
+
+        // Camera, centred on the player, kept inside the map.
+        const fit = (size, view, at) => (size <= view ? -Math.round((view - size) / 2) : Math.max(0, Math.min(size - view, Math.round(at + TILE / 2 - view / 2))));
+        const camX = fit(map.width * TILE, VIEW_W, pos.x);
+        const camY = fit(map.height * TILE, VIEW_H, pos.y);
+        const view = (img) => g.drawImage(img, -camX, -camY);
+
+        view(drawn.ground);
+        for (const [index, x, y, name] of drawn.animated) if (index === 0) drawTile(g, sheets, name, x * TILE - camX, y * TILE - camY, now);
+        view(drawn.objects);
+        for (const [index, x, y, name] of drawn.animated) if (index === 1) drawTile(g, sheets, name, x * TILE - camX, y * TILE - camY, now);
+        view(drawn.overlays);
+        if (drawn.overlays2) view(drawn.overlays2);
+        // Obstacles still in the way, and Poke Balls not yet picked up.
+        for (const o of map.obstacles || []) {
+          if (o.open) continue;
+          drawTile(g, sheets, o.tile, o.x * TILE - camX, o.y * TILE - camY, now);
+          if (o.top) drawTile(g, sheets, o.top, o.x * TILE - camX, (o.y - 1) * TILE - camY, now);
         }
-        view(layers.objects);
-        for (const [index, x, y, name] of animated) {
-          if (index === 1) drawTile(g, sheets, name, x * TILE - camX, y * TILE - camY, now);
+        if (art.ball) {
+          for (const i of map.items || []) {
+            if (!i.found) g.drawImage(art.ball, 0, 0, art.ball.width, art.ball.height, i.x * TILE - camX + 1, i.y * TILE - camY + 1, TILE - 2, TILE - 2);
+          }
         }
-        view(layers.overlays);
+        drawReveal(camX, camY);
+        drawEffects(now, camX, camY, false);
+
+        // Everyone, back to front, so nearer characters overlap further ones.
+        const people = map.trainers.map((t) => {
+          const at = trainerPosition(t, now);
+          const column = at.moving ? (Math.floor(at.tiles * 2) % 2 ? 0 : 2) : 1;
+          return { y: at.y, draw: () => drawCharacter(character(t.sprite), at.x, at.y, t.facing, column, camX, camY) };
+        });
+        for (const n of map.npcs || []) {
+          const at = npcPosition(n, now);
+          const column = n.from && at.t > 0.2 && at.t < 0.8 ? ((n.x + n.y) % 2 ? 0 : 2) : 1;
+          people.push({ y: at.y, draw: () => drawCharacter(character(n.sprite), at.x, at.y, n.facing, column, camX, camY) });
+        }
+        const where = terrainAt(player.x, player.y);
+        const wading = where === 'shallow';
+        people.push({
+          y: pos.y,
+          draw: () => {
+            const walking = player.from && pos.t > 0.15 && pos.t < 0.85;
+            const column = walking ? (player.stepCount % 2 ? 0 : 2) : 1;
+            if (map.surf) {
+              const bob = Math.round(Math.sin(now / 260));
+              const sx = Math.round(pos.x - camX);
+              const sy = Math.round(pos.y - camY);
+              if (art.surfboard) g.drawImage(art.surfboard, sx - 4, sy - 2 + bob);
+              const img = character(player.sprite);
+              if (img) g.drawImage(img, CHAR_W, ROW[player.facing] * CHAR_H, CHAR_W, 22, sx, sy + TILE - CHAR_H + 4 + bob, CHAR_W, 22);
+              return;
+            }
+            // Ankle-deep in water: the bottom of the sprite is under the surface.
+            drawCharacter(character(player.sprite), pos.x, pos.y, player.facing, column, camX, camY, wading && !player.from ? 3 : 0);
+            // Standing in tall grass hides the feet: the grass's lower half goes back on top.
+            if (!player.from && where === 'tall' && !map.surf) {
+              const name = map.layers.objects[player.y][player.x];
+              const sheet = name && sheets[name[0]];
+              if (sheet) {
+                const id = Number(name.slice(1));
+                const half = TILE / 2;
+                g.drawImage(sheet.img, (id % sheet.columns) * TILE, Math.floor(id / sheet.columns) * TILE + half, TILE, half,
+                  Math.round(pos.x - camX), Math.round(pos.y - camY) + half, TILE, half);
+              }
+            }
+          },
+        });
+        people.sort((a, b) => a.y - b.y).forEach((p) => p.draw());
+        drawEffects(now, camX, camY, true);
+
+        view(drawn.above);
+
+        // The "!" over a trainer who has spotted you.
+        if (approach && !approach.startedAt && art.alert) {
+          const t = approach.trainer;
+          g.drawImage(art.alert, t.x * TILE - camX, t.y * TILE - camY - CHAR_H + 2);
+        }
       }
-      drawEffects(now, camX, camY, false);
 
-      // The player: shadow, then the frame. Steps alternate feet.
-      const sx = Math.round(pos.x - camX);
-      const tileY = Math.round(pos.y - camY);
-      const top = tileY + TILE - HERO_H;
-      const where = terrainAt(player.x, player.y);
-      const wading = where === 'shallow';
-      if (art.shadow && !wading) g.drawImage(art.shadow, sx, top);
-      if (art.hero) {
-        const walking = player.from && pos.t > 0.15 && pos.t < 0.85;
-        const column = walking ? (player.stepCount % 2 ? 0 : 2) : 1;
-        // Ankle-deep in water: the bottom of the sprite is under the surface.
-        const cut = wading && !player.from ? 3 : 0;
-        g.drawImage(art.hero, column * HERO_W, HERO_ROW[player.facing] * HERO_H, HERO_W, HERO_H - cut, sx, top, HERO_W, HERO_H - cut);
-      }
-
-      // Standing in tall grass hides the feet: the grass's lower half goes back on top.
-      if (sheets && !player.from && where === 'tall') {
-        const sheet = sheets.o;
-        const id = Number(TILES.tallGrass.slice(1));
-        const half = TILE / 2;
-        g.drawImage(sheet.img, (id % sheet.columns) * TILE, Math.floor(id / sheet.columns) * TILE + half, TILE, half, sx, tileY + half, TILE, half);
-      }
-      drawEffects(now, camX, camY, true);
-
-      if (layers) view(layers.above);
-
-      // A quick fade on going through a door.
+      // A quick fade on doors, maps and battles.
       if (fade) {
         const a = Math.max(0, 1 - (now - fade) / 350);
         if (a <= 0) fade = 0;
@@ -481,6 +715,7 @@
       requestAnimationFrame(frame);
     }
 
+    load().catch((err) => console.error(err));
     requestAnimationFrame(frame);
 
     return {
@@ -501,30 +736,71 @@
         running = on;
       },
       interact,
-      /** Back outside a building's door, facing away from it. */
-      leave(station) {
-        const b = BUILDINGS.find((x) => x.station === station);
-        if (!b) return;
-        player.x = b.door.x;
-        player.y = b.door.y + 1;
-        player.from = null;
+      /** Back out of a building's door, facing away from it. */
+      leave() {
         player.facing = 'down';
         player.stepCount = 0;
         fade = performance.now();
       },
+      /**
+       * The server says where you are (after a battle, a black-out, or on
+       * reconnecting). `refresh` reloads the map, for a beaten trainer.
+       */
+      sync(pos, refresh) {
+        frozen = false;
+        if (!map || refresh || pos.map !== map.id) {
+          reload();
+          return;
+        }
+        snap(pos);
+      },
+      get busy() {
+        return frozen || Boolean(approach);
+      },
+      /** Load the map and position again (after a dev command). */
+      refresh: () => reload(),
+      /** Freeze or free walking (cutscenes). */
+      setFrozen(on) {
+        frozen = Boolean(on);
+        if (on) held.length = 0;
+      },
+      /** Put someone on this map (the milestone leader), by id. */
+      addNpc(n) {
+        if (!map) return;
+        map.npcs = (map.npcs || []).filter((x) => x.id !== n.id);
+        map.npcs.push({ wander: 0, facing: 'down', lines: [], ...n, homeX: n.x, homeY: n.y, from: null, started: 0, next: Infinity });
+        character(n.sprite);
+      },
+      walkUp,
+      get mapId() {
+        return map && map.id;
+      },
+      setSpeed(n) {
+        speed = n;
+      },
+      get speed() {
+        return speed;
+      },
+      get dev() {
+        return devState;
+      },
+      /** The battle background for where you are (Tuxemon's ui/combat set). */
+      get background() {
+        return map && map.background;
+      },
     };
   }
 
-  /** The whole town at once, for checking the layout. */
-  async function preview() {
+  /** A whole map at once, for checking a layout. */
+  async function preview(map) {
     const sheets = await loadSheets();
     const canvas = document.createElement('canvas');
-    canvas.width = MAP_W * TILE;
-    canvas.height = MAP_H * TILE;
+    canvas.width = map.width * TILE;
+    canvas.height = map.height * TILE;
     const g = canvas.getContext('2d');
-    for (const layer of [ground, objects, overlays, above]) g.drawImage(drawLayer(sheets, layer, true), 0, 0);
+    for (const layer of ['ground', 'objects', 'overlays', 'overlays2', 'above']) if (map.layers[layer]) g.drawImage(drawLayer(sheets, map, map.layers[layer], true), 0, 0);
     return canvas;
   }
 
-  window.World = { create, preview, VIEW_W, VIEW_H };
+  window.World = { create, preview, VIEW_W, VIEW_H, OPPOSITE };
 })();
