@@ -88,7 +88,7 @@ const looks = (sprite) => (CHARACTERS.has(sprite) ? sprite : 'cooldude');
  * @param {object} map
  * @param {(trainerId: string) => boolean} beaten
  */
-function publicView(map, beaten, { opened = () => false, found = () => false } = {}) {
+function publicView(map, beaten, { opened = () => false, found = () => false, spot = (t) => t } = {}) {
   return {
     id: map.id,
     name: map.name,
@@ -103,9 +103,10 @@ function publicView(map, beaten, { opened = () => false, found = () => false } =
     doors: map.doors,
     warps: map.warps.map((w) => ({ x: w.x, y: w.y })),
     // A trainer who leaves once beaten (AIDE at Town 1's gate) is gone.
-    trainers: map.trainers.filter((t) => !(t.leaves && beaten(t.id))).map((t) => ({
-      id: t.id, name: t.name, sprite: looks(t.sprite), x: t.x, y: t.y, facing: t.facing, beaten: beaten(t.id),
-    })),
+    trainers: map.trainers.filter((t) => !(t.leaves && beaten(t.id))).map((t) => {
+      const at = spot(t);
+      return { id: t.id, name: t.name, sprite: looks(t.sprite), x: at.x, y: at.y, facing: t.facing, beaten: beaten(t.id) };
+    }),
     obstacles: (map.obstacles || []).map((o) => ({ ...o, open: opened(o) })),
     npcs: (map.npcs || []).map((n) => ({
       id: n.id, name: n.name, sprite: looks(n.sprite), x: n.x, y: n.y, facing: n.facing, lines: n.lines, action: n.action || null,
@@ -113,6 +114,7 @@ function publicView(map, beaten, { opened = () => false, found = () => false } =
       wander: n.wander != null ? n.wander : n.action ? 0 : 2,
     })),
     surf: Boolean(map.surf),
+    marks: map.marks || [],
     items: (map.items || []).map((i) => ({ x: i.x, y: i.y, found: found(i.id) })),
   };
 }

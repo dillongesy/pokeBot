@@ -181,6 +181,7 @@
   transition: opacity .38s ease-in;
 }
 .bscreen.closing::after { opacity: 1; }
+.bscreen.to-white::after { background: #fff; transition-duration: .6s; }
 
 .b-hp {
   position: absolute;
@@ -386,3 +387,7 @@
 @keyframes b-vs-pop { from { transform: scale(3); opacity: 0; } }
 @keyframes b-vs-out { to { opacity: 0; visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .b-vs * { animation: none !important; } }
+
+/* The mouse: anything you can pick shows it. */
+.b-item, .b-slot, .b-cancel, .b-mega { cursor: pointer; }
+.b-text { cursor: pointer; }

@@ -124,6 +124,11 @@
               const b = el('button', `m-item${i === at ? ' on' : ''}`, label);
               b.type = 'button';
               b.addEventListener('click', () => pick(i === 0));
+              b.addEventListener('mouseenter', () => {
+                if (at === i) return;
+                at = i;
+                redraw();
+              });
               choices.append(b);
             });
             root.append(box, choices);
@@ -154,6 +159,14 @@
         if (render) render(b, item, i);
         else b.textContent = item.label;
         b.addEventListener('click', () => onPick(i));
+        // Pointing at an item moves the cursor there (as the arrow keys would).
+        b.addEventListener('mouseenter', () => {
+          const cur = [...box.children].findIndex((c) => c.classList.contains('on'));
+          const screen = top();
+          if (cur < 0 || cur === i || !screen || !screen.key || !box.isConnected) return;
+          const k = i > cur ? 'down' : 'up';
+          for (let n = 0; n < Math.abs(i - cur); n++) screen.key(k);
+        });
         box.append(b);
       });
       queueMicrotask(() => {
@@ -220,6 +233,7 @@
             info.append(el('span', 'm-slot-sub', mon.obeys ? `HP ${mon.stats.hp}` : "WON'T OBEY"));
             slot.append(img, info);
             slot.addEventListener('click', () => { at = i; options(mon); });
+            slot.addEventListener('mouseenter', () => { if (at !== i) { at = i; redraw(); } });
             grid.append(slot);
           });
           page.append(grid, el('p', 'm-hint', `Trainer level commands up to Lv${data.cap}. Change order with .swap on Discord.`));
@@ -323,6 +337,7 @@
             img.alt = '';
             cell.append(img, el('span', null, `Lv${p.level}`));
             cell.addEventListener('click', () => { at = i; this.key('a'); });
+            cell.addEventListener('mouseenter', () => { if (at !== i) { at = i; redraw(); } });
             grid.append(cell);
           });
           const chosen = data.mons[at];
@@ -580,6 +595,7 @@
             b.type = 'button';
             b.append(el('span', null, item.label), el('b', item.value === 'ON' ? 'is-on' : null, item.value));
             b.addEventListener('click', () => { at = i; this.key('a'); });
+            b.addEventListener('mouseenter', () => { if (at !== i) { at = i; redraw(); } });
             rows.append(b);
           });
           const d = state();

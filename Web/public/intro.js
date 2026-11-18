@@ -123,6 +123,11 @@
               const b = el('button', `i-choice${i === at ? ' on' : ''}`, o);
               b.type = 'button';
               b.addEventListener('click', () => pick(i));
+              b.addEventListener('mouseenter', () => {
+                if (at === i) return;
+                at = i;
+                draw();
+              });
               return b;
             }));
           };
@@ -255,7 +260,13 @@
             img.alt = s.name;
             cell.append(img);
             cell.addEventListener('click', () => {
-              if (at === i) choose();
+              at = i;
+              draw();
+              choose();
+            });
+            // Pointing at a starter shows it.
+            cell.addEventListener('mouseenter', () => {
+              if (at === i || !onKey) return;
               at = i;
               draw();
             });
@@ -269,7 +280,7 @@
         function draw() {
           const s = all[at];
           big.src = s.sprite || '';
-          label.textContent = `${s.name.toUpperCase()} · ${s.types.map((t) => t.toUpperCase()).join('/')} · ${s.region.toUpperCase()}`;
+          label.textContent = `${s.name}\n${s.region}`;
           cells.forEach((c, i) => c.classList.toggle('on', i === at));
           cells[at].scrollIntoView({ block: 'nearest' });
         }

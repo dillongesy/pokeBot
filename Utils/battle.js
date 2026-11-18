@@ -1078,9 +1078,13 @@ function landHit(attacker, defender, move, amount, detail, rng, events) {
     }
   }
 
+  // Only the HP it actually had can be taken: a hit for 900 on a Pokemon
+  // with 16 HP left deals 16 (what drain, Shell Bell, Counter and Bide see,
+  // as in the games).
+  //
   // Sturdy and Focus Sash: only checked when the hit would knock the Pokemon
   // out, and leave it at 1 HP.
-  let landed = amount;
+  let landed = Math.min(amount, defender.hp);
 
   // Endure: anything that would knock it out leaves it at 1 HP this turn.
   const enduring = defender.volatiles && defender.volatiles.endure && landed >= defender.hp;
@@ -1995,9 +1999,11 @@ function executeMove(attacker, defender, baseMove, options = {}) {
       // Liquid Ooze: draining it hurts instead.
       if (cond.abilityOf(defender) === 'liquid-ooze') {
         effects.chip(attacker, change, events, `${attacker.name} sucked up the liquid ooze!`, 'hurt');
-      } else if (!av.healBlock) {
+      } else if (!av.healBlock && attacker.hp < attacker.maxHp) {
+        // The HP actually gained (none past full).
+        const before = attacker.hp;
         attacker.hp = Math.min(attacker.maxHp, attacker.hp + change);
-        events.push({ kind: 'drain', name: attacker.name, amount: change, hp: attacker.hp });
+        events.push({ kind: 'drain', name: attacker.name, amount: attacker.hp - before, hp: attacker.hp });
       }
     } else if (move === STRUGGLE || effects.recoilAllowed(attacker)) {
       // Rock Head does not prevent Struggle recoil, as in the games.

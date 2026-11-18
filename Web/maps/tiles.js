@@ -108,17 +108,19 @@ const BUILDINGS = {
   cottageBrown: cut(7, 19, 5, 6, 3, 2),
   cottageRed: cut(12, 19, 5, 6, 3, 2),
   cottageGrey: cut(17, 19, 5, 6, 3, 2),
-  // Brick houses (the old HOUSE), 5 x 4.
-  brick: HOUSE,
+  // A timber-framed house with a pitched roof, 5 x 4. (The sheet's 5 x 4
+  // brick and timber fronts at rows 9-12 have no roofs of their own, so they
+  // aren't used: they look cut off.)
+  brick: cut(0, 13, 5, 4, 3, 2),
+  tudor: cut(0, 13, 5, 4, 3, 2),
+  // Town houses with a chimney, 5 x 5: stone and brick.
+  townhouse: cut(5, 13, 5, 5, 3, 3),
+  townhouseBrick: cut(18, 13, 5, 5, 3, 3),
+  // A round orange hut, 4 x 3, and a dojo with a tiled roof, 4 x 3.
+  dome: cut(31, 24, 4, 3, 1, 1),
+  dojo: cut(27, 25, 4, 3, 1, 1),
   // A cafe with a striped awning, 5 x 5.
   cafe: cut(7, 26, 5, 5, 3, 2),
-  // Town houses, 5 x 4, side by side on the sheet: dark brick, two timber,
-  // a Japanese-style one with paper screens, and grey stone.
-  brickDark: cut(5, 9, 5, 4, 3),
-  timber: cut(10, 9, 5, 4, 3),
-  timberLight: cut(15, 9, 5, 4, 3),
-  shoji: cut(20, 9, 5, 4, 3),
-  stone: cut(25, 9, 5, 4, 4),
   // Big timber houses with pitched roofs, 5 x 7.
   lodge: cut(12, 27, 5, 7, 3, 3),
   lodgeRed: cut(17, 27, 5, 7, 3, 3),

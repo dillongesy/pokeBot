@@ -176,3 +176,6 @@
   padding: calc(var(--gp) * 3) calc(var(--gp) * 5); font-size: calc(var(--gp) * 7); z-index: 3;
 }
 .m-qtybox b { font-weight: normal; }
+
+/* The mouse: anything you can pick shows it. */
+.mscreen button { cursor: pointer; }

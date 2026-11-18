@@ -22,6 +22,9 @@ const WALL_OPACITY = 0.45;
 /** The grass ledge you hop down (o444-446: left end, middle, right end). */
 const LEDGE = { l: 'o444', c: 'o445', r: 'o446' };
 
+/** A wooden bridge: plank deck (indoor floor sheet) and fence railings either side. */
+const BRIDGE = { deck: 'f230', railL: 'o1015', railR: 'o1017' };
+
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 class MapBuilder {
@@ -59,6 +62,8 @@ class MapBuilder {
     this.obstacles = [];
     /** Poke Balls lying around: { x, y, id }. */
     this.items = [];
+    /** Painted on the road: { x, y, text } over a 2x2 square from (x, y). */
+    this.marks = [];
     /** Named stretches (rest stops), visited by walking into them: { id, name, y0, y1 }. */
     this.places = [];
     /** Wild Pokemon here: [{ species, weight }] (optional grass and patches). */
@@ -273,9 +278,12 @@ class MapBuilder {
 
   /**
    * A river across the map: a grassy bank with a sandy lip above and below,
-   * water between. Only the ford can be waded; the rest is too deep.
+   * water between that nobody can wade (it runs right off both edges of the
+   * map, for surfing one day). A wooden bridge with railings crosses it from
+   * bridgeX0 to bridgeX1: the railings are the outer columns, the deck in
+   * between is walked on.
    */
-  river(y, x0, x1, fordX0, fordX1, depth = 2) {
+  river(y, x0, x1, bridgeX0, bridgeX1, depth = 2) {
     const S = TILES.shore;
     for (let x = x0; x <= x1; x++) {
       this.set('ground', x, y, S.t);
@@ -283,9 +291,17 @@ class MapBuilder {
       for (let r = 1; r <= depth; r++) {
         const yy = y + r;
         this.set('ground', x, yy, TILES.shallow);
-        const ford = x >= fordX0 && x <= fordX1;
-        this.terrain[yy][x] = ford ? 'shallow' : 'deep';
-        if (!ford) this.block(x, yy);
+        this.terrain[yy][x] = 'deep';
+        this.block(x, yy);
+      }
+    }
+    for (let x = bridgeX0; x <= bridgeX1; x++) {
+      const rail = x === bridgeX0 || x === bridgeX1;
+      for (let yy = y; yy <= y + depth + 1; yy++) {
+        this.set('ground', x, yy, BRIDGE.deck);
+        this.terrain[yy][x] = null;
+        this.block(x, yy, false);
+        if (rail) this.set('objects', x, yy, x === bridgeX0 ? BRIDGE.railL : BRIDGE.railR).block(x, yy);
       }
     }
     return this;
@@ -319,6 +335,12 @@ class MapBuilder {
     // reward: { coins } or { item, qty } (Web/overworld.js pays it).
     this.items.push({ x, y, id, reward });
     this.block(x, y);
+    return this;
+  }
+
+  /** A big number or word painted on the road, over 2x2 tiles (a gate's number). */
+  mark(x, y, text) {
+    this.marks.push({ x, y, text });
     return this;
   }
 
@@ -383,7 +405,6 @@ class MapBuilder {
   build() {
     if (!this.spawn) throw new Error(`${this.id}: no spawn point`);
     this.layPaths();
-    for (const t of this.trainers) if (!t.leaves) this.block(t.x, t.y);
     return {
       id: this.id,
       name: this.name,
@@ -406,6 +427,7 @@ class MapBuilder {
       obstacles: this.obstacles,
       items: this.items,
       places: this.places,
+      marks: this.marks,
       pool: this.pool,
       surf: Boolean(this.surf),
       spawn: this.spawn,

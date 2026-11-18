@@ -60,6 +60,38 @@ const CAST = {
 const RESIDENT_SPOTS = ['taba_house1_husband', 'taba_house1_wife', 'taba_house2_owner', 'taba_house3_owner', 'taba_house4_owner'];
 const RESIDENTS = ['granny', 'homemaker', 'cooldude', 'heroine', 'fisher', 'florist', 'postboy', 'monk', 'barmaid'];
 
+/**
+ * Books in rooms: the open books on a table and the shelves, by room file.
+ * Tiles are the solid table or shelf tiles you face to read them.
+ */
+const READABLE = {
+  taba_house2: [
+    { kind: 'book', tiles: [[0, 4], [1, 4], [2, 4], [3, 4], [0, 5], [1, 5], [2, 5], [3, 5]] },
+    { kind: 'shelf', tiles: [[0, 2], [1, 2], [2, 2], [3, 2]] },
+  ],
+};
+
+/** Open books: a tip each, or a bit of the world's story. */
+const BOOK_LINES = [
+  ['It\'s a notebook. "TRAINER EXP fills from every battle you win, wild or trainer. A full bar means your next milestone is ready at the BATTLE TOWER."'],
+  ['It\'s a guide to grass. "Grass right across the way always hides exactly one POKéMON. Grass off to the side never runs out."'],
+  ['It\'s a journal. "Day 41. The rocks on the routes can be smashed, the trees cut, the water crossed... but only once enough milestones are beaten."'],
+  ['It\'s a book of legends. "Long ago, the BATTLE TOWER was a lighthouse. Its light guided trainers home from all eight lands."'],
+  ['It\'s a list of rules. "A POKéMON above your obedience cap will not listen to you. Beat milestones to raise the cap."'],
+  ['It\'s a field guide. "Each gate out of the MAIN CITY leads to the land of one region. Their POKéMON live there too."'],
+  ['It\'s a scrapbook. "A photo of PROF. A and a very small AIDE, both holding POKé BALLS far too big for them."'],
+  ['It\'s a page of notes. "If you are tired of a route, FLY back to town. Anything you have beaten stays beaten."'],
+  ['It\'s a book about trainers. "Trainers on a route watch the whole way across. If you can see them, they can see you."'],
+  ['It\'s a diary. "The DROP STATION in the MAIN CITY: drop a wild POKéMON, then catch it by name before anyone else does!"'],
+];
+/** Bookshelves: what's on them. */
+const SHELF_LINES = [
+  ['Rows of books on POKéMON from every region. "KANTO", "JOHTO", "HOENN"... they go on and on.'],
+  ['A shelf of thick books about POKéMON types. One has a bookmark in "Why water beats fire".'],
+  ["A shelf of PROF. A's research. The titles are far too long to read."],
+  ['Old maps of the eight lands past the MAIN CITY, rolled up and tied with string.'],
+];
+
 const hash = (text) => [...text].reduce((h, c) => (Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0), 2166136261);
 
 /** The first free tile near a spot, walking outwards. */
@@ -118,6 +150,13 @@ function buildRoom(id, outside, door) {
       facing: 'down',
       wander: 2,
       lines: door.lines || ['Welcome! Make yourself at home.'],
+    });
+  }
+  // Books you can read (A while facing them).
+  for (const shelf of READABLE[file] || []) {
+    shelf.tiles.forEach(([x, y], i) => {
+      const pages = shelf.kind === 'shelf' ? SHELF_LINES : BOOK_LINES;
+      room.signs.push({ x, y, lines: pages[(hash(`${id}:${x},${y}`) + i) % pages.length] });
     });
   }
   if (door.station === 'battle') {

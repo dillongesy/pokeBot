@@ -349,6 +349,11 @@ function buildRoute(n) {
         before: [
           gate.number === 1 ? "AIDE: There you are! I've been training nonstop. Let's see who's stronger!" : `AIDE: Gate ${gate.number} already? Don't think I've been slacking!`,
         ],
+        won: [
+          'AIDE: Argh, not again!',
+          "AIDE: I've been training every day, you know. You're just... really good.",
+          "AIDE: Fine. I'll get even stronger. Don't you dare slow down!",
+        ],
         after: ["AIDE: I'll beat you next time. Just you wait!"],
         reward: { coins: 40 + n },
       });

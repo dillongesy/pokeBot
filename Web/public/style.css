@@ -465,3 +465,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
   image-rendering: pixelated;
   pointer-events: none;
 }
+
+/* Whiting out (app.js playWhiteout): all white, then it clears. */
+.whiteout {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: #fff;
+  pointer-events: none;
+  transition: opacity .9s ease-in;
+}
+.whiteout.clear { opacity: 0; }
+body.whiting .dialog { z-index: 11; }

@@ -101,6 +101,11 @@
     party.hidden = true;
 
     root.append(arena, bottom, party);
+    // Clicking the text box (or the arena) is A: on to the next line.
+    textBox.addEventListener('click', () => input('a'));
+    arena.addEventListener('click', () => {
+      if (mode === 'wait' || mode === 'done') input('a');
+    });
 
     // -----------------------------------------------------------------------
     // State
@@ -193,6 +198,12 @@
           cursor = i;
           choose();
         });
+        // Pointing at an option moves the cursor to it.
+        b.addEventListener('mouseenter', () => {
+          if (cursor === i) return;
+          cursor = i;
+          drawMenu();
+        });
         menu.append(b);
       });
 
@@ -240,6 +251,11 @@
           cursor = i;
           choose();
         });
+        slot.addEventListener('mouseenter', () => {
+          if (cursor === i) return;
+          cursor = i;
+          drawMenu();
+        });
         grid.append(slot);
       });
       party.append(grid);
@@ -247,6 +263,11 @@
         const cancel = el('button', `b-cancel${cursor === team.length ? ' on' : ''}`, 'CANCEL');
         cancel.type = 'button';
         cancel.addEventListener('click', back);
+        cancel.addEventListener('mouseenter', () => {
+          if (cursor === team.length) return;
+          cursor = team.length;
+          drawMenu();
+        });
         party.append(cancel);
       }
     }
@@ -493,6 +514,8 @@
     }
 
     function say(lines, then) {
+      // The text box gets the whole width while it talks (no menu beside it).
+      if (mode === 'wait') drawMenu();
       for (const line of lines) queue.push({ line });
       if (then) queue.push({ then });
       if ((!typing || typing.done) && !cueTimer) next();
@@ -872,13 +895,14 @@
       clearInterval(typing && typing.timer);
       clearTimeout(typing && typing.auto);
       clearTimeout(cueTimer);
-      // Fade to black, then back to the world.
+      // Fade to black (or white, after losing), then back to the world.
+      root.classList.toggle('to-white', Boolean(hooks.whitingOut && hooks.whitingOut()));
       root.classList.add('closing');
       setTimeout(() => {
         closing = false;
         open = false;
         root.hidden = true;
-        root.classList.remove('closing');
+        root.classList.remove('closing', 'to-white');
         hooks.closed();
       }, 420);
     }

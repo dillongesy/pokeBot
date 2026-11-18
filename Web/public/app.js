@@ -81,9 +81,16 @@
     events.addEventListener('world', (e) => {
       const data = JSON.parse(e.data);
       if (world) world.sync(data.player, data.refresh);
-      if (data.message) {
-        if (battleUI.open) afterBattle.push(data.message);
-        else showDialog([data.message]);
+      // Whited out: the screen goes white, the words, then where you woke up.
+      if (data.whiteout) {
+        whiteout = { lines: data.whiteout.map(fillName), after: data.lines || [] };
+        if (!battleUI.open) playWhiteout();
+        return;
+      }
+      const lines = [...(data.lines || []), ...(data.message ? [data.message] : [])];
+      if (lines.length) {
+        if (battleUI.open) afterBattle.push(...lines);
+        else showDialog(lines);
       }
     });
 
@@ -342,8 +349,8 @@
     await S.step('prof', 'up');
     S.remove('prof');
     await S.walkTo('player', { x: house.x, y: house.y + 1 });
-    S.face('player', 'up');
-    await S.fadeOut();
+    await S.step('player', 'up');
+    await S.fadeOut(500);
 
     // 2. AIDE's house.
     const inside = await sceneMap(`in:town-1:${house.x},${house.y}`);
@@ -365,15 +372,18 @@
       'AIDE: Today we BOTH get our first POKéMON. And mine is going to be the strongest!',
       'AIDE: Race you to the lab!',
     ]);
-    if (!(await S.walkTo('aide', { x: sp.x, y: sp.y + 1 }, 160))) await pause(300);
+    // He sprints for the door: you and the professor step out of his way.
+    await S.makeWay('aide', { x: sp.x, y: sp.y + 1 });
+    await S.walkTo('aide', { x: sp.x, y: sp.y + 1 }, 120);
     S.remove('aide');
     S.faceTo('player', 'prof');
+    S.faceTo('prof', 'player');
     await say(["PROF. A: Ha! He's always in such a hurry.", "PROF. A: Come on, let's head to my LAB."]);
+    // Out the door behind the professor.
     await S.lead('prof', { x: sp.x, y: sp.y + 1 });
     S.remove('prof');
-    await S.walkTo('player', { x: sp.x, y: sp.y });
-    S.face('player', 'down');
-    await S.fadeOut();
+    await S.walkTo('player', { x: sp.x, y: sp.y + 1 });
+    await S.fadeOut(500);
 
     // 3. Back outside, and up the road to the lab.
     S.stage(town, { x: house.x, y: house.y + 1, facing: 'down' }, [{ ...PROF, x: house.x, y: house.y + 2, facing: 'down' }]);
@@ -382,8 +392,8 @@
     await S.step('prof', 'up');
     S.remove('prof');
     await S.walkTo('player', { x: lab.x, y: lab.y + 1 });
-    S.face('player', 'up');
-    await S.fadeOut();
+    await S.step('player', 'up');
+    await S.fadeOut(500);
 
     // 4. The lab: AIDE is already at the table.
     const room = await sceneMap(`in:town-1:${lab.x},${lab.y}`);
@@ -413,7 +423,8 @@
           `AIDE: Heh. ${theirs} has the edge on yours! You'll need more than that to keep up with me.`,
           "AIDE: I'll be waiting for you at the main gate of TOWN 1. Let's see what that POKéMON can do!",
         ]);
-        await S.walkTo('aide', { x: ls.x, y: ls.y + 1 }, 170);
+        await S.makeWay('aide', { x: ls.x, y: ls.y + 1 });
+        await S.walkTo('aide', { x: ls.x, y: ls.y + 1 }, 120);
         S.remove('aide');
       }
     } else {
@@ -424,8 +435,35 @@
       `PROF. A: ${name}! Your very own POKéMON legend is about to unfold!`,
       "PROF. A: A world of dreams and adventures with POKéMON awaits! Let's go!",
     ]);
-    await S.fadeOut(500);
+    // Fade to black; you're standing outside the lab (the server put you there).
+    await S.fadeOut(700);
     await S.end();
+  }
+
+  /** A white-out waiting to be shown: { lines, after }. */
+  let whiteout = null;
+
+  /**
+   * White out, as in the games: the screen is white, "... whited out!",
+   * then it fades into wherever you woke up (and whoever's there speaks).
+   */
+  async function playWhiteout() {
+    const w = whiteout;
+    whiteout = null;
+    if (!w) return;
+    const veil = document.createElement('div');
+    veil.className = 'whiteout';
+    $('screen').append(veil);
+    document.body.classList.add('whiting');
+    world.setFrozen(true);
+    await pause(500);
+    await say(w.lines);
+    veil.classList.add('clear');
+    await pause(900);
+    veil.remove();
+    document.body.classList.remove('whiting');
+    world.setFrozen(false);
+    if (w.after.length) await say(w.after);
   }
 
   /** "DILLON'S HOUSE", "JAMES' HOUSE": names on signs. */
@@ -445,10 +483,17 @@
       milestone: () => towerFight,
       // Who stands on the far base as a trainer battle opens.
       foeLook: () => (towerFight && towerFight.look) || foeLook,
+      // A lost battle ends in white, not black.
+      whitingOut: () => Boolean(whiteout),
       closed: () => {
         document.body.classList.remove('in-battle');
-        world.fadeIn();
         leaveArena();
+        if (whiteout) {
+          afterBattle.length = 0;
+          playWhiteout();
+          return;
+        }
+        world.fadeIn();
         if (afterBattle.length) showDialog(afterBattle.splice(0));
       },
     });

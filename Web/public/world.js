@@ -27,6 +27,9 @@
   const VIEW_W = 240;
   const VIEW_H = 160;
   const WALK_MS = 200;
+  /** Going through a door or an exit: the fade to black, and back in. */
+  const FADE_OUT_MS = 320;
+  const FADE_IN_MS = 520;
   /** A ledge hop: two tiles in one smooth arc, this long and this high (px). */
   const HOP_MS = 520;
   const HOP_HEIGHT = 12;
@@ -166,8 +169,25 @@
     for (const [index, layer] of [map.layers.ground, map.layers.objects].entries()) {
       for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) if (ANIMS[layer[y][x]]) animated.push([index, x, y, layer[y][x]]);
     }
+    // Paint on the road (a gate's number), part of the ground.
+    const ground = drawLayer(sheets, map, map.layers.ground);
+    if ((map.marks || []).length) {
+      const gg = ground.getContext('2d');
+      gg.textAlign = 'center';
+      gg.textBaseline = 'middle';
+      gg.font = '24px "Press Start 2P", monospace';
+      for (const m of map.marks) {
+        const cx = (m.x + 1) * TILE;
+        const cy = (m.y + 1) * TILE + 1;
+        gg.lineWidth = 3;
+        gg.strokeStyle = 'rgba(60,64,80,0.55)';
+        gg.strokeText(m.text, cx, cy);
+        gg.fillStyle = 'rgba(250,250,240,0.85)';
+        gg.fillText(m.text, cx, cy);
+      }
+    }
     return {
-      ground: drawLayer(sheets, map, map.layers.ground),
+      ground,
       objects: drawLayer(sheets, map, map.layers.objects),
       overlays: drawLayer(sheets, map, map.layers.overlays),
       overlays2: map.layers.overlays2 ? drawLayer(sheets, map, map.layers.overlays2) : null,
@@ -314,6 +334,8 @@
         const ny = n.y + DIRS[dir][1];
         if (Math.abs(nx - n.homeX) > n.wander || Math.abs(ny - n.homeY) > n.wander) continue;
         if (!inside(nx, ny) || map.solid[ny][nx] || doorAt(nx, ny) || warpAt(nx, ny) || npcAt(nx, ny) || trainerAt(nx, ny)) continue;
+        // Never on a doorstep, where they'd be in your way.
+        if (doorAt(nx, ny - 1)) continue;
         // Indoors, never in front of the way out (or anywhere in line with it).
         if (/^in:/.test(map.id) && map.warps.some((w) => w.x === nx && ny < w.y)) continue;
         if ((nx === player.x && ny === player.y) || (player.from && nx === player.from.x && ny === player.from.y)) continue;
@@ -345,6 +367,19 @@
     const terrainAt = (x, y) => (inside(x, y) ? map.terrain[y][x] : null);
     const warpAt = (x, y) => map.warps.some((w) => w.x === x && w.y === y);
 
+    /** Slide back to where the server says, instead of jumping there. */
+    function glideTo(pos) {
+      const now = performance.now();
+      const far = Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y);
+      player.from = { x: player.x, y: player.y };
+      player.x = pos.x;
+      player.y = pos.y;
+      player.facing = pos.facing;
+      player.started = now;
+      player.duration = Math.min(400, 140 * far);
+      player.hop = false;
+    }
+
     /** Throw away steps the server hasn't seen and go where it says. */
     function snap(pos) {
       generation += 1;
@@ -353,7 +388,9 @@
         reload();
         return;
       }
-      place(pos);
+      // A step or two out: glide back. Further: jump.
+      if (Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y) <= 2) glideTo(pos);
+      else place(pos);
     }
 
     async function reload() {
@@ -394,7 +431,11 @@
       if (events.some((e) => e.type === 'map')) {
         // A scene on arrival (the taxi driver) plays once the new map is up.
         const scene = events.find((e) => e.type === 'scene');
-        reload().then(() => {
+        // Through a door or an exit: fade to black, then into the new place.
+        frozen = true;
+        fadeOut = performance.now();
+        fadeOutMs = FADE_OUT_MS;
+        new Promise((r) => setTimeout(r, FADE_OUT_MS)).then(() => reload()).then(() => {
           if (scene) {
             if (hooks.scene) hooks.scene(scene);
             else hooks.read(scene.lines);
@@ -432,7 +473,10 @@
       held.length = 0;
       generation += 1;
       queue.length = 0;
-      place(at);
+      // Already there (the step you were taking): just turn, no jump. If
+      // the browser had got a step or two ahead, glide back rather than snap.
+      if (player.x === at.x && player.y === at.y) player.facing = at.facing;
+      else glideTo(at);
       const trainer = map.trainers.find((t) => t.id === e.id);
       if (!trainer) return startEncounter('trainer');
       approach = { trainer, alertAt: performance.now(), walk: e.walk, startedAt: 0, lines: e.lines || [] };
@@ -635,6 +679,10 @@
         approach.talked = true;
         const done = () => {
           const t = approach.trainer;
+          // They stay where they walked to (the server remembers it too).
+          const [dx, dy] = DIRS[t.facing];
+          t.x += dx * approach.walk;
+          t.y += dy * approach.walk;
           approach = null;
           startEncounter('trainer', { sprite: t.sprite, name: t.name });
         };
@@ -814,6 +862,55 @@
         if (!path) return false;
         for (const d of path) await stepActor(id, d, ms);
         return true;
+      },
+      /**
+       * Clear the way for someone heading to a tile: anyone standing on
+       * their path steps aside (you to the right if you can, others up), all
+       * at once, so nobody has to walk through anyone.
+       */
+      async makeWay(id, to) {
+        const a = actor(id);
+        if (!a) return;
+        const everyone = ['player', ...(map.npcs || []).map((n) => n.id)];
+        const route = findPath(a, to, { ignore: everyone }) || [];
+        const onPath = new Set();
+        let x = a.x;
+        let y = a.y;
+        for (const d of route) {
+          x += DIRS[d][0];
+          y += DIRS[d][1];
+          onPath.add(`${x},${y}`);
+        }
+        for (const other of everyone.filter((o) => o !== id)) {
+          const b = actor(other);
+          if (!b || !onPath.has(`${b.x},${b.y}`)) continue;
+          // The nearest spot off the path they can walk to (you prefer to
+          // step right, others up), walking through the path if they must.
+          const pref = other === 'player' ? ['right', 'up', 'left', 'down'] : ['up', 'right', 'left', 'down'];
+          const key = (px, py) => `${px},${py}`;
+          const seen = new Set([key(b.x, b.y)]);
+          const q = [[b.x, b.y]];
+          let dest = null;
+          while (q.length && !dest) {
+            const [cx, cy] = q.shift();
+            for (const d of pref) {
+              const nx = cx + DIRS[d][0];
+              const ny = cy + DIRS[d][1];
+              const k = key(nx, ny);
+              if (seen.has(k) || !inside(nx, ny) || map.solid[ny][nx] || terrainAt(nx, ny) === 'ledge') continue;
+              seen.add(k);
+              const occupied = (npcAt(nx, ny) && npcAt(nx, ny) !== b) || trainerAt(nx, ny) || (other !== 'player' && player.x === nx && player.y === ny);
+              if (occupied) continue;
+              if (!onPath.has(k) && !(nx === to.x && ny === to.y)) {
+                dest = { x: nx, y: ny };
+                break;
+              }
+              q.push([nx, ny]);
+            }
+          }
+          if (dest) await scene.walkTo(other, dest);
+          scene.faceTo(other, id);
+        }
       },
       /** A free tile next to someone, the nearest to `from`. */
       beside(id, from) {
@@ -1030,7 +1127,7 @@
       }
       // A quick fade on doors, maps and battles.
       if (fade) {
-        const a = Math.max(0, 1 - (now - fade) / 350);
+        const a = Math.max(0, 1 - (now - fade) / FADE_IN_MS);
         if (a <= 0) fade = 0;
         else {
           g.fillStyle = `rgba(0,0,0,${a})`;

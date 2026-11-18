@@ -122,13 +122,51 @@ function routeCleared(userId, n) {
  */
 function walkable(userId, map, x, y) {
   if (!map.solid[y] || map.solid[y][x] === undefined) return false;
-  if (map.trainers.some((t) => t.x === x && t.y === y && !gone(userId, map, t))) return false;
+  if (map.trainers.some((t) => !gone(userId, map, t) && same(spotOf(userId, map, t), x, y))) return false;
   if (!map.solid[y][x]) return true;
   const o = (map.obstacles || []).find((b) => b.x === x && b.y === y);
   if (o) return milestonesOf(userId) >= o.after;
   const item = (map.items || []).find((i) => i.x === x && i.y === y);
   if (item) return isDone(userId, itemKey(map.id, item.id));
   return false;
+}
+
+const same = (s, x, y) => s.x === x && s.y === y;
+const spotPrefix = (mapId, id) => `${mapId}:trainerat:${id}:`;
+
+/**
+ * Where a trainer stands for this player: a beaten trainer stays where they
+ * walked up to you (as in the games); otherwise where the map puts them.
+ * Cached per player and map.
+ */
+function spotOf(userId, map, t) {
+  const p = load(userId);
+  p.spots = p.spots || {};
+  if (!p.spots[map.id]) {
+    p.spots[map.id] = {};
+    const rows = db.open()
+      .prepare('SELECT key FROM web_progress WHERE discord_user_id = ? AND prestige = ? AND key LIKE ?')
+      .all(userId, prestigeOf(userId), `${map.id}:trainerat:%`);
+    for (const r of rows) {
+      const [id, at] = r.key.slice(`${map.id}:trainerat:`.length).split(':');
+      const [x, y] = at.split(',').map(Number);
+      p.spots[map.id][id] = { x, y };
+    }
+  }
+  const moved = p.spots[map.id][t.id];
+  return moved && isDone(userId, trainerKey(map.id, t.id)) ? moved : { x: t.x, y: t.y };
+}
+
+/** Remember where a trainer walked to (replacing any earlier spot). */
+function rememberSpot(userId, map, t, x, y) {
+  const handle = db.open();
+  handle.prepare('DELETE FROM web_progress WHERE discord_user_id = ? AND prestige = ? AND key LIKE ?').run(userId, prestigeOf(userId), `${spotPrefix(map.id, t.id)}%`);
+  if (x !== t.x || y !== t.y) markDone(userId, `${spotPrefix(map.id, t.id)}${x},${y}`);
+  const p = load(userId);
+  if (p.spots && p.spots[map.id]) {
+    if (x !== t.x || y !== t.y) p.spots[map.id][t.id] = { x, y };
+    else delete p.spots[map.id][t.id];
+  }
 }
 
 /** A trainer who walks off once beaten (AIDE at Town 1's gate) and has. */
@@ -200,6 +238,7 @@ function view(userId) {
     map: maps.publicView(map, (id) => isDone(userId, trainerKey(map.id, id)), {
       opened: (o) => cleared >= o.after,
       found: (id) => isDone(userId, itemKey(map.id, id)),
+      spot: (t) => spotOf(userId, map, t),
     }),
     player: { ...position(p), outfit: real.outfit },
     busy: !(dev && dev.ghost) && Boolean(real.engaged),
@@ -284,7 +323,21 @@ function step(userId, body) {
 
   // The way on to the next route: Route N cleared and milestone N beaten.
   const ahead = map.warps.find((w) => w.x === nx && w.y === ny);
-  if (ahead && ahead.to.requires) {
+  if (ahead && ahead.to.requires && ahead.to.requires.all) {
+    // A gate: every route before it cleared and every milestone beaten, in
+    // order. No skipping ahead to a later gate.
+    const { route: n, gate } = ahead.to.requires;
+    let open = milestonesOf(userId) >= n;
+    for (let r = 1; open && r <= n; r++) open = routeCleared(userId, r);
+    if (!open) {
+      return {
+        ok: false,
+        reason: 'locked',
+        player: position(p),
+        events: [{ type: 'note', text: `GATE ${gate} is closed. Finish GATE ${gate - 1} first: clear every route up to ROUTE ${n} and beat milestone ${n} at the BATTLE TOWER.` }],
+      };
+    }
+  } else if (ahead && ahead.to.requires) {
     const n = ahead.to.requires.route;
     if (!routeCleared(userId, n) || milestonesOf(userId) < n) {
       return {
@@ -383,8 +436,10 @@ function sightCheck(userId, p, map) {
 
 /** A trainer's battle starts (they spotted you, or you spoke to them). */
 function engage(userId, p, map, t, walk) {
+  const [dx, dy] = maps.DIRS[t.facing];
+  rememberSpot(userId, map, t, t.x + dx * walk, t.y + dy * walk);
   const team = t.rival ? [{ species: rivalOf(userId), level: t.level, evolve: true }, ...t.team] : t.team;
-  begin(userId, p, { kind: 'trainer', name: t.name, team }, trainerKey(map.id, t.id), t.reward);
+  begin(userId, p, { kind: 'trainer', name: t.name, team }, trainerKey(map.id, t.id), t.reward, t.won || null);
   return { type: 'trainer', id: t.id, name: t.name, walk, lines: t.before };
 }
 
@@ -399,7 +454,7 @@ function challenge(userId) {
   if (p.engaged || inBattle(userId)) return { ok: false };
   const map = maps.get(p.map);
   const [dx, dy] = maps.DIRS[p.facing];
-  const t = map.trainers.find((x) => x.x === p.x + dx && x.y === p.y + dy);
+  const t = map.trainers.find((x) => same(spotOf(userId, map, x), p.x + dx, p.y + dy));
   if (!t || gone(userId, map, t)) return { ok: false };
   if (isDone(userId, trainerKey(map.id, t.id))) return { ok: true, lines: t.after && t.after.length ? t.after : [`${t.name}: That was a good battle.`] };
   return { ok: true, event: engage(userId, p, map, t, 0) };
@@ -460,7 +515,10 @@ function startWild(userId, p, map, key, fixedLevel = null) {
  *
  * @param {string|null} key  what winning marks done (null for optional grass)
  */
-function begin(userId, p, foe, key, reward = null) {
+/**
+ * @param {string[]|null} won  what the trainer says once you've beaten them
+ */
+function begin(userId, p, foe, key, reward = null, won = null) {
   p.engaged = { key };
   Promise.resolve()
     .then(() => fight(userId, foe))
@@ -476,8 +534,9 @@ function begin(userId, p, foe, key, reward = null) {
         const first = !isDone(userId, key);
         markDone(userId, key);
         const got = first ? pay(userId, reward) : null;
-        if (got) {
-          notify(userId, 'world', { player: position(p), refresh: true, message: `You got ${got} for winning!` });
+        const lines = [...(first && won ? won : []), ...(got ? [`You got ${got} for winning!`] : [])];
+        if (lines.length) {
+          notify(userId, 'world', { player: position(p), refresh: true, lines });
           return;
         }
       }
@@ -628,12 +687,20 @@ function moveTo(userId, mapId) {
 /** Lost a battle: wake up in the last town visited. */
 function blackOut(userId, p) {
   const town = maps.get(p.lastTown) || maps.get(maps.START);
-  Object.assign(p, { map: town.id, ...town.spawn, patch: null });
+  // Home in Town 1 (no POKéMON CENTER yet): you wake up in PROF. A's lab.
+  const labDoor = town.id === 'town-1' && town.doors.find((d) => d.station === 'lab');
+  const lab = labDoor && maps.get(`in:town-1:${labDoor.x},${labDoor.y}`);
+  const wake = lab || town;
+  Object.assign(p, { map: wake.id, ...wake.spawn, patch: null });
   save(userId, p);
   notify(userId, 'world', {
     player: position(p),
     refresh: true,
-    message: 'You are out of usable Pokémon! You whited out!',
+    // As the games say it ({PLAYER} is filled in by the page).
+    whiteout: ['{PLAYER} is out of usable POKéMON!', '{PLAYER} whited out!'],
+    lines: lab
+      ? ['PROF. A: Oh my! Are you alright?', 'PROF. A: Your POKéMON are all rested now. Go on, give it another try!']
+      : ['Your POKéMON are fighting fit again. Be careful out there!'],
   });
 }
 
