@@ -23,8 +23,13 @@ const ROOMS = {
   center: 'healing_center',
   mart: 'tuxe_mart_taba',
   battle: '37707_tower',
+  // PROF. A and AIDE's house: a home with bookshelves.
+  rival: 'taba_house2',
+  // Restaurants and cafes.
+  restaurant: 'taba_house3',
 };
-const HOUSES = ['taba_house1', 'taba_house2', 'taba_house3', 'taba_house4'];
+/** Homes (taba_house3 and 4 are set out like restaurants, so they aren't). */
+const HOUSES = ['taba_house1', 'taba_house2'];
 
 /**
  * Who stands where in each room, by Tuxemon's name for the spot.
@@ -36,7 +41,8 @@ const CAST = {
   },
   professor_lab: {
     kay_wren: { name: 'PROF. A', sprite: 'professor', action: 'professor', lines: ['PROF. A: How is your POKéMON doing?', 'The MAIN CITY is north, past TOWN 2. That is where your journey really begins!'] },
-    allie: { name: 'Assistant', sprite: 'scientist', wander: 2, lines: ["ASSISTANT: The PROF. has POKéMON from every region. Isn't that amazing?"] },
+    // Off to the side, never in the doorway or the walk up from it.
+    allie: { name: 'Assistant', sprite: 'scientist', wander: 1, at: { x: 10, y: 13 }, lines: ["ASSISTANT: The PROF. has POKéMON from every region. Isn't that amazing?"] },
   },
   healing_center: {
     tabanurse: { name: 'NURSE', sprite: 'nurse', action: 'nurse', lines: [] },
@@ -79,7 +85,7 @@ function freeNear(room, x0, y0) {
  */
 function buildRoom(id, outside, door) {
   const file = door.room || ROOMS[door.station] || HOUSES[hash(id) % HOUSES.length];
-  const title = { home: 'Your house', lab: "PROF. A's LAB", center: 'POKéMON CENTER', mart: 'POKéMON MART', battle: 'BATTLE TOWER' }[door.station] || `${outside.name}: a house`;
+  const title = { home: 'Your house', lab: "PROF. A's LAB", center: 'POKéMON CENTER', mart: 'POKéMON MART', battle: 'BATTLE TOWER', rival: "PROF. A's HOUSE", restaurant: 'Restaurant' }[door.station] || `${outside.name}: a house`;
   const room = load(file, { id, name: title });
 
   // Out the door, back to where you came in.

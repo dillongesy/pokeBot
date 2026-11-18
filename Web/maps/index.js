@@ -102,7 +102,8 @@ function publicView(map, beaten, { opened = () => false, found = () => false } =
     signs: map.signs,
     doors: map.doors,
     warps: map.warps.map((w) => ({ x: w.x, y: w.y })),
-    trainers: map.trainers.map((t) => ({
+    // A trainer who leaves once beaten (AIDE at Town 1's gate) is gone.
+    trainers: map.trainers.filter((t) => !(t.leaves && beaten(t.id))).map((t) => ({
       id: t.id, name: t.name, sprite: looks(t.sprite), x: t.x, y: t.y, facing: t.facing, beaten: beaten(t.id),
     })),
     obstacles: (map.obstacles || []).map((o) => ({ ...o, open: opened(o) })),

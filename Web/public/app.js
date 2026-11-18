@@ -308,14 +308,124 @@
     menuUI.pause();
   }
 
-  /** A real room as a picture (the lab, AIDE's house), for the opening's scenes. */
-  async function roomPicture(kind) {
-    try {
-      const map = await fetch(`/api/scene/${kind}`).then((r) => r.json());
-      return await window.World.preview(map);
-    } catch {
-      return null;
+  // -------------------------------------------------------------------------
+  // The opening, played out in Town 1 itself: you can't walk, you follow
+  // PROF. A (and AIDE runs ahead), as in the games.
+  // -------------------------------------------------------------------------
+
+  const sceneMap = (id) => fetch(`/api/scene-map?id=${encodeURIComponent(id)}`).then((r) => r.json());
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  async function playOpening(opening, current) {
+    const outfit = await introUI.welcome(opening, current);
+    const S = world.scene;
+    const name = String(me.username || 'TRAINER').toUpperCase();
+    const PROF = { id: 'prof', name: 'PROF. A', sprite: 'professor' };
+    const AIDE = { id: 'aide', name: 'AIDE', sprite: 'cooldude_red' };
+    const town = await sceneMap('town-1');
+    const door = (station) => town.doors.find((d) => d.station === station);
+    const home = door('home');
+    const house = door('rival');
+    const lab = door('lab');
+    S.dress(outfit);
+
+    // 1. Out of your front door: the professor is waiting.
+    S.stage(town, { x: home.x, y: home.y + 1, facing: 'down' }, [{ ...PROF, x: home.x + 2, y: home.y + 1, facing: 'left' }]);
+    await pause(700);
+    S.faceTo('player', 'prof');
+    await say([
+      `PROF. A: Ah, ${name}! Good morning!`,
+      'PROF. A: My son AIDE lives right next door. He has been waiting all morning for today.',
+      "PROF. A: Let's go and get him. Follow me!",
+    ]);
+    await S.lead('prof', { x: house.x, y: house.y + 1 });
+    await S.step('prof', 'up');
+    S.remove('prof');
+    await S.walkTo('player', { x: house.x, y: house.y + 1 });
+    S.face('player', 'up');
+    await S.fadeOut();
+
+    // 2. AIDE's house.
+    const inside = await sceneMap(`in:town-1:${house.x},${house.y}`);
+    const sp = inside.spawn;
+    // AIDE by the bookshelves, where you can walk up to him.
+    const spot = { x: 2, y: 3 };
+    S.stage(inside, { x: sp.x, y: sp.y, facing: 'up' }, [{ ...PROF, x: sp.x, y: sp.y - 1, facing: 'up' }, { ...AIDE, x: spot.x, y: spot.y, facing: 'left' }]);
+    S.remove('resident');
+    await pause(500);
+    const near = S.beside('aide', S.at('prof'));
+    if (near) await S.lead('prof', near);
+    S.faceTo('prof', 'aide');
+    S.faceTo('aide', 'prof');
+    await say(['PROF. A: AIDE! Our new trainer is here.']);
+    S.faceTo('aide', 'player');
+    S.faceTo('player', 'aide');
+    await say([
+      `AIDE: Finally! So you're ${name}. I'm AIDE.`,
+      'AIDE: Today we BOTH get our first POKéMON. And mine is going to be the strongest!',
+      'AIDE: Race you to the lab!',
+    ]);
+    if (!(await S.walkTo('aide', { x: sp.x, y: sp.y + 1 }, 160))) await pause(300);
+    S.remove('aide');
+    S.faceTo('player', 'prof');
+    await say(["PROF. A: Ha! He's always in such a hurry.", "PROF. A: Come on, let's head to my LAB."]);
+    await S.lead('prof', { x: sp.x, y: sp.y + 1 });
+    S.remove('prof');
+    await S.walkTo('player', { x: sp.x, y: sp.y });
+    S.face('player', 'down');
+    await S.fadeOut();
+
+    // 3. Back outside, and up the road to the lab.
+    S.stage(town, { x: house.x, y: house.y + 1, facing: 'down' }, [{ ...PROF, x: house.x, y: house.y + 2, facing: 'down' }]);
+    await pause(400);
+    await S.lead('prof', { x: lab.x, y: lab.y + 1 });
+    await S.step('prof', 'up');
+    S.remove('prof');
+    await S.walkTo('player', { x: lab.x, y: lab.y + 1 });
+    S.face('player', 'up');
+    await S.fadeOut();
+
+    // 4. The lab: AIDE is already at the table.
+    const room = await sceneMap(`in:town-1:${lab.x},${lab.y}`);
+    const ls = room.spawn;
+    S.stage(room, { x: ls.x, y: ls.y, facing: 'up' }, [{ ...PROF, x: ls.x, y: ls.y - 1, facing: 'up' }, { ...AIDE, x: 12, y: 9, facing: 'left' }]);
+    S.remove('kay_wren');
+    await pause(400);
+    S.faceTo('aide', 'player');
+    await say(['AIDE: What took you so long?']);
+    await S.lead('prof', { x: 10, y: 9 });
+    S.face('prof', 'down');
+    S.faceTo('player', 'prof');
+    S.faceTo('aide', 'prof');
+    await say([
+      `PROF. A: Here we are. On this table are POKéMON from every region there is.`,
+      `PROF. A: Each of them is LV${opening.level}. ${name}, you choose first!`,
+    ]);
+    const { result } = await introUI.pickStarter(opening);
+    if (result.ok) {
+      await say([`${name} received the ${result.pokemon.name.toUpperCase()} from PROF. A!`]);
+      if (result.rival) {
+        const theirs = (result.rival.types[0] || 'normal').toUpperCase();
+        S.faceTo('aide', 'prof');
+        await say(["AIDE: Then I'll take this one!", `AIDE received the ${result.rival.name.toUpperCase()} from PROF. A!`]);
+        S.faceTo('aide', 'player');
+        await say([
+          `AIDE: Heh. ${theirs} has the edge on yours! You'll need more than that to keep up with me.`,
+          "AIDE: I'll be waiting for you at the main gate of TOWN 1. Let's see what that POKéMON can do!",
+        ]);
+        await S.walkTo('aide', { x: ls.x, y: ls.y + 1 }, 170);
+        S.remove('aide');
+      }
+    } else {
+      await say(["PROF. A: Oh? It looks like you've already been given a POKéMON."]);
     }
+    S.faceTo('prof', 'player');
+    await say([
+      `PROF. A: ${name}! Your very own POKéMON legend is about to unfold!`,
+      "PROF. A: A world of dreams and adventures with POKéMON awaits! Let's go!",
+    ]);
+    await S.fadeOut(500);
+    await S.end();
   }
 
   /** "DILLON'S HOUSE", "JAMES' HOUSE": names on signs. */
@@ -877,6 +987,8 @@
     world.clearFlyers();
     await world.fly({ src: FARFETCHD, from: { x: p.x + 1, y: p.y - 1 }, to: { x: p.x + 12, y: p.y - 10 }, ms: 1100, arc: 10 });
     world.setFrozen(false);
+    // Only now is FLY yours (if the page closed mid-scene, it plays again).
+    await post('/api/scene-seen', { id: 'fly' });
     refreshFly();
   }
 
@@ -1026,7 +1138,7 @@
     });
     makeBattleUI();
     // The professor calls you by your Discord username.
-    introUI = window.IntroScreen.create($('intro'), { post, name: () => me.username, scene: roomPicture });
+    introUI = window.IntroScreen.create($('intro'), { post, name: () => me.username });
     menuUI = window.MenuScreen.create($('menu'), {
       post,
       get: (p) => fetch(p).then((r) => r.json()),
@@ -1059,8 +1171,7 @@
     const opening = await fetch('/api/intro').then((r) => r.json()).catch(() => null);
     if (opening && opening.needed) {
       const current = await fetch('/api/world').then((r) => r.json()).then((w) => w.player.outfit).catch(() => 'adventurer');
-      await introUI.play(opening, current);
-      await world.refresh();
+      await playOpening(opening, current);
     }
   }
 

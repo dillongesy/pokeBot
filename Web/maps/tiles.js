@@ -182,4 +182,7 @@ const BIOME_GROUND = {
 /** Single-tile rocks for rocky borders. */
 const ROCKS = ['o1139', 'o1140', 'o1208'];
 
-module.exports = { TILES, SHOP, HOUSE, OBSTACLES, BUILDINGS, PROPS, PAVING, GROUNDS, BIOME_GROUND, ROCKS };
+/** A low hedge from the city sheet, edge pieces with see-through backs. */
+const HEDGE = { tl: 'c521', t: 'c522', tr: 'c523', l: 'c561', r: 'c563', bl: 'c601', b: 'c602', br: 'c603', bush: 'c562' };
+
+module.exports = { TILES, SHOP, HOUSE, OBSTACLES, BUILDINGS, PROPS, PAVING, HEDGE, GROUNDS, BIOME_GROUND, ROCKS };

@@ -153,8 +153,10 @@ function chooseStarter(userId, speciesId) {
     .prepare('INSERT OR IGNORE INTO web_progress (discord_user_id, prestige, key, done_at) VALUES (?, ?, ?, ?)')
     .run(userId, prestigeOf(userId), `rival:${rival.species}`, Date.now());
 
-  // Out of the lab and into Town 1, where the journey starts.
-  require('./overworld').moveTo(userId, 'town-1');
+  // The opening ends in the lab, where you just chose; you walk out yourself.
+  const maps = require('./maps');
+  const labDoor = maps.get('town-1').doors.find((d) => d.station === 'lab');
+  require('./overworld').moveTo(userId, labDoor ? `in:town-1:${labDoor.x},${labDoor.y}` : 'town-1');
 
   return { ok: true, pokemon: { name: row.display_name, species: id, shiny: Boolean(row.shiny) }, rival, coins };
 }

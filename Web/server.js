@@ -309,7 +309,38 @@ function file(res, session, station, messageId, index) {
 // Static files
 // ---------------------------------------------------------------------------
 
+/** A short hash of a page file's contents, remembered until the file changes. */
+const versions = new Map();
+function versionOf(name) {
+  const full = path.join(PUBLIC_DIR, name);
+  if (!fs.existsSync(full)) return null;
+  const { mtimeMs } = fs.statSync(full);
+  const known = versions.get(full);
+  if (known && known.mtimeMs === mtimeMs) return known.v;
+  const v = require('crypto').createHash('sha1').update(fs.readFileSync(full)).digest('hex').slice(0, 10);
+  versions.set(full, { mtimeMs, v });
+  return v;
+}
+
+/**
+ * The page, with each of its scripts and stylesheets linked as /app.js?v=<hash>.
+ * Cloudflare (and browsers) keep .js and .css for hours whatever we say, so
+ * a changed file gets a new URL instead and is fetched fresh at once.
+ */
+function servePage(res) {
+  const html = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf8').replace(
+    /(src|href)="\/([\w.-]+\.(?:js|css))"/g,
+    (all, attr, name) => {
+      const v = versionOf(name);
+      return v ? `${attr}="/${name}?v=${v}"` : all;
+    }
+  );
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
+  res.end(html);
+}
+
 function serveStatic(res, pathname) {
+  if (pathname === '/' || pathname === '/index.html') return servePage(res);
   // /sprites/... is the tile and object pack in Web/sprites.
   const sprites = pathname.startsWith('/sprites/');
   const dir = sprites ? SPRITES_DIR : PUBLIC_DIR;
@@ -348,10 +379,14 @@ async function handle(req, res) {
   if (req.method === 'GET' && pathname === '/api/stream') return stream(req, res, session);
   if (req.method === 'GET' && pathname === '/api/world') return send(res, 200, overworld.view(session.id));
   if (req.method === 'GET' && pathname === '/api/intro') return send(res, 200, intro.view(session.id));
-  const scene = /^\/api\/scene\/(lab|rival)$/.exec(pathname);
-  if (req.method === 'GET' && scene) {
-    const room = require('./maps').get(scene[1] === 'lab' ? 'room:professor_lab' : 'room:taba_house2');
-    return send(res, 200, { ...require('./maps').publicView(room, () => false), people: room.people });
+  // The opening's maps, as they look to someone who hasn't started yet:
+  // Town 1 and the rooms behind its doors (nothing beaten, nothing found).
+  if (req.method === 'GET' && pathname === '/api/scene-map') {
+    const id = String(url.searchParams.get('id') || '');
+    if (id !== 'town-1' && !/^in:town-1:\d+,\d+$/.test(id)) return send(res, 404, { error: 'No such scene.' });
+    const map = require('./maps').get(id);
+    if (!map) return send(res, 404, { error: 'No such scene.' });
+    return send(res, 200, { ...require('./maps').publicView(map, () => false), people: map.people || null, spawn: map.spawn });
   }
   if (req.method === 'GET' && pathname === '/api/party') return send(res, 200, menus.party(session.id));
   if (req.method === 'GET' && pathname === '/api/townmap') return send(res, 200, menus.townMap(session.id));
@@ -370,7 +405,7 @@ async function handle(req, res) {
   const filePath = /^\/api\/file\/([a-z]+)\/(web-\d+)\/(\d+)$/.exec(pathname);
   if (req.method === 'GET' && filePath) return file(res, session, filePath[1], filePath[2], filePath[3]);
 
-  if (req.method === 'POST' && ['/api/run', '/api/press', '/api/step', '/api/dev', '/api/intro', '/api/pickup', '/api/fly', '/api/shop', '/api/tower', '/api/swap'].includes(pathname)) {
+  if (req.method === 'POST' && ['/api/run', '/api/press', '/api/step', '/api/dev', '/api/intro', '/api/pickup', '/api/fly', '/api/shop', '/api/tower', '/api/swap', '/api/challenge', '/api/scene-seen'].includes(pathname)) {
     if (!sameOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
     let body;
     try {
@@ -380,6 +415,8 @@ async function handle(req, res) {
     }
     if (pathname === '/api/step') return send(res, 200, overworld.step(session.id, body));
     if (pathname === '/api/pickup') return send(res, 200, overworld.pickup(session.id));
+    if (pathname === '/api/challenge') return send(res, 200, overworld.challenge(session.id));
+    if (pathname === '/api/scene-seen') return send(res, 200, overworld.sceneSeen(session.id, String(body.id || '')));
     if (pathname === '/api/fly') return send(res, 200, overworld.fly(session.id, body.key));
     if (pathname === '/api/shop') return send(res, 200, menus.buy(session.id, body.id, body.qty));
     if (pathname === '/api/swap') return send(res, 200, menus.swap(session.id, body.a, body.b));

@@ -13,7 +13,7 @@
  * Coordinates are tiles, x right and y down.
  */
 
-const { TILES, OBSTACLES, ROCKS } = require('./tiles');
+const { TILES, OBSTACLES, ROCKS, HEDGE } = require('./tiles');
 const { opacity } = require('./opacity');
 
 /** A building tile is a wall when at least this much of it is drawn. */
@@ -237,6 +237,83 @@ class MapBuilder {
     return this;
   }
 
+  /**
+   * Something small on the ground (a flower), only where nothing else is:
+   * never on a tree, a wall, a path or anything already there.
+   */
+  decorate(x, y, tile) {
+    if (!this.inside(x, y) || this.solid[y][x] || this.layers.objects[y][x] || this.pathMask[y][x] || this.terrain[y][x]) return false;
+    if (this.layers.above[y][x] || this.patchAt[y][x]) return false;
+    this.set('objects', x, y, tile);
+    return true;
+  }
+
+  /**
+   * Trees across a row band, two rows tall, except for a gap: a chokepoint
+   * the way forward has to go through. Rocky or watery land gets rocks.
+   */
+  wall(y, x0, x1, gapX0, gapX1, rows = 2) {
+    const inGap = (c) => c >= gapX0 && c <= gapX1;
+    const rock = (c, r) => this.set('objects', c, r, ROCKS[(c * 7 + r * 13) % ROCKS.length]).block(c, r);
+    const trees = (this.ground.border || 'trees') === 'trees';
+    for (let yy = y; yy < y + rows; yy += 2) {
+      for (let x = x0; x <= x1; x += 2) {
+        const span = [x, x + 1].filter((c) => c <= x1);
+        // A whole pine where it fits; a rock where half of one would poke
+        // into the gap (or past the edge); rocks throughout on rocky land.
+        if (trees && span.length === 2 && !span.some(inGap) && yy + 1 < y + rows) {
+          this.tree(x, yy);
+          continue;
+        }
+        for (const c of span) if (!inGap(c)) for (const r of [yy, yy + 1]) if (r < y + rows) rock(c, r);
+      }
+    }
+    return this;
+  }
+
+  /**
+   * A river across the map: a grassy bank with a sandy lip above and below,
+   * water between. Only the ford can be waded; the rest is too deep.
+   */
+  river(y, x0, x1, fordX0, fordX1, depth = 2) {
+    const S = TILES.shore;
+    for (let x = x0; x <= x1; x++) {
+      this.set('ground', x, y, S.t);
+      this.set('ground', x, y + depth + 1, S.b);
+      for (let r = 1; r <= depth; r++) {
+        const yy = y + r;
+        this.set('ground', x, yy, TILES.shallow);
+        const ford = x >= fordX0 && x <= fordX1;
+        this.terrain[yy][x] = ford ? 'shallow' : 'deep';
+        if (!ford) this.block(x, yy);
+      }
+    }
+    return this;
+  }
+
+  /** A lawn edged with a low hedge (the city's parks): grass inside, solid round the edge. */
+  lawn(x0, y0, w, h, { gaps = [] } = {}) {
+    const H = HEDGE;
+    const open = new Set(gaps.map(([x, y]) => `${x},${y}`));
+    for (let y = y0; y < y0 + h; y++) {
+      for (let x = x0; x < x0 + w; x++) {
+        const top = y === y0, bottom = y === y0 + h - 1, left = x === x0, right = x === x0 + w - 1;
+        const edge = top || bottom || left || right;
+        if (!edge) {
+          this.set('ground', x, y, TILES.grass);
+          continue;
+        }
+        if (open.has(`${x},${y}`)) {
+          this.set('ground', x, y, TILES.grass);
+          continue;
+        }
+        const piece = top ? (left ? H.tl : right ? H.tr : H.t) : bottom ? (left ? H.bl : right ? H.br : H.b) : left ? H.l : H.r;
+        this.set('objects', x, y, piece).block(x, y);
+      }
+    }
+    return this;
+  }
+
   /** A Poke Ball to pick up with A. `id` is kept for good: progress is stored by it. */
   item(x, y, id, reward = null) {
     // reward: { coins } or { item, qty } (Web/overworld.js pays it).
@@ -306,7 +383,7 @@ class MapBuilder {
   build() {
     if (!this.spawn) throw new Error(`${this.id}: no spawn point`);
     this.layPaths();
-    for (const t of this.trainers) this.block(t.x, t.y);
+    for (const t of this.trainers) if (!t.leaves) this.block(t.x, t.y);
     return {
       id: this.id,
       name: this.name,

@@ -122,13 +122,18 @@ function routeCleared(userId, n) {
  */
 function walkable(userId, map, x, y) {
   if (!map.solid[y] || map.solid[y][x] === undefined) return false;
-  if (map.trainers.some((t) => t.x === x && t.y === y)) return false;
+  if (map.trainers.some((t) => t.x === x && t.y === y && !gone(userId, map, t))) return false;
   if (!map.solid[y][x]) return true;
   const o = (map.obstacles || []).find((b) => b.x === x && b.y === y);
   if (o) return milestonesOf(userId) >= o.after;
   const item = (map.items || []).find((i) => i.x === x && i.y === y);
   if (item) return isDone(userId, itemKey(map.id, item.id));
   return false;
+}
+
+/** A trainer who walks off once beaten (AIDE at Town 1's gate) and has. */
+function gone(userId, map, t) {
+  return Boolean(t.leaves) && isDone(userId, trainerKey(map.id, t.id));
 }
 
 function load(userId) {
@@ -306,8 +311,8 @@ function step(userId, body) {
     save(userId, p);
     events.push({ type: 'map' });
     // The first time in the Main City: the taxi driver, and FLY.
+    // (Marked done when the browser says it has played it: sceneSeen.)
     if (to.id === 'main-city' && !isDone(userId, FLY_KEY)) {
-      markDone(userId, FLY_KEY);
       events.push({ type: 'scene', id: 'fly', lines: require('./maps/world').FLY_SCENE });
     }
     return { ok: true, player: position(p), events };
@@ -369,14 +374,35 @@ function sightCheck(userId, p, map) {
       if (isDone(userId, key)) break;
 
       // They walk up to the tile next to you (the browser shows it).
-      const walk = i - 1;
       p.facing = { up: 'down', down: 'up', left: 'right', right: 'left' }[t.facing];
-      const team = t.rival ? [{ species: rivalOf(userId), level: t.level, evolve: true }, ...t.team] : t.team;
-      begin(userId, p, { kind: 'trainer', name: t.name, team }, key, t.reward);
-      return { type: 'trainer', id: t.id, name: t.name, walk, lines: t.before };
+      return engage(userId, p, map, t, i - 1);
     }
   }
   return null;
+}
+
+/** A trainer's battle starts (they spotted you, or you spoke to them). */
+function engage(userId, p, map, t, walk) {
+  const team = t.rival ? [{ species: rivalOf(userId), level: t.level, evolve: true }, ...t.team] : t.team;
+  begin(userId, p, { kind: 'trainer', name: t.name, team }, trainerKey(map.id, t.id), t.reward);
+  return { type: 'trainer', id: t.id, name: t.name, walk, lines: t.before };
+}
+
+/**
+ * Talking to a trainer you're facing: one you've beaten says their line;
+ * one you haven't battles you, as if they'd spotted you.
+ */
+function challenge(userId) {
+  const p = load(userId);
+  const dev = devOf(userId);
+  if (dev && dev.ghost) return { ok: false };
+  if (p.engaged || inBattle(userId)) return { ok: false };
+  const map = maps.get(p.map);
+  const [dx, dy] = maps.DIRS[p.facing];
+  const t = map.trainers.find((x) => x.x === p.x + dx && x.y === p.y + dy);
+  if (!t || gone(userId, map, t)) return { ok: false };
+  if (isDone(userId, trainerKey(map.id, t.id))) return { ok: true, lines: t.after && t.after.length ? t.after : [`${t.name}: That was a good battle.`] };
+  return { ok: true, event: engage(userId, p, map, t, 0) };
 }
 
 /**
@@ -755,7 +781,17 @@ function dev(userId, cmd, args = []) {
   }
 }
 
+/** The browser has played a scene through (the taxi driver: FLY is yours). */
+function sceneSeen(userId, id) {
+  const p = load(userId);
+  if (id === 'fly' && p.map === 'main-city') {
+    markDone(userId, FLY_KEY);
+    return { ok: true };
+  }
+  return { ok: false };
+}
+
 /** Forget a player's live state (tests, or after their position changes elsewhere). */
 const forget = (userId) => players.delete(userId);
 
-module.exports = { configure, view, step, dev, setOutfit, pickup, routeCleared, flyPlaces, fly, moveTo, tower, forget, isDone, markDone };
+module.exports = { configure, view, step, dev, setOutfit, pickup, routeCleared, flyPlaces, fly, moveTo, tower, forget, isDone, markDone, challenge, sceneSeen, gone };

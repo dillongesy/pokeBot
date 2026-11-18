@@ -30,6 +30,11 @@
 .i-stage.room { background: #000 center / 100% 100% no-repeat; image-rendering: pixelated; }
 .i-stage.room.choosing { align-items: stretch; }
 .i-stage.room.choosing .i-show, .i-stage.room.choosing .i-table { background: rgba(248, 248, 248, .9); border-radius: calc(var(--gp) * 3); padding: calc(var(--gp) * 2); }
+/* The starter table over the lab as it is (the world shows through). */
+.iscreen.over { background: transparent; }
+.i-stage.live { background: rgba(0, 0, 0, .35); }
+.i-stage.live.choosing { align-items: stretch; }
+.i-stage.live.choosing .i-show, .i-stage.live.choosing .i-table { background: rgba(248, 248, 248, .92); border-radius: calc(var(--gp) * 3); padding: calc(var(--gp) * 2); }
 .i-mon.got.rival { right: auto; left: calc(var(--gp) * 40); }
 .i-stage.wardrobe { background: #4878a8; justify-content: space-between; align-items: stretch; }
 

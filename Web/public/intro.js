@@ -62,53 +62,6 @@
 
     let open = false;
     let typing = null;
-    /** Pictures of the real rooms (the lab, AIDE's house), loaded once. */
-    const rooms = {};
-    const pictures = new Map();
-    function picture(src) {
-      if (!pictures.has(src)) {
-        pictures.set(src, new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = () => resolve(null);
-          img.src = src;
-        }));
-      }
-      return pictures.get(src);
-    }
-
-    /**
-     * A room, drawn exactly as walking around in it looks: real scale,
-     * centred on `focus`, dark round the edges where the room ends, with
-     * everyone standing where they are.
-     *
-     * @param {'lab'|'rival'} kind
-     * @param {{x,y}} focus   the tile in the middle of the view
-     * @param {Array<{sprite,x,y,facing}>} cast
-     */
-    async function roomScene(kind, focus, cast) {
-      if (!rooms[kind] && hooks.scene) rooms[kind] = await hooks.scene(kind);
-      const room = rooms[kind];
-      const w = 240;
-      const h = Math.max(80, Math.round((240 * stage.clientHeight) / Math.max(1, stage.clientWidth)));
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const g = canvas.getContext('2d');
-      g.imageSmoothingEnabled = false;
-      g.fillStyle = '#000';
-      g.fillRect(0, 0, w, h);
-      const camX = focus.x * 16 + 8 - w / 2;
-      const camY = focus.y * 16 + 8 - h / 2;
-      if (room) g.drawImage(room, -camX, -camY);
-      for (const who of [...cast].sort((a, b) => a.y - b.y)) {
-        const img = await picture(`${CHARACTERS}/${who.sprite}.png`);
-        if (img) g.drawImage(img, 16, ROW[who.facing] * 32, 16, 32, who.x * 16 - camX, who.y * 16 - 16 - camY, 16, 32);
-      }
-      stage.className = 'i-stage room';
-      stage.style.backgroundImage = `url(${canvas.toDataURL()})`;
-      stage.replaceChildren();
-    }
     /** The current step's key handler and its "A when the text is done". */
     let onKey = null;
     let onDone = null;
@@ -353,11 +306,14 @@
     // The whole opening
     // -----------------------------------------------------------------------
 
-    async function play(data, current) {
+    /**
+     * The professor's welcome and choosing how you look (the rest of the
+     * opening is played out in the world: app.js). Resolves with the outfit.
+     */
+    async function welcome(data, current) {
+      root.classList.remove('over');
       show();
       const name = hooks.name().toUpperCase();
-      const RIVAL = 'AIDE';
-      const RIVAL_LOOK = 'cooldude_red';
       professorScene();
       await say([
         'Hello there! Welcome to the world of POKéMON!',
@@ -374,72 +330,33 @@
       stage.append(me);
       await say([
         `Right! So your name is ${name}!`,
-        `${name}, my son ${RIVAL} lives right next door to you. He has been waiting all morning!`,
-        "Let's go and get him first.",
+        `${name}! Today is the day you get your very own POKéMON.`,
+        "Come and find me outside. I'll be waiting!",
       ]);
+      hide();
+      return outfit;
+    }
 
-      // AIDE's house: PROF. A's family home.
-      await roomScene('rival', { x: 5, y: 3 }, [
-        { sprite: RIVAL_LOOK, x: 4, y: 4, facing: 'right' },
-        { sprite: 'professor', x: 6, y: 5, facing: 'up' },
-        { sprite: outfit, x: 7, y: 5, facing: 'up' },
-      ]);
-      await say([
-        `${RIVAL}: Dad! Is this the new trainer?`,
-        `${RIVAL}: So you're ${name}. I'm ${RIVAL}. Today we BOTH get our first POKéMON!`,
-        `${RIVAL}: Race you to the lab!`,
-      ]);
-
-      // The lab.
-      const labCast = (rivalFacing = 'up') => [
-        { sprite: 'professor', x: 10, y: 6, facing: 'down' },
-        { sprite: outfit, x: 9, y: 9, facing: 'up' },
-        { sprite: RIVAL_LOOK, x: 11, y: 9, facing: rivalFacing },
-      ];
-      await roomScene('lab', { x: 10, y: 7 }, labCast());
-      await say([
-        'PROF. A: Here we are. These POKéMON come from every region there is.',
-        `PROF. A: Each of them is LV${data.level}. ${name}, you choose first!`,
-      ]);
+    /**
+     * The lab's table, over the lab itself. Resolves with the one chosen and
+     * the server's answer ({ok, pokemon, rival} or {ok: false, reason}).
+     */
+    async function pickStarter(data) {
+      root.classList.add('over');
+      show();
+      stage.className = 'i-stage live';
+      stage.style.backgroundImage = '';
+      stage.replaceChildren();
       for (;;) {
         const chosen = await lab(data.regions);
         const result = await hooks.post('/api/intro', { action: 'starter', species: chosen.species });
-        await roomScene('lab', { x: 10, y: 7 }, labCast());
-        if (result.ok) {
-          const got = el('img', 'i-mon got');
-          got.src = chosen.sprite || '';
-          got.alt = '';
-          stage.append(got);
-          await say([`${name} received the ${result.pokemon.name.toUpperCase()} from PROF. A!`]);
-          if (result.rival) {
-            await roomScene('lab', { x: 10, y: 7 }, labCast('left'));
-            const his = el('img', 'i-mon got rival');
-            his.src = result.rival.sprite || '';
-            his.alt = '';
-            stage.append(his);
-            const mine = (chosen.types[0] || 'normal').toUpperCase();
-            const theirs = (result.rival.types[0] || 'normal').toUpperCase();
-            await say([
-              `${RIVAL}: Then I'll take this one!`,
-              `${RIVAL} received the ${result.rival.name.toUpperCase()} from PROF. A!`,
-              `${RIVAL}: Heh. ${theirs} beats ${mine}! You'll need more than that to keep up with me.`,
-              `${RIVAL}: I'll be waiting for you out past the gates of the MAIN CITY. Every single one. Don't fall behind!`,
-            ]);
-          }
-          break;
-        }
-        if (result.reason === 'already') {
-          await say(["Oh? It looks like you've already been given a POKéMON."]);
-          break;
+        if (result.ok || result.reason === 'already') {
+          hide();
+          root.classList.remove('over');
+          return { chosen, result };
         }
         await say(["Hmm, that didn't work. Let's try again."]);
       }
-      await roomScene('lab', { x: 10, y: 7 }, labCast('up'));
-      await say([
-        `PROF. A: ${name}! Your very own POKéMON legend is about to unfold!`,
-        "PROF. A: A world of dreams and adventures with POKéMON awaits! Let's go!",
-      ]);
-      hide();
     }
 
     /** Just the wardrobe (at home). Resolves with the outfit, or null. */
@@ -485,7 +402,8 @@
     });
 
     return {
-      play,
+      welcome,
+      pickStarter,
       changeOutfit,
       input,
       get open() {

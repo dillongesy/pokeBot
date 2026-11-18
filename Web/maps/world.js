@@ -16,7 +16,7 @@
  */
 
 const { MapBuilder } = require('./builder');
-const { TILES, BUILDINGS, PROPS, PAVING } = require('./tiles');
+const { TILES, BUILDINGS, PROPS, PAVING, HEDGE } = require('./tiles');
 const worldplan = require('../worldplan');
 
 const CITY_W = 52;
@@ -58,23 +58,19 @@ const finish = (map) => {
   return built;
 };
 
+/** Flowers here and there; a spot that's taken (a tree, a wall, a path) is skipped. */
 function flowers(map, spots) {
   const kinds = map.ground.flowers.length ? map.ground.flowers : TILES.flowers;
-  spots.forEach(([x, y], i) => map.set('objects', x, y, kinds[i % kinds.length]));
+  spots.forEach(([x, y], i) => map.decorate(x, y, kinds[i % kinds.length]));
 }
 
-/** A little pond: a shallow rim you can wade, deep water in the middle when it's big enough. */
+/**
+ * A little pond: a grassy rim with a sandy lip (dry land), and water inside
+ * that you can wade through. Splashes only happen in the water.
+ */
 function pond(map, x0, y0, w, h) {
   map.rect('ground', TILES.shore, x0, y0, w, h, TILES.shallow);
-  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) map.terrain[y][x] = 'shallow';
-  if (w >= 5 && h >= 4) {
-    for (let y = y0 + 1; y < y0 + h - 1; y++) {
-      for (let x = x0 + 1; x < x0 + w - 1; x++) {
-        map.set('ground', x, y, TILES.deep).block(x, y);
-        map.terrain[y][x] = 'deep';
-      }
-    }
-  }
+  for (let y = y0 + 1; y < y0 + h - 1; y++) for (let x = x0 + 1; x < x0 + w - 1; x++) map.terrain[y][x] = 'shallow';
 }
 
 /** The lab's front steps (the bottom of the stair tiles under its door). */
@@ -83,6 +79,9 @@ function labSteps(map, x, y) {
 }
 
 // ---------------------------------------------------------------------------
+
+/** AIDE's first battle: his starter, at the starter's level. */
+const RIVAL_FIRST_LEVEL = 5;
 
 function town1() {
   const map = new MapBuilder({ id: 'town-1', name: 'Town 1', kind: 'town', width: 26, height: 28 });
@@ -101,7 +100,7 @@ function town1() {
   labSteps(map, 18, 14);
   map.sign(15, 12, ["PROF. A'S POKéMON LAB"]);
 
-  // Your house and the rival's (PROF. A's family home), on the south street.
+  // Your house and the professor's family home, on the south street.
   map.building(BUILDINGS.cottageRed, 4, 17, { station: 'home' });
   // {PLAYER_POSSESSIVE} becomes the player's name in the browser.
   map.sign(9, 22, ['{PLAYER_POSSESSIVE} HOUSE']);
@@ -115,9 +114,29 @@ function town1() {
     id: 'neighbor', name: 'Neighbor', sprite: 'granny', x: 6, y: 12, facing: 'down',
     lines: ["Oh, you're off on a journey? How exciting!", 'The MAIN CITY is north, past TOWN 2. Everyone ends up there sooner or later.'],
   });
+
+  // AIDE, waiting at the way out after the lab: nobody leaves town without
+  // battling him first. Both exit tiles are in his sight; he goes once beaten.
+  map.trainer({
+    id: 'rival-gate',
+    rival: true,
+    leaves: true,
+    name: 'AIDE',
+    sprite: 'cooldude_red',
+    x: 15,
+    y: 2,
+    facing: 'left',
+    sight: 4,
+    level: RIVAL_FIRST_LEVEL,
+    team: [],
+    before: ["AIDE: There you are! I've been waiting forever!", "AIDE: Let's see whose POKéMON is stronger. Mine, obviously!"],
+    after: ['AIDE: ...Hmph. Lucky. I\'m going to train until I can beat you!'],
+    reward: { coins: 30 },
+  });
+
   map.warp(12, 0, { map: 'path-a', x: 12, y: 38, facing: 'up' });
   map.warp(13, 0, { map: 'path-a', x: 13, y: 38, facing: 'up' });
-  // At the foot of the lab's steps, where the professor leaves you.
+  // At the foot of the lab's steps.
   map.spawn = { x: 19, y: 16, facing: 'down' };
   return finish(map);
 }
@@ -126,47 +145,44 @@ function town1() {
 const introTrainer = (t) => ({ sight: 4, ...t });
 
 /**
- * PATH A, walked south to north. Ledges only hop south, so they're short
- * cuts home, never a way round the grass.
+ * PATH A, walked south to north. The way forward squeezes between trees
+ * through a patch of grass (one battle), then past a YOUNGSTER watching a
+ * gap. Ledges only hop south: short cuts home, never round the grass.
  */
 function pathA() {
   const map = new MapBuilder({ id: 'path-a', name: 'Path a', kind: 'route', width: 26, height: 40, levels: { lo: 2, hi: 4 }, background: 'grass' });
   map.border([[6, 0], [6, 19]]);
   map.sign(10, 37, ['PATH A', 'North: TOWN 2   South: TOWN 1']);
 
-  // Up from TOWN 1, then west.
-  map.path(11, 31, 4, 9);
-  map.path(4, 31, 11, 3);
-  pond(map, 16, 33, 5, 4);
-  flowers(map, [[8, 35], [9, 37], [16, 30], [22, 31], [3, 36]]);
-  map.tree(7, 27);
-  map.tree(9, 27);
+  // Up from TOWN 1 to the trees.
+  map.path(11, 29, 4, 11);
+  pond(map, 17, 33, 5, 4);
+  map.grass(3, 32, 6, 4);
+  flowers(map, [[9, 35], [16, 30], [22, 31], [3, 37], [15, 38]]);
+  map.ledge(2, 30, 8);
 
-  // North up the west side, through grass that covers the way: one battle.
-  map.path(4, 19, 3, 14);
-  map.ledge(15, 29, 9);
-  map.patch('a1', 2, 24, 22, 2, 2, 3);
+  // The trees close in: a patch of grass across the gap (one battle).
+  map.wall(25, 2, 23, 10, 15, 4);
+  map.patch('a1', 10, 25, 6, 4, 4, 3);
 
-  // East along a row of trees, past a YOUNGSTER watching the path.
-  map.path(4, 19, 18, 3);
-  map.tree(8, 16);
-  map.tree(12, 16);
+  // A meadow, then a YOUNGSTER watching the gap in the next row of trees.
+  map.path(11, 13, 4, 12);
+  map.grass(3, 15, 6, 6);
+  map.item(4, 17, 'path-a-berry', { item: 'oran-berry' });
+  map.ledge(15, 21, 9);
+  flowers(map, [[17, 16], [20, 18], [22, 14], [9, 22], [16, 23]]);
+  map.wall(11, 2, 23, 10, 15, 2);
   map.trainer(introTrainer({
-    id: 'youngster', name: 'Youngster 1', sprite: 'cooldude', x: 22, y: 20, facing: 'left', sight: 6,
+    id: 'youngster', name: 'Youngster 1', sprite: 'cooldude', x: 16, y: 13, facing: 'left', sight: 6,
     team: [{ species: 19, level: 3 }, { species: 16, level: 2 }],
     before: ["Hey! I just got my first POKéMON too! Let's battle!"],
+    after: ['My RATTATA and I are going to train even harder!'],
   }));
 
-  // North again past a meadow, with something lying in the grass.
-  map.path(19, 5, 3, 16);
-  map.grass(4, 7, 10, 7);
-  map.item(5, 9, 'path-a-berry', { item: 'oran-berry' });
-  map.ledge(14, 14, 5);
-  flowers(map, [[15, 9], [16, 11], [22, 8], [22, 12], [3, 15]]);
-
-  // Back west to the way out.
-  map.path(11, 4, 11, 3);
-  map.path(11, 0, 4, 7);
+  // On to TOWN 2.
+  map.path(11, 0, 4, 11);
+  map.grass(16, 3, 7, 5);
+  flowers(map, [[4, 4], [6, 7], [8, 3], [3, 9], [17, 9]]);
 
   map.warp(12, 39, { map: 'town-1', x: 12, y: 1, facing: 'down' });
   map.warp(13, 39, { map: 'town-1', x: 13, y: 1, facing: 'down' });
@@ -191,16 +207,16 @@ function town2() {
   map.building(BUILDINGS.brick, 3, 15, { lines: ['My son went to the BATTLE TOWER. He says the routes outside the gates are tough!'] });
   map.path(5, 19, 7, 3);
 
-  map.sign(10, 22, ['TOWN 2', 'The last stop before the MAIN CITY, to the north.']);
+  map.sign(10, 18, ['TOWN 2', 'The last stop before the MAIN CITY, to the north.']);
   map.sign(9, 14, ['POKéMON CENTER', 'If you white out, you wake up at the last one you visited.']);
-  flowers(map, [[10, 7], [2, 13], [23, 11], [16, 22], [22, 22], [9, 22], [3, 21]]);
+  flowers(map, [[10, 7], [2, 13], [23, 11], [23, 18], [9, 17], [3, 21], [16, 17]]);
   map.npc({
     id: 'youngster', name: 'Youngster', sprite: 'cooldude_blue', x: 9, y: 16, facing: 'right',
     lines: ['The MAIN CITY has eight gates. Each one leads to a different kind of land!', 'You can only take on the next gate once the one before it is done, though.'],
   });
   map.npc({
     id: 'gardener', name: 'Gardener', sprite: 'florist', x: 22, y: 10, facing: 'left',
-    lines: ['Tall grass right across a path always has a POKéMON in it. Exactly one!'],
+    lines: ['Grass right across the way always has a POKéMON in it. Exactly one!'],
   });
   map.warp(12, 23, { map: 'path-a', x: 12, y: 1, facing: 'down' });
   map.warp(13, 23, { map: 'path-a', x: 13, y: 1, facing: 'down' });
@@ -210,51 +226,46 @@ function town2() {
   return finish(map);
 }
 
-/** PATH B, south to north: over a stream at the ford, then up to the MAIN CITY. */
+/** PATH B, south to north: through the grass, over the river at the ford, up to the MAIN CITY. */
 function pathB() {
   const map = new MapBuilder({ id: 'path-b', name: 'Path b', kind: 'route', width: 26, height: 40, levels: { lo: 3, hi: 5 }, background: 'grass' });
   map.border([[6, 0], [6, 19]]);
   map.sign(10, 37, ['PATH B', 'North: MAIN CITY   South: TOWN 2']);
 
-  // Up from TOWN 2 and east.
-  map.path(11, 32, 4, 8);
-  map.path(11, 32, 11, 3);
-  flowers(map, [[15, 36], [16, 37], [17, 36], [18, 37], [9, 34], [22, 36]]);
-  map.grass(3, 30, 7, 5);
-  map.ledge(2, 29, 9);
+  // Up from TOWN 2 and east to the gap in the trees.
+  map.path(11, 31, 4, 9);
+  map.path(11, 31, 10, 3);
+  map.grass(3, 34, 6, 4);
+  map.ledge(2, 32, 8);
+  flowers(map, [[15, 36], [17, 37], [19, 36], [21, 37], [9, 33], [22, 34]]);
 
-  // North up the east side: grass right across the way (one battle), then a
-  // LASS in the flowers.
-  // (The path stops either side of the ford, so the water shows.)
-  map.path(19, 22, 3, 13);
-  map.path(19, 15, 3, 5);
-  map.patch('b1', 2, 26, 22, 2, 2, 4);
+  // Trees with a gap on the east side: grass across it (one battle).
+  map.wall(26, 2, 23, 16, 21, 4);
+  map.patch('b1', 16, 26, 6, 4, 4, 4);
+
+  // Up to the river, where it's shallow enough to wade: a LASS waits there.
+  map.path(17, 23, 4, 3);
   map.trainer(introTrainer({
-    id: 'lass', name: 'Lass 1', sprite: 'heroine', x: 22, y: 24, facing: 'left', sight: 3,
+    id: 'lass', name: 'Lass 1', sprite: 'heroine', x: 22, y: 23, facing: 'left', sight: 5,
     team: [{ species: 43, level: 4 }, { species: 29, level: 4 }],
     before: ['Ooh, a new trainer! Show me your POKéMON!'],
+    after: ['The river is lovely, isn\'t it? Mind your step at the ford!'],
   }));
-
-  // A stream across the way, waded at the ford.
-  for (let x = 2; x < 24; x++) {
-    for (let y = 20; y < 22; y++) {
-      const ford = x >= 18 && x <= 21;
-      map.set('ground', x, y, ford ? TILES.shallow : TILES.deep);
-      map.terrain[y][x] = ford ? 'shallow' : 'deep';
-      if (!ford) map.block(x, y);
-    }
-  }
+  map.grass(3, 23, 7, 2);
+  map.river(18, 2, 23, 17, 20, 3);
+  map.sign(15, 23, ['The river is shallow enough to wade here.']);
 
   // West along the far bank, then north to the city.
-  map.path(11, 15, 11, 3);
-  map.grass(3, 7, 7, 7);
-  map.tree(4, 16);
-  map.tree(6, 16);
-  map.ledge(15, 12, 9);
-  map.grass(15, 6, 8, 5);
-  map.path(11, 0, 4, 18);
+  map.path(17, 13, 4, 5);
+  map.path(11, 13, 10, 3);
+  map.ledge(15, 11, 9);
+  map.grass(15, 5, 8, 5);
+  map.grass(3, 6, 7, 6);
+  map.tree(5, 14);
+  map.tree(7, 14);
+  map.path(11, 0, 4, 16);
   map.sign(10, 4, ['MAIN CITY AHEAD', 'Home of the BATTLE TOWER.']);
-  flowers(map, [[3, 18], [8, 18], [16, 3], [22, 4], [9, 5]]);
+  flowers(map, [[3, 15], [9, 16], [16, 3], [22, 3], [9, 4], [3, 3]]);
 
   map.warp(12, 39, { map: 'town-2', x: 12, y: 1, facing: 'down' });
   map.warp(13, 39, { map: 'town-2', x: 13, y: 1, facing: 'down' });
@@ -274,17 +285,23 @@ function prop(map, rows, x0, y0) {
   rows.forEach((row, dy) => row.forEach((tile, dx) => map.set('objects', x0 + dx, y0 + dy, tile).block(x0 + dx, y0 + dy)));
 }
 
-/** A little park: a lawn with a pine or two and flowers. */
-function park(map, x0, y0, w, h, trees = [], flowerSpots = []) {
-  pave(map, TILES.grass, x0, y0, w, h);
+/** A lawn behind a low hedge, with a tree or flowers inside. */
+function park(map, x0, y0, w, h, { trees = [], flowerSpots = [], gaps = [] } = {}) {
+  map.lawn(x0, y0, w, h, { gaps });
   trees.forEach(([x, y]) => map.tree(x, y));
   flowers(map, flowerSpots);
 }
 
+/** A row of single round bushes on the pavement. */
+function bushes(map, spots) {
+  for (const [x, y] of spots) map.set('objects', x, y, HEDGE.bush).block(x, y);
+}
+
 /**
- * The MAIN CITY: a grid of stone avenues round the BATTLE TOWER, each one
- * running out to a gate; concrete pavements; blocks of shops, offices and
- * homes; parks; and plenty of people about.
+ * The MAIN CITY, built like a big city in the games: stone avenues out to
+ * the eight gates round the BATTLE TOWER's plaza, and between them dense
+ * blocks of shops, offices and homes cut through by narrow alleys, with
+ * hedged lawns here and there. Plenty of people about.
  */
 function mainCity() {
   const map = new MapBuilder({
@@ -309,80 +326,78 @@ function mainCity() {
   // The plaza round the tower.
   pave(map, S, 17, 15, 18, 16);
 
-  // The BATTLE TOWER in the middle, with a fountain either side.
+  // The BATTLE TOWER: fountains either side, statues, banners by the door.
   map.building(BUILDINGS.tower, 21, 15, { station: 'battle' });
-  map.sign(20, 28, ['BATTLE TOWER', 'Every milestone is fought here.']);
-  prop(map, PROPS.fountain, 17, 21);
-  prop(map, PROPS.fountain, 32, 21);
-  park(map, 17, 15, 3, 3, [], [[17, 17], [19, 17]]);
-  park(map, 32, 15, 3, 3, [], [[32, 17], [34, 17]]);
+  map.sign(20, 29, ['BATTLE TOWER', 'Every milestone is fought here.']);
+  prop(map, PROPS.fountain, 17, 19);
+  prop(map, PROPS.fountain, 32, 19);
   prop(map, PROPS.statue, 18, 15);
   prop(map, PROPS.statue, 33, 15);
-  // Banners either side of the way in.
-  prop(map, PROPS.banner, 19, 26);
-  prop(map, PROPS.banner, 31, 26);
+  prop(map, PROPS.banner, 21, 28);
+  prop(map, PROPS.banner, 29, 28);
+  park(map, 17, 24, 4, 4, { flowerSpots: [[18, 25], [19, 26]] });
+  park(map, 31, 24, 4, 4, { flowerSpots: [[32, 26], [33, 25]] });
 
-  // North-west: the POKéMON CENTER.
-  map.building(BUILDINGS.center, 3, 3, { station: 'center' });
-  park(map, 10, 3, 3, 8, [[10, 4]], [[11, 7], [10, 9], [12, 9]]);
-  map.sign(12, 3, ['GATE 8 is north.']);
+  // North-west: the POKéMON CENTER, an alley, a lawn.
+  map.building(BUILDINGS.center, 2, 3, { station: 'center' });
+  park(map, 10, 2, 3, 9, { flowerSpots: [[11, 4], [11, 6], [11, 8]] });
 
-  // North: the MART, a florist's, a lawn, the DROP STATION.
+  // North: two rows of shops back to back, an alley between them and one
+  // cutting through the middle.
+  map.building(BUILDINGS.brick, 17, 2, { lines: ['I sell tickets to the BATTLE TOWER... well, I would, if it cost anything!'] });
+  map.building(BUILDINGS.timber, 22, 2, { lines: ['I just moved here from TOWN 2. The city never sleeps!'] });
+  map.building(BUILDINGS.shoji, 28, 2, { lines: ['Please take your shoes off! ...Oh, you are just visiting?'] });
   map.building(BUILDINGS.martBlue, 17, 7, { station: 'mart' });
   map.building(BUILDINGS.shopWhite, 22, 7, { lines: ['FLORIST: Every flower in the city is grown right here!'] });
-  park(map, 17, 2, 18, 5, [[19, 2], [27, 2], [31, 2]], [[17, 4], [18, 5], [22, 4], [23, 5], [24, 3], [25, 5], [29, 4], [33, 5], [34, 3]]);
-  park(map, 27, 7, 3, 4, [[27, 8]], [[29, 7], [29, 10]]);
-  map.building(BUILDINGS.shopYellow, 30, 7, { station: 'drop' });
-  map.sign(34, 6, ['DROP STATION', 'Drop a wild POKéMON, then catch it by name.']);
+  map.building(BUILDINGS.shopYellow, 28, 7, { station: 'drop' });
+  map.sign(34, 8, ['DROP STATION', 'Drop a wild POKéMON, then catch it by name.']);
+  bushes(map, [[33, 2], [34, 2], [33, 5], [34, 5]]);
 
-  // North-east: the TRAINER SCHOOL.
-  map.building(BUILDINGS.hall, 40, 3, { lines: ['TEACHER: Welcome to the TRAINER SCHOOL!', 'Lesson one: a POKéMON above your obedience cap will not listen to you in battle.'] });
-  park(map, 47, 2, 3, 9, [], [[47, 4], [48, 6], [47, 8]]);
-  map.sign(39, 3, ['GATE 1 is north.']);
-  map.sign(48, 10, ['GATE 2 is east.']);
+  // North-east: the TRAINER SCHOOL and a lawn.
+  map.building(BUILDINGS.hall, 39, 3, { lines: ['TEACHER: Welcome to the TRAINER SCHOOL!', 'Lesson one: a POKéMON above your obedience cap will not listen to you in battle.'] });
+  park(map, 46, 2, 4, 9, { trees: [[47, 4]], flowerSpots: [[47, 7], [48, 8]] });
 
-  // West: offices and homes.
-  map.building(BUILDINGS.officeGold, 4, 15, { lines: ['This is the office of the BATTLE TOWER. Every challenger is recorded here.'] });
-  map.building(BUILDINGS.brick, 3, 21, { lines: ['I sell tickets to the BATTLE TOWER... well, I would, if it cost anything!'] });
-  map.building(BUILDINGS.brickDark, 8, 21, { lines: ['My grandfather built this house before the TOWER went up.'] });
-  map.building(BUILDINGS.officeCyan, 4, 26, { lines: ['We plan the routes past the gates. Every trainer out there is placed just so.'] });
-  map.sign(2, 10, ['GATE 7 is west.']);
+  // West: offices, then a terrace of homes with an alley behind.
+  map.building(BUILDINGS.officeGold, 2, 15, { lines: ['This is the office of the BATTLE TOWER. Every challenger is recorded here.'] });
+  park(map, 9, 15, 4, 5, { flowerSpots: [[10, 16], [11, 17]] });
+  map.building(BUILDINGS.brickDark, 2, 21, { lines: ['My grandfather built this house before the TOWER went up.'] });
+  map.building(BUILDINGS.timberLight, 7, 21, { lines: ['My POKéMON loves the fountains in the plaza.'] });
+  map.building(BUILDINGS.officeCyan, 2, 26, { lines: ['We plan the routes past the gates. Every trainer out there is placed just so.'] });
+  bushes(map, [[10, 27], [12, 27], [10, 29], [12, 29]]);
 
-  // East: more offices and homes.
+  // East: the same the other way round.
   map.building(BUILDINGS.officeGrey, 40, 15, { lines: ['Some rocks and trees on the routes can only be cleared by POKéMON moves.', 'They open up as you beat more milestones.'] });
-  map.building(BUILDINGS.timber, 39, 21, { lines: ['I just moved here from TOWN 2. The city never sleeps!'] });
-  map.building(BUILDINGS.timberLight, 44, 21, { lines: ['My POKéMON loves the fountains in the plaza.'] });
+  park(map, 47, 15, 3, 5, { flowerSpots: [[48, 17]] });
+  map.building(BUILDINGS.stone, 39, 21, { lines: ['They say every gate leads to a land from a different region.'] });
+  map.building(BUILDINGS.brick, 44, 21, { lines: ['The routes past GATE 1 are full of bug POKéMON. Yuck!'] });
   map.building(BUILDINGS.officeWhite, 40, 26, { lines: ['RECEPTIONIST: This floor is for staff only, sorry!'] });
+  bushes(map, [[39, 27], [39, 29], [48, 27], [48, 29]]);
 
-  // South-west: the cafe and a stone house.
-  map.building(BUILDINGS.cafe, 3, 36, { room: 'cotton_cafe', lines: ['Welcome to the cafe! Trainers come here after a long day on the routes.'] });
-  map.building(BUILDINGS.stone, 8, 36, { lines: ['They say every gate leads to a land from a different region.'] });
-  park(map, 3, 41, 10, 2, [], [[4, 41], [6, 42], [9, 41], [11, 42]]);
-  map.sign(3, 35, ['GATE 6 is west.']);
-  map.sign(12, 42, ['GATE 5 is south.']);
+  // South-west: the cafe and homes, a lawn behind.
+  map.building(BUILDINGS.cafe, 2, 35, { room: 'taba_house4', lines: ['Welcome to the cafe! Trainers come here after a long day on the routes.'] });
+  map.building(BUILDINGS.timber, 8, 36, { lines: ['Did you come up PATH B? That river is cold this time of year!'] });
+  park(map, 2, 41, 11, 3, { flowerSpots: [[4, 42], [7, 42], [10, 42]] });
 
   // South: two lodges either side of the road in.
   map.building(BUILDINGS.lodge, 18, 35, { lines: ['I grew up in this city. It has grown so big since the BATTLE TOWER went up!'] });
-  map.building(BUILDINGS.lodgeRed, 29, 35, { lines: ['Did you come up PATH B? That stream is cold this time of year!'] });
-  park(map, 17, 42, 7, 2, [], [[17, 42], [20, 43], [23, 42]]);
-  park(map, 29, 42, 6, 2, [], [[30, 43], [33, 42]]);
+  map.building(BUILDINGS.lodgeRed, 29, 35, { lines: ['Welcome to the MAIN CITY! Mind the traffic on the avenues.'] });
+  bushes(map, [[17, 43], [19, 43], [21, 43], [30, 43], [32, 43], [34, 43]]);
 
   // South-east: a quiet street.
-  map.building(BUILDINGS.shoji, 39, 36, { lines: ['Please take your shoes off! ...Oh, you are just visiting?'] });
-  map.building(BUILDINGS.cottageGrey, 44, 36, { lines: ['The routes past GATE 1 are full of bug POKéMON. Yuck!'] });
-  park(map, 39, 41, 5, 2, [], [[40, 41], [42, 42]]);
-  map.sign(48, 35, ['GATE 3 is east.']);
-  map.sign(39, 42, ['GATE 4 is south.']);
+  map.building(BUILDINGS.shoji, 39, 36, { lines: ['The garden out back is my pride and joy.'] });
+  map.building(BUILDINGS.cottageGrey, 44, 36, { lines: ['My kids play in the alleys all day long.'] });
+  park(map, 39, 41, 5, 3, { flowerSpots: [[41, 42]] });
 
-  // The gates, each with a sign saying where it goes.
+  // Gate signs, at the edge of the avenue by each gate.
+  const SIGNS = { 1: [38, 3], 2: [48, 14], 3: [48, 34], 4: [38, 42], 5: [13, 42], 6: [3, 34], 7: [3, 14], 8: [13, 3] };
   for (const gate of worldplan.plan().gates) {
     const g = GATES[gate.number];
     const first = gate.routes[0].number;
     // Gate 1 is open from the start; the rest once the region before is done.
     const requires = first > 1 ? { route: first - 1 } : undefined;
     g.tiles.forEach(([x, y], i) => map.warp(x, y, { map: `route-${first}`, x: 8 + i, y: 1, facing: 'down', requires }));
-    const sign = map.signs.find((s) => s.lines[0] === `GATE ${gate.number} is ${['', 'north', 'east', 'east', 'south', 'south', 'west', 'west', 'north'][gate.number]}.`);
-    if (sign) sign.lines = [`GATE ${gate.number}: ROUTES ${gate.milestones[0]}-${gate.milestones[1]}`, `${gate.region} ladder · ${gate.biomes.join(', ')}`];
+    const [sx, sy] = SIGNS[gate.number];
+    map.sign(sx, sy, [`GATE ${gate.number}: ROUTES ${gate.milestones[0]}-${gate.milestones[1]}`, `${gate.region} ladder · ${gate.biomes.join(', ')}`]);
   }
 
   // In from PATH B, at the bottom middle.
@@ -395,20 +410,20 @@ function mainCity() {
     lines: ["My FARFETCH'D taxi flies anywhere you've been! Press M to FLY."],
   });
   const folk = [
-    ['veteran', 'Veteran', 'knightlord', 20, 29, ['Fill your TRAINER EXP bar on the routes, then come back here for your milestone.', 'Each one beaten opens the next route.']],
-    ['tourist', 'Tourist', 'fashionista', 30, 29, ['I came all this way to see the BATTLE TOWER. It is even taller than I imagined!']],
-    ['worker', 'Office Worker', 'ceo', 46, 13, ['I take the long way round every morning. The avenues all lead to a gate!']],
+    ['veteran', 'Veteran', 'knightlord', 20, 30, ['Fill your TRAINER EXP bar on the routes, then come back here for your milestone.', 'Each one beaten opens the next route.']],
+    ['tourist', 'Tourist', 'fashionista', 31, 30, ['I came all this way to see the BATTLE TOWER. It is even taller than I imagined!']],
+    ['worker', 'Office Worker', 'ceo', 45, 13, ['I take the long way round every morning. The avenues all lead to a gate!']],
     ['kid', 'Little Girl', 'childactor_blonde', 15, 20, ['The trainers on the routes never move. If you can see them, they can see you!']],
     ['jogger', 'Jogger', 'cooldude_blue', 30, 12, ['Round the city twice before breakfast! The avenues make a great running track.']],
-    ['granny', 'Old Lady', 'granny', 26, 32, ['When I was young, all of this was grass. Now look at it!']],
-    ['fan', 'Tower Fan', 'cooldude_blonde', 34, 29, ['One day I will see a champion fight up there. One day!']],
-    ['artist', 'Artist', 'magician_blonde', 21, 4, ['The light on the BATTLE TOWER at sunset... I have painted it a hundred times.']],
-    ['florist', 'Florist', 'florist', 25, 3, ['Do not step on the flowers, please!']],
+    ['granny', 'Old Lady', 'granny', 26, 33, ['When I was young, all of this was grass. Now look at it!']],
+    ['fan', 'Tower Fan', 'cooldude_blonde', 34, 28, ['One day I will see a champion fight up there. One day!']],
+    ['artist', 'Artist', 'magician_blonde', 27, 6, ['The alleys here are full of shortcuts, if you know where to look.']],
     ['shopper', 'Shopper', 'homemaker_blonde', 19, 12, ['The MART here has the same stock as the shop on Discord. So handy!']],
     ['hiker', 'Hiker', 'miner', 37, 38, ['Off to GATE 4 again. The mountains past it are something else.']],
-    ['student', 'Student', 'heroine', 43, 12, ['I am studying at the TRAINER SCHOOL. Type matchups are on the test tomorrow!']],
+    ['student', 'Student', 'heroine', 42, 12, ['I am studying at the TRAINER SCHOOL. Type matchups are on the test tomorrow!']],
     ['fisher', 'Fisherman', 'fisher', 6, 33, ['The sea routes past GATE 6 have the biggest catches. Or so I hear.']],
-    ['postman', 'Postman', 'postboy', 10, 13, ['Letters for the whole city, and not a single one for me.']],
+    ['postman', 'Postman', 'postboy', 7, 25, ['Letters for the whole city, and not a single one for me.']],
+    ['kid2', 'Boy', 'childactor', 44, 25, ['Bet you can\'t find all the alleys in the city!']],
   ];
   for (const [id, name, sprite, x, y, lines] of folk) map.npc({ id, name, sprite, x, y, facing: 'down', lines });
   map.spawn = { x: 26, y: 42, facing: 'up' };

@@ -258,7 +258,16 @@
       if (hooks.loaded) hooks.loaded();
     }
 
+    /** The place-name sign that drops down on arriving somewhere: { text, started }. */
+    let banner = null;
+    let bannerFor = null;
+
     function setMap(next) {
+      // Somewhere new outdoors (not a building, and not back out of one).
+      if (!/^(in:|room:|tower-arena)/.test(next.id) && next.id !== bannerFor) {
+        banner = { text: String(next.name || '').toUpperCase(), started: performance.now() };
+        bannerFor = next.id;
+      }
       map = next;
       drawn = prepare(sheets, map);
       effects.length = 0;
@@ -294,8 +303,8 @@
     function wander(now) {
       if (!map) return;
       for (const n of map.npcs || []) {
-        if (n.from && now - n.started >= NPC_STEP_MS) n.from = null;
-        if (n.from || n.talking || now < n.next || hooks.paused()) continue;
+        if (n.from && now - n.started >= (n.stepMs || NPC_STEP_MS)) n.from = null;
+        if (scripted || n.from || n.talking || now < n.next || hooks.paused()) continue;
         n.next = now + 1200 + Math.random() * 2600;
         if (!n.wander) continue;
         const dir = Object.keys(DIRS)[Math.floor(Math.random() * 4)];
@@ -305,6 +314,8 @@
         const ny = n.y + DIRS[dir][1];
         if (Math.abs(nx - n.homeX) > n.wander || Math.abs(ny - n.homeY) > n.wander) continue;
         if (!inside(nx, ny) || map.solid[ny][nx] || doorAt(nx, ny) || warpAt(nx, ny) || npcAt(nx, ny) || trainerAt(nx, ny)) continue;
+        // Indoors, never in front of the way out (or anywhere in line with it).
+        if (/^in:/.test(map.id) && map.warps.some((w) => w.x === nx && ny < w.y)) continue;
         if ((nx === player.x && ny === player.y) || (player.from && nx === player.from.x && ny === player.from.y)) continue;
         n.from = { x: n.x, y: n.y };
         n.x = nx;
@@ -315,7 +326,7 @@
 
     function npcPosition(n, now) {
       if (!n.from) return { x: n.x * TILE, y: n.y * TILE, t: 0 };
-      const t = Math.min(1, (now - n.started) / NPC_STEP_MS);
+      const t = Math.min(1, (now - n.started) / (n.stepMs || NPC_STEP_MS));
       return { x: (n.from.x + (n.x - n.from.x) * t) * TILE, y: (n.from.y + (n.y - n.from.y) * t) * TILE, t };
     }
     const obstacleAt = (x, y) => (map.obstacles || []).find((o) => o.x === x && o.y === y) || null;
@@ -518,6 +529,21 @@
           if (r && r.ok) reload();
         });
       }
+      // A trainer: beaten ones say their piece; others battle you.
+      if (trainerAt(x, y) && !approach) {
+        const t = trainerAt(x, y);
+        hooks.post('/api/challenge', {}).then((r) => {
+          if (!r || !r.ok) return;
+          if (r.lines) {
+            t.facing = OPPOSITE[player.facing];
+            hooks.read(r.lines);
+          } else if (r.event) {
+            t.facing = OPPOSITE[player.facing];
+            startTrainer(r.event, { map: map.id, x: player.x, y: player.y, facing: player.facing });
+          }
+        });
+        return;
+      }
       const door = doorAt(x, y);
       if (door && player.facing === 'up') {
         queue.push({ dir: 'up', x: player.x, y: player.y });
@@ -669,6 +695,197 @@
       leaderWalk.next = now + NPC_STEP_MS;
     }
 
+    // -----------------------------------------------------------------------
+    // Cutscenes: a map shown without the server, everyone moved by script.
+    // You can't walk; you follow.
+    // -----------------------------------------------------------------------
+
+    let scripted = false;
+    const SCENE_STEP_MS = 270;
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const actor = (id) => (id === 'player' ? player : (map.npcs || []).find((n) => n.id === id));
+
+    /** One step for someone (or you), animated; resolves when it's done. */
+    function stepActor(id, dir, ms = SCENE_STEP_MS) {
+      const a = actor(id);
+      if (!a) return Promise.resolve();
+      const now = performance.now();
+      a.facing = dir;
+      a.from = { x: a.x, y: a.y };
+      a.x += DIRS[dir][0];
+      a.y += DIRS[dir][1];
+      a.started = now;
+      if (id === 'player') {
+        a.duration = ms;
+        a.hop = false;
+        a.stepCount += 1;
+      } else a.stepMs = ms;
+      return wait(ms);
+    }
+
+    /** The shortest way from one tile to another round walls and people. */
+    function findPath(from, to, { ignore = [] } = {}) {
+      const key = (x, y) => `${x},${y}`;
+      const people = new Set([...(map.npcs || []).filter((n) => !ignore.includes(n.id)).map((n) => key(n.x, n.y)), ...map.trainers.map((t) => key(t.x, t.y))]);
+      if (!ignore.includes('player')) people.add(key(player.x, player.y));
+      const prev = new Map([[key(from.x, from.y), null]]);
+      const q = [[from.x, from.y]];
+      while (q.length) {
+        const [x, y] = q.shift();
+        if (x === to.x && y === to.y) {
+          const dirs = [];
+          let k = key(x, y);
+          while (prev.get(k)) {
+            const [d, pk] = prev.get(k);
+            dirs.unshift(d);
+            k = pk;
+          }
+          return dirs;
+        }
+        for (const [d, [dx, dy]] of Object.entries(DIRS)) {
+          const nx = x + dx;
+          const ny = y + dy;
+          const k = key(nx, ny);
+          if (!inside(nx, ny) || prev.has(k)) continue;
+          const goal = nx === to.x && ny === to.y;
+          if (!goal && (map.solid[ny][nx] || people.has(k) || terrainAt(nx, ny) === 'ledge')) continue;
+          prev.set(k, [d, key(x, y)]);
+          q.push([nx, ny]);
+        }
+      }
+      return null;
+    }
+
+    const scene = {
+      /** Show a map (from /api/scene) with you on it; walking is locked. */
+      stage(next, pos, cast = []) {
+        scripted = true;
+        frozen = true;
+        held.length = 0;
+        generation += 1;
+        queue.length = 0;
+        setMap(next);
+        place(pos);
+        // Nobody wanders off mid-scene; the cast goes where the script says.
+        for (const n of map.npcs) n.wander = 0;
+        for (const c of cast) scene.add(c);
+        fade = performance.now();
+      },
+      /** How you look in the scene (the outfit just chosen). */
+      dress(sprite) {
+        player.sprite = sprite;
+        character(sprite);
+      },
+      add(n) {
+        map.npcs = (map.npcs || []).filter((x) => x.id !== n.id);
+        map.npcs.push({ wander: 0, facing: 'down', lines: [], ...n, homeX: n.x, homeY: n.y, from: null, started: 0, next: Infinity });
+        character(n.sprite);
+      },
+      remove(id) {
+        map.npcs = (map.npcs || []).filter((x) => x.id !== id);
+      },
+      at(id) {
+        const a = actor(id);
+        return a ? { x: a.x, y: a.y, facing: a.facing } : null;
+      },
+      /** Is this tile free to stand on? */
+      free(x, y) {
+        return inside(x, y) && !map.solid[y][x] && !npcAt(x, y) && !trainerAt(x, y) && !(player.x === x && player.y === y);
+      },
+      face(id, dir) {
+        const a = actor(id);
+        if (a) a.facing = dir;
+      },
+      /** Turn to face someone. */
+      faceTo(id, otherId) {
+        const a = actor(id);
+        const b = actor(otherId);
+        if (!a || !b) return;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        a.facing = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
+      },
+      step: (id, dir, ms) => stepActor(id, dir, ms),
+      /** Walk someone to a tile, round everything in the way. */
+      async walkTo(id, to, ms = SCENE_STEP_MS) {
+        const a = actor(id);
+        if (!a) return false;
+        const path = findPath(a, to, { ignore: [id] });
+        if (!path) return false;
+        for (const d of path) await stepActor(id, d, ms);
+        return true;
+      },
+      /** A free tile next to someone, the nearest to `from`. */
+      beside(id, from) {
+        const a = actor(id);
+        if (!a) return null;
+        const spots = Object.values(DIRS).map(([dx, dy]) => ({ x: a.x + dx, y: a.y + dy })).filter((s) => scene.free(s.x, s.y));
+        spots.sort((p, q) => Math.abs(p.x - from.x) + Math.abs(p.y - from.y) - (Math.abs(q.x - from.x) + Math.abs(q.y - from.y)));
+        return spots[0] || null;
+      },
+      /**
+       * Someone leads and you follow one step behind, as in the games: each
+       * step, they move on and you step into where they were.
+       */
+      async lead(id, to, ms = SCENE_STEP_MS) {
+        const a = actor(id);
+        if (!a) return;
+        const path = findPath(a, to, { ignore: [id] }) || [];
+        for (const d of path) {
+          const was = { x: a.x, y: a.y };
+          const toward = was.x > player.x ? 'right' : was.x < player.x ? 'left' : was.y > player.y ? 'down' : 'up';
+          const near = Math.abs(was.x - player.x) + Math.abs(was.y - player.y) === 1;
+          await Promise.all([stepActor(id, d, ms), near ? stepActor('player', toward, ms) : wait(ms)]);
+        }
+      },
+      /** Fade to black (held until the next stage). */
+      async fadeOut(ms = 350) {
+        fadeOut = performance.now();
+        fadeOutMs = ms;
+        await wait(ms);
+      },
+      /** Back to the real game: the server's map and position. */
+      async end() {
+        scripted = false;
+        await reload();
+        fadeOut = 0;
+        frozen = false;
+      },
+      get active() {
+        return scripted;
+      },
+    };
+    let fadeOut = 0;
+    let fadeOutMs = 350;
+
+    /** The place-name sign: slides down, waits, slides back up. */
+    const BANNER_MS = 2600;
+    function drawBanner(now) {
+      if (!banner) return;
+      const t = now - banner.started;
+      if (t > BANNER_MS) {
+        banner = null;
+        return;
+      }
+      const ease = (k) => 1 - (1 - k) * (1 - k);
+      const shown = t < 320 ? ease(t / 320) : t > BANNER_MS - 320 ? ease((BANNER_MS - t) / 320) : 1;
+      g.font = '8px "Press Start 2P", monospace';
+      const w = Math.max(80, Math.ceil(g.measureText(banner.text).width) + 20);
+      const h = 22;
+      const x = 6;
+      const y = Math.round(-h + shown * (h + 6));
+      // A wooden sign with a cream face, like the games' location signs.
+      g.fillStyle = '#6a4a2a';
+      g.fillRect(x, y, w, h);
+      g.fillStyle = '#a8784a';
+      g.fillRect(x + 1, y + 1, w - 2, h - 2);
+      g.fillStyle = '#f8f0d8';
+      g.fillRect(x + 3, y + 3, w - 6, h - 6);
+      g.fillStyle = '#383028';
+      g.textBaseline = 'middle';
+      g.fillText(banner.text, x + 10, y + h / 2 + 1);
+    }
+
     function frame(now) {
       if (player.from && now - player.started >= player.duration) {
         // Landing from a ledge: a puff of dust either side.
@@ -802,6 +1019,15 @@
         }
       }
 
+      drawBanner(now);
+      // A cutscene fading out: black, held until the next stage.
+      if (fadeOut) {
+        if (fade > fadeOut) fadeOut = 0;
+        else {
+          g.fillStyle = `rgba(0,0,0,${Math.min(1, (now - fadeOut) / fadeOutMs)})`;
+          g.fillRect(0, 0, VIEW_W, VIEW_H);
+        }
+      }
       // A quick fade on doors, maps and battles.
       if (fade) {
         const a = Math.max(0, 1 - (now - fade) / 350);
@@ -851,6 +1077,7 @@
        * reconnecting). `refresh` reloads the map, for a beaten trainer.
        */
       sync(pos, refresh) {
+        if (scripted) return;
         frozen = false;
         if (!map || refresh || pos.map !== map.id) {
           reload();
@@ -876,6 +1103,7 @@
         character(n.sprite);
       },
       walkUp,
+      scene,
       fly,
       clearFlyers: () => { flyers.length = 0; },
       alert(id, ms = 900) {

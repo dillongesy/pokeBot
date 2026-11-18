@@ -112,6 +112,15 @@ const LOCALS = {
 const BOSS_SPRITES = ['boss', 'boss_blue', 'boss_green', 'boss_orange', 'boss_red', 'overseer', 'ceo'];
 
 /** Battle lines, game style. */
+/** What a beaten trainer says if you talk to them again. */
+const AFTER_LINES = [
+  'You really are strong. Good luck out there!',
+  "I'll train harder. Next time, I won't lose!",
+  'Your POKéMON look like they trust you a lot.',
+  "Phew. I need a rest after that one.",
+  'Keep going. The next stretch is even tougher!',
+];
+
 const LINES = [
   "Hey! You look like you could use a battle!",
   "A TRAINER! Let's see what you've got!",
@@ -240,7 +249,8 @@ function buildRoute(n) {
     inLeg += 1;
     pieces.push({ kind: 'gap', rows: 2 + Math.floor(random() * 3) });
     if (pocketAt.has(i)) pieces.push({ kind: 'pocket', rows: 6, pocket: route.pockets[[...pocketAt].indexOf(i)] });
-    if (battle.kind === 'wild') pieces.push({ kind: 'wild', rows: 2 + (random() < 0.4 ? 1 : 0), battle, index: i });
+    // A patch of grass in a gap between trees: 4 rows to cross.
+    if (battle.kind === 'wild') pieces.push({ kind: 'wild', rows: 4, battle, index: i });
     else pieces.push({ kind: battle.kind, rows: battle.kind === 'boss' ? 4 : 3, battle, index: i });
   });
   // The rival waits near the end of every gate's last route: a hard fight, once per gate.
@@ -286,15 +296,19 @@ function buildRoute(n) {
       // Something to look at, never in the way: flowers, and now and then
       // optional grass against the edge.
       for (let y = p.y; y < p.y + p.rows; y++) {
-        if (groundFlowers.length && random() < 0.25) map.set('objects', LEFT + Math.floor(random() * INNER), y, pickOf(random, groundFlowers));
+        if (groundFlowers.length && random() < 0.25) map.decorate(LEFT + Math.floor(random() * INNER), y, pickOf(random, groundFlowers));
       }
       if (p.rows >= 3 && random() < 0.35) {
         const side = random() < 0.5 ? LEFT : RIGHT - 2;
         map.grass(side, p.y, 3, Math.min(2, p.rows - 1));
       }
     } else if (p.kind === 'wild') {
+      // Trees (rocks on rocky land and at sea) across the way, with a gap
+      // full of grass you have to go through: one battle.
       patchCount += 1;
-      map.patch(`p${patchCount}`, LEFT, p.y, INNER, p.rows, p.rows, p.battle.level);
+      const gap = LEFT + 2 * Math.floor(random() * 5);
+      map.wall(p.y, LEFT, RIGHT, gap, gap + 5, p.rows);
+      map.patch(`p${patchCount}`, gap, p.y, 6, p.rows, p.rows, p.battle.level);
     } else if (p.kind === 'trainer' || p.kind === 'boss') {
       trainerCount += 1;
       const boss = p.kind === 'boss';
@@ -313,6 +327,7 @@ function buildRoute(n) {
         sight: boss ? 3 : INNER - 1,
         team: teamFor(random, pool, Math.max(1, p.battle.team), p.battle.level),
         before: boss ? [`So you made it to the end of ${route.name.toUpperCase()}. Let's see if you deserve to!`] : [pickOf(random, LINES)],
+        after: boss ? ['You earned your way through. Go on!'] : [pickOf(random, AFTER_LINES)],
         // About four average .battle wins' worth of coins, on top of the battle's own.
         reward: boss ? { coins: 20 + Math.floor(n / 2) } : null,
       });
@@ -334,6 +349,7 @@ function buildRoute(n) {
         before: [
           gate.number === 1 ? "AIDE: There you are! I've been training nonstop. Let's see who's stronger!" : `AIDE: Gate ${gate.number} already? Don't think I've been slacking!`,
         ],
+        after: ["AIDE: I'll beat you next time. Just you wait!"],
         reward: { coins: 40 + n },
       });
     } else if (p.kind === 'rest') {
@@ -435,7 +451,7 @@ function buildStop(n) {
   map.border(last ? [[midCell, 0]] : [[midCell, 0], [midCell, STOP_HEIGHT / 2 - 1]]);
   if (map.ground.tile === TILES.grass) map.path(MIDDLE - 1, 0, 4, STOP_HEIGHT);
   const flowerKinds = map.ground.flowers.length ? map.ground.flowers : TILES.flowers;
-  const flower = (x, y) => map.set('objects', x, y, pickOf(random, flowerKinds));
+  const flower = (x, y) => map.decorate(x, y, pickOf(random, flowerKinds));
 
   if (town) {
     // Every town is laid out from its own seed: which side the CENTER is on,
