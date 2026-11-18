@@ -360,123 +360,173 @@
     // The Town Map
     // -----------------------------------------------------------------------
 
-    const STOP_COLORS = { town: '#f8f8f8', reward: '#f8c838', boss: '#e86040', landmark: '#b890f8' };
-    const GATE_FILLS = ['#4c8c48', '#c8b070', '#2e7a52', '#7a6a5a', '#b88848', '#3868a0', '#9ab0c4', '#c8d4e0'];
+    // The whole world, drawn as on the world plan: the MAIN CITY in the
+    // middle, the eight gates as wedges of land with their routes and stops,
+    // and the way in from TOWN 1, due south.
+    const GATE_FILL = ['#2f6b35', '#a48a52', '#1f5a3c', '#5e5246', '#9a6c2e', '#235684', '#7d93a8', '#aab8c8'];
+    const SVGNS = 'http://www.w3.org/2000/svg';
+    const svgEl = (tag, attrs, parent) => {
+      const e = document.createElementNS(SVGNS, tag);
+      for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+      if (parent) parent.appendChild(e);
+      return e;
+    };
+    const STOP_WORDS = { town: 'TOWN', reward: 'POINT OF INTEREST', boss: 'BOSS TRAINER', landmark: 'LANDMARK' };
+
+    /** The map as SVG, plus where each place is on it (for the cursor and "you are here"). */
+    function drawWorld(data) {
+      const C = { x: 500, y: 455 };
+      const CITY_R = 78;
+      const RING_IN = 104;
+      const STEP = 34.5;
+      const gateAngle = (g) => ((-90 + 22.5 + 45 * g) * Math.PI) / 180;
+      const at = (r, a) => ({ x: C.x + r * Math.cos(a), y: C.y + r * Math.sin(a) });
+      const sector = (r0, r1, a0, a1) => {
+        const A = at(r0, a0), B = at(r1, a0), D = at(r1, a1), E = at(r0, a1);
+        return `M${A.x},${A.y} L${B.x},${B.y} A${r1},${r1} 0 0 1 ${D.x},${D.y} L${E.x},${E.y} A${r0},${r0} 0 0 0 ${A.x},${A.y}Z`;
+      };
+      const svg = svgEl('svg', { viewBox: '0 0 1000 1000', class: 'm-world' });
+      const spots = {};
+      svgEl('rect', { x: 0, y: 0, width: 1000, height: 1000, fill: '#16314a' }, svg);
+      for (let i = 40; i < 1000; i += 40) {
+        svgEl('line', { x1: i, y1: 0, x2: i, y2: 1000, stroke: '#1b3a56', 'stroke-width': 1 }, svg);
+        svgEl('line', { x1: 0, y1: i, x2: 1000, y2: i, stroke: '#1b3a56', 'stroke-width': 1 }, svg);
+      }
+      const half = (21 * Math.PI) / 180;
+      data.gates.forEach((gate, g) => {
+        const a = gateAngle(g);
+        svgEl('path', { d: sector(CITY_R + 4, RING_IN + STEP * gate.stops.length + 40, a - half, a + half), fill: GATE_FILL[g % 8], stroke: '#0e1420', 'stroke-width': 3 }, svg);
+      });
+      const south = Math.PI / 2;
+      svgEl('path', { d: sector(CITY_R + 4, 480, south - 0.2, south + 0.2), fill: '#3f7f46', stroke: '#0e1420', 'stroke-width': 3 }, svg);
+
+      data.gates.forEach((gate, g) => {
+        const a = gateAngle(g);
+        let prev = at(CITY_R, a);
+        gate.stops.forEach(({ route, stop }, i) => {
+          const n = Number(route.id.split('-')[1]);
+          const wobble = (i % 2 ? 1 : -1) * 0.12 * (0.6 + ((n * 37) % 10) / 25);
+          const p = at(RING_IN + STEP * (i + 1), a + wobble);
+          svgEl('line', { x1: prev.x, y1: prev.y, x2: p.x, y2: p.y, stroke: route.visited ? '#f3e2b4' : '#c9bb94', 'stroke-width': 5, 'stroke-linecap': 'round', opacity: route.visited ? 1 : 0.55 }, svg);
+          const mid = { x: (prev.x + p.x) / 2, y: (prev.y + p.y) / 2 };
+          if (route.hidden) {
+            const nx = -(p.y - prev.y), ny = p.x - prev.x, len = Math.hypot(nx, ny) || 1;
+            svgEl('circle', { cx: mid.x + (11 * nx) / len, cy: mid.y + (11 * ny) / len, r: 3.4, fill: '#eef1f6', stroke: '#d6453d', 'stroke-width': 2 }, svg);
+          }
+          spots[route.id] = mid;
+          prev = p;
+          const k = stop.kind;
+          const dim = stop.visited ? 1 : 0.6;
+          if (k === 'town') svgEl('rect', { x: p.x - 7, y: p.y - 7, width: 14, height: 14, rx: 2, fill: '#eef1f6', stroke: '#0e1420', 'stroke-width': 2, opacity: dim }, svg);
+          else if (k === 'boss') svgEl('path', { d: `M${p.x} ${p.y - 8} L${p.x + 8} ${p.y} L${p.x} ${p.y + 8} L${p.x - 8} ${p.y}Z`, fill: '#e2603a', stroke: '#0e1420', 'stroke-width': 2, opacity: dim }, svg);
+          else if (k === 'landmark') svgEl('circle', { cx: p.x, cy: p.y, r: 9, fill: '#b48cf2', stroke: '#0e1420', 'stroke-width': 2, opacity: dim }, svg);
+          else svgEl('circle', { cx: p.x, cy: p.y, r: 6, fill: '#f2c14e', stroke: '#0e1420', 'stroke-width': 2, opacity: dim }, svg);
+          spots[stop.id] = p;
+        });
+        const lp = at(RING_IN + STEP * gate.stops.length + 22, a);
+        svgEl('rect', { x: lp.x - 56, y: lp.y - 11, width: 112, height: 22, rx: 4, fill: '#0e1420', stroke: GATE_FILL[g % 8], 'stroke-width': 2 }, svg);
+        const first = gate.stops[0].route.id.split('-')[1];
+        const last = gate.stops[gate.stops.length - 1].route.id.split('-')[1];
+        svgEl('text', { x: lp.x, y: lp.y + 4.5, 'text-anchor': 'middle', 'font-size': 12, fill: '#eef1f6' }, svg).textContent = `GATE ${gate.number} · ${first}-${last}`;
+      });
+
+      // TOWN 1 -> PATH A -> TOWN 2 -> PATH B -> MAIN CITY, south to north.
+      const t1 = at(450, south), pa = at(360, south), t2 = at(265, south), pb = at(170, south);
+      svgEl('line', { x1: t1.x, y1: t1.y, x2: C.x, y2: C.y + CITY_R, stroke: '#f3e2b4', 'stroke-width': 5, 'stroke-dasharray': '2 8', 'stroke-linecap': 'round' }, svg);
+      const byId = Object.fromEntries(data.intro.map((p) => [p.id, p]));
+      [['town-1', t1], ['town-2', t2]].forEach(([id, p]) => {
+        svgEl('rect', { x: p.x - 9, y: p.y - 9, width: 18, height: 18, rx: 2, fill: '#eef1f6', stroke: '#0e1420', 'stroke-width': 2 }, svg);
+        svgEl('text', { x: p.x - 16, y: p.y + 4, 'text-anchor': 'end', 'font-size': 12, fill: '#eef1f6' }, svg).textContent = (byId[id] ? byId[id].name : id).toUpperCase();
+        spots[id] = p;
+      });
+      [['path-a', pa], ['path-b', pb]].forEach(([id, p]) => {
+        const info = byId[id];
+        svgEl('text', { x: p.x - 10, y: p.y + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#d6e7cf' }, svg).textContent =
+          `${(info ? info.name : id).toUpperCase()}${info && info.levels ? ` · Lv ${info.levels.lo}-${info.levels.hi}` : ''}`;
+        spots[id] = p;
+      });
+
+      // The MAIN CITY and its BATTLE TOWER.
+      svgEl('circle', { cx: C.x, cy: C.y, r: CITY_R, fill: '#4b5568', stroke: '#0e1420', 'stroke-width': 3 }, svg);
+      svgEl('circle', { cx: C.x, cy: C.y, r: CITY_R - 16, fill: 'none', stroke: '#6b768c', 'stroke-width': 2, 'stroke-dasharray': '4 5' }, svg);
+      svgEl('path', { d: `M${C.x - 14} ${C.y + 22} L${C.x - 9} ${C.y - 26} L${C.x} ${C.y - 38} L${C.x + 9} ${C.y - 26} L${C.x + 14} ${C.y + 22}Z`, fill: '#f2c14e', stroke: '#0e1420', 'stroke-width': 2 }, svg);
+      svgEl('text', { x: C.x, y: C.y + 40, 'text-anchor': 'middle', 'font-size': 12, fill: '#eef1f6', 'font-weight': 600 }, svg).textContent = 'MAIN CITY';
+      spots['main-city'] = { x: C.x, y: C.y };
+
+      // You are here (blinks, by CSS), and the cursor.
+      const me = spots[data.here];
+      if (me) {
+        svgEl('circle', { cx: me.x, cy: me.y, r: 16, fill: 'none', stroke: '#ff3b30', 'stroke-width': 4, class: 'm-here-ring' }, svg);
+        svgEl('circle', { cx: me.x, cy: me.y, r: 6, fill: '#ff3b30', stroke: '#fff', 'stroke-width': 2, class: 'm-here' }, svg);
+      }
+      const cursor = svgEl('rect', { width: 30, height: 30, rx: 4, fill: 'none', stroke: '#fff', 'stroke-width': 3, 'stroke-dasharray': '7 4', class: 'm-map-cursor' }, svg);
+      return { svg, spots, cursor };
+    }
 
     async function townMap(alone = false) {
       if (alone) show();
       const data = await hooks.get('/api/townmap');
-      // Everywhere you've been, in a ring you can step through.
+      // Every place in order, from home to the far end of each gate.
       const places = [
-        ...data.intro.filter((p) => p.visited).map((p) => ({ ...p })),
-        ...(data.city.visited ? [data.city] : []),
-        ...data.gates.flatMap((g) => g.stops.flatMap((s) => [s.route, s.stop]).filter((p) => p.visited)),
+        ...data.intro.map((p) => ({ ...p, kind: /^town/.test(p.id) ? 'town' : 'path' })),
+        { ...data.city, kind: 'city' },
+        ...data.gates.flatMap((g) => g.stops.flatMap((s) => [
+          { ...s.route, kind: 'route', gate: g },
+          { ...s.stop, kind: s.stop.kind, gate: g, after: s.route },
+        ])),
       ];
       let at = Math.max(0, places.findIndex((p) => p.id === data.here));
-      const blink = setInterval(() => redraw(), 500);
+      let zoom = 1;
+      const world = drawWorld(data);
+      const describe = (p) => {
+        if (!p) return ['', ''];
+        const here = p.id === data.here ? '  · YOU ARE HERE' : '';
+        if (p.kind === 'city') return [`MAIN CITY${here}`, 'The BATTLE TOWER, the DROP STATION and the eight gates.'];
+        if (p.kind === 'town' && !p.gate) return [`${p.name.toUpperCase()}${here}`, p.id === 'town-1' ? 'Home: your house and PROF. A\'s lab.' : 'The last stop before the MAIN CITY.'];
+        if (p.kind === 'path') return [`${p.name.toUpperCase()}${here}`, p.levels ? `Wild POKéMON Lv ${p.levels.lo}-${p.levels.hi}.` : ''];
+        if (p.kind === 'route') {
+          return [
+            `${p.name.toUpperCase()}${here}`,
+            `GATE ${p.gate.number} (${p.gate.region}) · ${p.biome} · Lv ${p.levels.lo}-${p.levels.hi} · then ${p.milestone}${p.hidden ? ' · hidden item' : ''}${p.visited ? '' : ' · not visited'}`,
+          ];
+        }
+        return [`${p.name.toUpperCase()}${here}`, `${STOP_WORDS[p.kind] || 'STOP'} at the end of ${p.after.name}${p.visited ? '' : ' · not visited'}`];
+      };
+      const place = () => {
+        const p = places[at];
+        const s = p && world.spots[p.id];
+        if (s) {
+          world.cursor.setAttribute('x', s.x - 15);
+          world.cursor.setAttribute('y', s.y - 15);
+        }
+        const size = 1000 / zoom;
+        const c = s && zoom > 1 ? s : { x: 500, y: 500 };
+        const x = Math.max(0, Math.min(1000 - size, c.x - size / 2));
+        const y = Math.max(0, Math.min(1000 - size, c.y - size / 2));
+        world.svg.setAttribute('viewBox', `${x} ${y} ${size} ${size}`);
+      };
       push({
         draw() {
           const page = el('div', 'm-page m-map');
-          const canvas = el('canvas', 'm-map-canvas');
-          canvas.width = 480;
-          canvas.height = 300;
-          const g = canvas.getContext('2d');
-          g.fillStyle = '#16314a';
-          g.fillRect(0, 0, 480, 300);
-          const cx = 240;
-          const cy = 135;
-          const spots = {};
-          // Gates: wedges of land, routes as a winding line, stops as dots.
-          data.gates.forEach((gate, gi) => {
-            const a = ((-90 + 22.5 + 45 * gi) * Math.PI) / 180;
-            g.fillStyle = GATE_FILLS[gi % GATE_FILLS.length];
-            g.beginPath();
-            g.moveTo(cx, cy);
-            g.arc(cx, cy, 128, a - 0.36, a + 0.36);
-            g.closePath();
-            g.fill();
-            let prev = { x: cx + Math.cos(a) * 26, y: cy + Math.sin(a) * 26 };
-            gate.stops.forEach((s, i) => {
-              const r = 34 + i * 9.5;
-              const wob = (i % 2 ? 1 : -1) * 0.1;
-              const p = { x: cx + Math.cos(a + wob) * r, y: cy + Math.sin(a + wob) * r };
-              g.strokeStyle = s.route.visited ? '#f3e2b4' : 'rgba(243,226,180,.35)';
-              g.lineWidth = 2;
-              g.beginPath();
-              g.moveTo(prev.x, prev.y);
-              g.lineTo(p.x, p.y);
-              g.stroke();
-              spots[s.route.id] = { x: (prev.x + p.x) / 2, y: (prev.y + p.y) / 2 };
-              spots[s.stop.id] = p;
-              g.fillStyle = s.stop.visited ? STOP_COLORS[s.stop.kind] || '#fff' : 'rgba(255,255,255,.25)';
-              g.fillRect(p.x - 2, p.y - 2, 4, 4);
-              prev = p;
-            });
-            const lp = { x: cx + Math.cos(a) * 140, y: cy + Math.sin(a) * 140 };
-            g.fillStyle = '#fff';
-            g.font = '9px monospace';
-            g.textAlign = 'center';
-            g.fillText(`G${gate.number}`, lp.x, lp.y + 3);
-          });
-          // The way in, from the south.
-          const south = Math.PI / 2;
-          const intro = data.intro.slice().reverse();
-          intro.forEach((p, i) => {
-            const r = 40 + i * 22;
-            spots[p.id] = { x: cx + Math.cos(south) * r, y: cy + Math.sin(south) * r };
-          });
-          g.strokeStyle = '#f3e2b4';
-          g.setLineDash([2, 3]);
-          g.beginPath();
-          g.moveTo(cx, cy + 26);
-          g.lineTo(spots['town-1'].x, spots['town-1'].y);
-          g.stroke();
-          g.setLineDash([]);
-          for (const p of data.intro) {
-            const s = spots[p.id];
-            g.fillStyle = p.visited ? '#f8f8f8' : 'rgba(255,255,255,.3)';
-            if (/^town/.test(p.id)) g.fillRect(s.x - 3, s.y - 3, 6, 6);
-          }
-          // The city.
-          spots['main-city'] = { x: cx, y: cy };
-          g.fillStyle = '#4b5568';
-          g.beginPath();
-          g.arc(cx, cy, 24, 0, Math.PI * 2);
-          g.fill();
-          g.fillStyle = '#f2c14e';
-          g.fillRect(cx - 3, cy - 10, 6, 16);
-          // You are here, blinking.
-          const me = spots[data.here];
-          if (me && Math.floor(Date.now() / 500) % 2) {
-            g.strokeStyle = '#ff3030';
-            g.lineWidth = 2;
-            g.strokeRect(me.x - 5, me.y - 5, 10, 10);
-          }
-          // The place under the cursor.
-          const chosen = places[at];
-          if (chosen && spots[chosen.id]) {
-            const c = spots[chosen.id];
-            g.strokeStyle = '#ffffff';
-            g.lineWidth = 1;
-            g.strokeRect(c.x - 7, c.y - 7, 14, 14);
-          }
-          page.append(canvas);
-          const label = el('div', 'm-desc');
-          const hereName = (places.find((p) => p.id === data.here) || {}).name || data.here;
-          label.append(el('p', null, chosen ? `${chosen.name.toUpperCase()}${chosen.id === data.here ? '  (you are here)' : ''}` : `You are in ${String(hereName).toUpperCase()}.`));
-          page.append(label);
+          const frame = el('div', 'm-map-frame');
+          frame.append(world.svg);
+          const side = el('div', 'm-map-side');
+          const [title, text] = describe(places[at]);
+          side.append(el('b', 'm-map-title', title), el('p', 'm-map-text', text));
+          const keys = el('p', 'm-map-keys', `◀▶ PLACE   A ZOOM ${zoom > 1 ? 'OUT' : 'IN'}   B CLOSE`);
+          side.append(keys);
+          page.append(frame, side);
+          place();
           root.append(page);
         },
         key(k) {
-          if (k === 'a' || k === 'b') {
-            clearInterval(blink);
+          if (k === 'b') {
             if (alone) return close();
             return pop();
           }
-          if (places.length) {
-            if (k === 'right' || k === 'down') at = (at + 1) % places.length;
-            if (k === 'left' || k === 'up') at = (at - 1 + places.length) % places.length;
-          }
+          if (k === 'a') zoom = zoom > 1 ? 1 : 2.6;
+          if (k === 'right' || k === 'down') at = (at + 1) % places.length;
+          if (k === 'left' || k === 'up') at = (at - 1 + places.length) % places.length;
           redraw();
         },
       });
@@ -497,31 +547,58 @@
         ['Route 61 (snow)', 'route-61'], ['Route 71', 'route-71'], ['Test Route', 'testroute'], ['Dev Town', 'devtown'],
       ];
       const state = () => hooks.dev.state() || {};
+      const onOff = (v) => (v ? 'ON' : 'OFF');
       const items = () => {
         const d = state();
         return [
-          { label: `EXPLORE     ${d.exploring ? 'ON' : 'OFF'}`, go: () => hooks.dev.run('explore', !d.exploring) },
-          { label: `NOCLIP      ${d.noclip ? 'ON' : 'OFF'}`, go: () => hooks.dev.run('noclip', !d.noclip) },
-          { label: `OVERLAY     ${d.overlay ? 'ON' : 'OFF'}`, go: () => hooks.dev.run('overlay', !d.overlay) },
-          { label: `SPEED       x${hooks.dev.speed()}`, go: () => hooks.dev.speed(hooks.dev.speed() >= 4 ? 1 : hooks.dev.speed() * 2) },
-          { label: 'WARP...', go: () => warp() },
-          { label: 'ALL OFF', go: () => hooks.dev.run('off') },
-          { label: 'CLOSE', go: () => pop() },
+          {
+            label: 'RESTART GAME', value: '',
+            help: 'Play the opening again and start from Town 1, with every patch, trainer and item back. Your Discord profile is not touched, and the starter is only given once per prestige.',
+            go: async () => {
+              if (!(await confirm('Restart the web game from the very beginning?'))) return;
+              const r = await hooks.dev.run('restart');
+              if (r && r.restart) location.reload();
+              else if (r) await message([r.text]);
+            },
+          },
+          { label: 'NOCLIP', value: onOff(d.noclip), help: 'Walk through walls, buildings, trainers, water and ledges. Turns EXPLORE on.', go: () => hooks.dev.run('noclip', !d.noclip) },
+          { label: 'EXPLORE', value: onOff(d.exploring), help: 'Nothing is saved or counts: no battles, trainers ignore you, doors open. Turning it off puts you back where you really are.', go: () => hooks.dev.run('explore', !d.exploring) },
+          { label: 'WARP', value: '...', help: 'Jump to any town or route (turns EXPLORE on).', go: () => warp() },
+          { label: 'SHOW HIDDEN', value: onOff(d.overlay), help: "Red: one-battle grass. Yellow: where trainers can see you.", go: () => hooks.dev.run('overlay', !d.overlay) },
+          { label: 'WALK SPEED', value: `x${hooks.dev.speed()}`, help: 'Walk faster, in this tab only.', go: () => hooks.dev.speed(hooks.dev.speed() >= 4 ? 1 : hooks.dev.speed() * 2) },
+          { label: 'ALL OFF', value: '', help: 'Everything off, back where you really are.', go: () => hooks.dev.run('off') },
         ];
       };
       push({
         draw() {
-          const box = list(items(), at, { className: 'm-dev', onPick: (i) => { at = i; this.key('a'); } });
-          root.append(box, el('p', 'm-dev-note', 'DEV TOOLS: nothing done while exploring is saved or counts.'));
+          const all = items();
+          const page = el('div', 'm-page m-devpage');
+          page.append(el('p', 'm-head', 'DEV TOOLS'));
+          const rows = el('div', 'm-dev-rows');
+          all.forEach((item, i) => {
+            const b = el('button', `m-dev-row${i === at ? ' on' : ''}`);
+            b.type = 'button';
+            b.append(el('span', null, item.label), el('b', item.value === 'ON' ? 'is-on' : null, item.value));
+            b.addEventListener('click', () => { at = i; this.key('a'); });
+            rows.append(b);
+          });
+          const d = state();
+          const tags = [d.exploring && 'EXPLORING', d.noclip && 'NOCLIP', d.overlay && 'SHOWING HIDDEN'].filter(Boolean);
+          page.append(rows, el('div', 'm-desc', null));
+          page.lastChild.append(el('p', null, all[at].help));
+          page.append(el('p', 'm-hint', tags.length ? `Now: ${tags.join(' · ')}. Only you (DISCORD_OWNER_ID) see this.` : 'Playing for real. Only you (DISCORD_OWNER_ID) see this.'));
+          root.append(page);
         },
         async key(k) {
           const all = items();
           if (k === 'b') return pop();
           if (k === 'a') {
             await all[at].go();
-            return redraw();
+            if (top() && top().draw === this.draw) redraw();
+            return undefined;
           }
-          at = step(at, k, all.length);
+          const move = { up: -2, down: 2, left: -1, right: 1 }[k] || 0;
+          if (at + move >= 0 && at + move < all.length) at += move;
           redraw();
         },
       });

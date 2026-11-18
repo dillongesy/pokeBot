@@ -35,7 +35,7 @@ const CAST = {
     callie_wren: { name: 'MOM', sprite: 'homemaker', action: 'mom', lines: ['MOM: Off to see the world? Be careful out there!'] },
   },
   professor_lab: {
-    kay_wren: { name: 'PROF. A', sprite: 'professor', action: 'professor', lines: ['PROF. A: How is your POKéMON doing?', 'The MAIN CITY is south, past TOWN 2. That is where your journey really begins!'] },
+    kay_wren: { name: 'PROF. A', sprite: 'professor', action: 'professor', lines: ['PROF. A: How is your POKéMON doing?', 'The MAIN CITY is north, past TOWN 2. That is where your journey really begins!'] },
     allie: { name: 'Assistant', sprite: 'scientist', wander: 2, lines: ["ASSISTANT: The PROF. has POKéMON from every region. Isn't that amazing?"] },
   },
   healing_center: {

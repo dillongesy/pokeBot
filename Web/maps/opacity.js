@@ -13,7 +13,7 @@ const path = require('path');
 const zlib = require('zlib');
 
 const DIR = path.join(__dirname, '..', 'sprites', 'tuxemon', 'tilesets');
-const FILES = { o: 'core_outdoor.png', b: 'core_buildings.png', s: 'core_set_pieces.png' };
+const FILES = { o: 'core_outdoor.png', b: 'core_buildings.png', s: 'core_set_pieces.png', c: 'core_city_and_country.png' };
 
 function readPng(file) {
   const b = fs.readFileSync(file);

@@ -47,12 +47,140 @@
 .b-mon.mine { left: calc(var(--gp) * 14); bottom: calc(var(--gp) * -14); width: calc(var(--gp) * 104); height: calc(var(--gp) * 104); }
 .b-mon.fainted { transform: translateY(40%); opacity: 0; }
 
-@keyframes b-in-foe { from { transform: translateX(calc(var(--gp) * -170)); } }
-@keyframes b-in-mine { from { transform: translateX(calc(var(--gp) * 170)); } }
-@media (prefers-reduced-motion: no-preference) {
-  .bscreen.intro .b-mon.foe { animation: b-in-foe .7s ease-out; }
-  .bscreen.intro .b-mon.mine { animation: b-in-mine .7s ease-out; }
+/* ---- The opening -------------------------------------------------------
+   covered: black over the arena (the transition left the screen black).
+   opening: the black parts top and bottom, the bases slide in, the foe's
+   side from the left and yours from the right. */
+.b-arena::before, .b-arena::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 51%;
+  background: #000;
+  z-index: 8;
+  pointer-events: none;
+  transition: transform .5s ease-in;
 }
+.b-arena::before { top: 0; transform: translateY(-101%); }
+.b-arena::after { bottom: 0; transform: translateY(101%); }
+.bscreen.covered .b-arena::before, .bscreen.covered .b-arena::after { transform: none; transition: none; }
+
+@keyframes b-in-foe { from { transform: translateX(calc(var(--gp) * -200)); } }
+@keyframes b-in-mine { from { transform: translateX(calc(var(--gp) * 200)); } }
+@media (prefers-reduced-motion: no-preference) {
+  .bscreen.opening .b-base.foe, .bscreen.opening .b-mon.foe, .bscreen.opening .b-trainer { animation: b-in-foe .95s ease-out both; }
+  .bscreen.opening .b-base.mine { animation: b-in-mine .95s ease-out both; }
+}
+
+/* A wild POKéMON is a dark shape until it appears. */
+.b-mon.dark { filter: brightness(0); }
+.b-mon.foe { transition: transform .45s ease-in, opacity .45s ease-in, filter .3s ease-out; }
+/* Not out yet, or about to come out of its ball. */
+.b-mon.out, .b-mon.waiting { visibility: hidden; }
+/* Out of the ball: grows from nothing, white, then its own colours. */
+.b-mon.pop { animation: b-pop .6s ease-out both; }
+.b-mon.mine.pop, .b-mon.foe.pop { transform-origin: 50% 85%; }
+@keyframes b-pop {
+  0% { transform: scale(0); filter: brightness(0) invert(1); }
+  55% { transform: scale(1.08); filter: brightness(0) invert(1); }
+  75% { transform: scale(1); filter: brightness(1.8); }
+  100% { transform: none; filter: none; }
+}
+/* Hit: blinks. */
+.b-mon.hit { animation: b-hit .54s steps(1) both; }
+@keyframes b-hit { 0%, 34%, 68% { opacity: 0; } 17%, 51%, 85%, 100% { opacity: 1; } }
+
+/* The trainer on their base at the start, then off to the right. */
+.b-trainer {
+  position: absolute;
+  left: calc(var(--gp) * 160);
+  top: calc(var(--gp) * -2);
+  width: calc(var(--gp) * 34);
+  height: calc(var(--gp) * 68);
+  background-size: 300% 400%;
+  background-position: 50% 0;
+  image-rendering: pixelated;
+  z-index: 1;
+  transition: transform .45s ease-in;
+}
+.b-trainer[hidden] { display: none; }
+.b-trainer.leave { transform: translateX(calc(var(--gp) * 110)); }
+
+/* The ball a POKéMON comes out of: thrown in an arc, then a flash. */
+.b-ball {
+  position: absolute;
+  width: calc(var(--gp) * 9);
+  height: calc(var(--gp) * 9);
+  border-radius: 50%;
+  border: calc(var(--gp) * 1) solid #181818;
+  background: linear-gradient(#e83838 0 44%, #181818 44% 56%, #f8f8f8 56%);
+  opacity: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.b-ball::after {
+  content: '';
+  position: absolute;
+  inset: 30%;
+  border-radius: 50%;
+  background: #f8f8f8;
+  box-shadow: 0 0 0 calc(var(--gp) * .8) #181818;
+}
+.b-ball.mine { left: calc(var(--gp) * 62); bottom: calc(var(--gp) * 30); }
+.b-ball.foe { left: calc(var(--gp) * 176); top: calc(var(--gp) * 44); }
+.b-ball.mine.throw { animation: b-throw-mine .52s linear both, b-burst .35s ease-out .5s both; }
+.b-ball.foe.throw { animation: b-throw-foe .52s linear both, b-burst .35s ease-out .5s both; }
+@keyframes b-throw-mine {
+  0% { opacity: 1; transform: translate(calc(var(--gp) * -70), calc(var(--gp) * 20)) rotate(0); }
+  50% { transform: translate(calc(var(--gp) * -30), calc(var(--gp) * -30)) rotate(360deg); }
+  100% { opacity: 1; transform: none; transform: rotate(720deg); }
+}
+@keyframes b-throw-foe {
+  0% { opacity: 1; transform: translate(calc(var(--gp) * 60), calc(var(--gp) * -30)) rotate(0); }
+  50% { transform: translate(calc(var(--gp) * 25), calc(var(--gp) * -40)) rotate(-360deg); }
+  100% { opacity: 1; transform: rotate(-720deg); }
+}
+/* The ball bursts open in a white flash. */
+@keyframes b-burst {
+  0% { opacity: 1; background: #fff; box-shadow: 0 0 0 0 rgba(255, 255, 255, .95); }
+  100% { opacity: 0; background: #fff; box-shadow: 0 0 calc(var(--gp) * 6) calc(var(--gp) * 22) rgba(255, 255, 255, 0); }
+}
+
+/* Each side's party as balls on a bar, shown as a trainer battle opens. */
+.b-lineup {
+  position: absolute;
+  display: none;
+  gap: calc(var(--gp) * 1.5);
+  padding: calc(var(--gp) * 2) calc(var(--gp) * 4);
+  background: linear-gradient(90deg, rgba(24, 24, 24, .75), rgba(24, 24, 24, .35));
+  border-radius: calc(var(--gp) * 2);
+  z-index: 2;
+}
+.bscreen.lineups .b-lineup { display: flex; }
+.b-lineup.foe { left: calc(var(--gp) * 8); top: calc(var(--gp) * 22); }
+.b-lineup.mine { right: calc(var(--gp) * 8); top: calc(var(--gp) * 78); }
+.b-lineup span { width: calc(var(--gp) * 7); height: calc(var(--gp) * 7); border-radius: 50%; border: calc(var(--gp) * .8) solid #181818; }
+.b-lineup span.ok { background: linear-gradient(#e83838 0 45%, #181818 45% 55%, #f8f8f8 55%); }
+.b-lineup span.down { background: #707070; }
+.b-lineup span.none { background: transparent; border-color: rgba(255, 255, 255, .35); }
+@media (prefers-reduced-motion: no-preference) {
+  .bscreen.lineups .b-lineup.foe { animation: b-in-foe .6s ease-out .5s both; }
+  .bscreen.lineups .b-lineup.mine { animation: b-in-mine .6s ease-out .5s both; }
+}
+
+/* The end: a fade to black, then back to the world. */
+.bscreen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 20;
+  transition: opacity .38s ease-in;
+}
+.bscreen.closing::after { opacity: 1; }
 
 .b-hp {
   position: absolute;
@@ -67,6 +195,10 @@
 .b-hp:empty { display: none; }
 .b-hp.foe { left: calc(var(--gp) * 10); top: calc(var(--gp) * 10); width: calc(var(--gp) * 104); }
 .b-hp.mine { right: calc(var(--gp) * 8); top: calc(var(--gp) * 64); width: calc(var(--gp) * 112); }
+/* The HP boxes slide in when their POKéMON appears. */
+.b-hp { transition: transform .35s ease-out; z-index: 2; }
+.b-hp.foe.off { transform: translateX(calc(var(--gp) * -150)); }
+.b-hp.mine.off { transform: translateX(calc(var(--gp) * 150)); }
 .b-hp-top { display: flex; align-items: baseline; gap: calc(var(--gp) * 2); }
 .b-hp-top b { font-weight: normal; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .b-gender { color: #3070d0; }
@@ -234,7 +366,7 @@
 .b-vs {
   position: absolute;
   inset: 0;
-  z-index: 5;
+  z-index: 12;
   background: #101018;
   overflow: hidden;
   animation: b-vs-out .4s ease-in 2.4s forwards;

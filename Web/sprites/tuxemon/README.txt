@@ -9,6 +9,12 @@ tilesets/core_outdoor.png (+ .tsx)      grass, sand paths, water, trees,
                                         tall grass, flowers. 16x16, 37 columns.
 tilesets/core_buildings.png (+ .tsx)    houses and shops. 47 columns.
 tilesets/core_set_pieces.png (+ .tsx)   signs and props. 31 columns.
+tilesets/core_city_and_country.png (+ .tsx)
+                                        the MAIN CITY's paving, fountains,
+                                        banners and statues. 40 columns.
+                                        Based on ArMM1998's "Outdoor Tiles -
+                                        City and Country" (public domain),
+                                        compiled for Tuxemon (CC BY-SA 4.0).
     The .tsx files are Tiled's tileset files: they hold the animations
     (water, flowers) and tile properties.
 animations/grass.png                    leaves kicked up in tall grass, 2 frames.

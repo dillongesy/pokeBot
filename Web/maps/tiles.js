@@ -16,7 +16,12 @@ const TILES = {
   treeTop: ['o1319', 'o1320'],
   treeBottom: ['o1356', 'o1357'],
   // Sand path on grass, as a rectangle.
-  path: { tl: 'o116', t: 'o117', tr: 'o118', l: 'o153', c: 'o154', r: 'o155', bl: 'o190', b: 'o191', br: 'o192' },
+  // The inner corners (grass off one corner, inside a turn): ise has grass
+  // to the south-east, and so on.
+  path: {
+    tl: 'o116', t: 'o117', tr: 'o118', l: 'o153', c: 'o154', r: 'o155', bl: 'o190', b: 'o191', br: 'o192',
+    ise: 'o228', isw: 'o229', ine: 'o265', inw: 'o266',
+  },
   // Water's edge on grass, around shallow water.
   shore: { tl: 'o571', t: 'o572', tr: 'o573', l: 'o608', r: 'o610', bl: 'o645', b: 'o646', br: 'o647' },
   shallow: 'o1268',
@@ -107,10 +112,38 @@ const BUILDINGS = {
   brick: HOUSE,
   // A cafe with a striped awning, 5 x 5.
   cafe: cut(7, 26, 5, 5, 3, 2),
-  // The BATTLE TOWER, 9 x 12, and PROF. A's lab, 8 x 10.
-  tower: cut(36, 15, 9, 12, 4, 6),
+  // Town houses, 5 x 4, side by side on the sheet: dark brick, two timber,
+  // a Japanese-style one with paper screens, and grey stone.
+  brickDark: cut(5, 9, 5, 4, 3),
+  timber: cut(10, 9, 5, 4, 3),
+  timberLight: cut(15, 9, 5, 4, 3),
+  shoji: cut(20, 9, 5, 4, 3),
+  stone: cut(25, 9, 5, 4, 4),
+  // Big timber houses with pitched roofs, 5 x 7.
+  lodge: cut(12, 27, 5, 7, 3, 3),
+  lodgeRed: cut(17, 27, 5, 7, 3, 3),
+  // A big green-roofed hall (the trainer school), 7 x 8.
+  hall: cut(0, 18, 7, 8, 4, 2),
+  // The BATTLE TOWER, 9 x 13 (spire included), and PROF. A's lab, 8 x 10.
+  tower: cut(36, 14, 9, 13, 4, 7),
   lab: cut(36, 28, 8, 10, 3, 4),
 };
+
+/**
+ * Props from the city sheet (core_city_and_country, "c"): each is rows of
+ * tiles, all solid.
+ */
+const PROPS = {
+  // A round fountain, 3 x 3 (animated in the browser).
+  fountain: [['c382', 'c383', 'c384'], ['c422', 'c423', 'c424'], ['c462', 'c463', 'c464']],
+  // A banner on a pole, 2 x 2 (waves in the browser).
+  banner: [['c1163', 'c1164'], ['c1203', 'c1204']],
+  // A stone statue on a plinth, 1 x 4.
+  statue: [['c890'], ['c930'], ['c970'], ['c1010']],
+};
+
+/** City paving: plain concrete, and the stone of the plazas and avenues. */
+const PAVING = { concrete: 'c28', stone: 'c63' };
 
 /**
  * The ground of each kind of land: its plain tile, flowers that sit on it,
@@ -149,4 +182,4 @@ const BIOME_GROUND = {
 /** Single-tile rocks for rocky borders. */
 const ROCKS = ['o1139', 'o1140', 'o1208'];
 
-module.exports = { TILES, SHOP, HOUSE, OBSTACLES, BUILDINGS, GROUNDS, BIOME_GROUND, ROCKS };
+module.exports = { TILES, SHOP, HOUSE, OBSTACLES, BUILDINGS, PROPS, PAVING, GROUNDS, BIOME_GROUND, ROCKS };

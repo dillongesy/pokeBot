@@ -288,8 +288,16 @@ class MapBuilder {
         const s = on(x, y + 1);
         const w = on(x - 1, y);
         const e = on(x + 1, y);
-        const piece = !n && !w ? 'tl' : !n && !e ? 'tr' : !s && !w ? 'bl' : !s && !e ? 'br'
+        let piece = !n && !w ? 'tl' : !n && !e ? 'tr' : !s && !w ? 'bl' : !s && !e ? 'br'
           : !n ? 't' : !s ? 'b' : !w ? 'l' : !e ? 'r' : 'c';
+        // Inside a turn or a join: sand on all four sides but grass off one
+        // corner. The inner-corner tile rounds that corner off.
+        if (piece === 'c') {
+          if (!on(x + 1, y + 1)) piece = 'ise';
+          else if (!on(x - 1, y + 1)) piece = 'isw';
+          else if (!on(x + 1, y - 1)) piece = 'ine';
+          else if (!on(x - 1, y - 1)) piece = 'inw';
+        }
         this.layers.ground[y][x] = P[piece];
       }
     }

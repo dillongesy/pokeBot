@@ -51,7 +51,7 @@
       // Reloaded mid-battle: straight back into it.
       const card = lastCard();
       battleSnap = data.battle || null;
-      if (data.battle && card && window.BattleScreen.hasLiveButtons(card) && !battleUI.open) openBattle();
+      if (data.battle && card && window.BattleScreen.hasLiveButtons(card) && !battleUI.open && !transitioning) openBattle();
     });
 
     events.addEventListener('update', (e) => {
@@ -333,8 +333,11 @@
       background: () => (world && world.background) || 'grass',
       bag: () => menuUI.bag(),
       milestone: () => towerFight,
+      // Who stands on the far base as a trainer battle opens.
+      foeLook: () => (towerFight && towerFight.look) || foeLook,
       closed: () => {
         document.body.classList.remove('in-battle');
+        world.fadeIn();
         leaveArena();
         if (afterBattle.length) showDialog(afterBattle.splice(0));
       },
@@ -345,6 +348,29 @@
    * Go to the battle screen. `stale` is a card already in the feed that
    * belongs to an earlier battle, so it isn't shown while the new one starts.
    */
+  /** The look of the trainer you're about to battle (their overworld sprite). */
+  let foeLook = null;
+  let transitioning = false;
+
+  /**
+   * Into a battle from the overworld, the way the games do it: the screen
+   * flashes and wipes to black (transition.js), then the battle screen opens.
+   */
+  async function beginBattle(kind, info = {}) {
+    if (transitioning) return;
+    transitioning = true;
+    foeLook = info.sprite || null;
+    world.releaseAll();
+    try {
+      const black = await window.Transition.play($('screen'), kind);
+      openBattle();
+      // The battle screen starts covered, so the black can go now.
+      requestAnimationFrame(() => black.remove());
+    } finally {
+      transitioning = false;
+    }
+  }
+
   function openBattle() {
     if (station) closePanel();
     world.releaseAll();
@@ -946,8 +972,8 @@
       towerFight = { title: t.next.title, name: t.next.name, look: leaderLook(t.next), slug: String(t.next.name).toLowerCase().replace(/[^a-z0-9]+/g, '-') };
       world.addNpc({ id: 'leader', name: t.next.name, sprite: towerFight.look, x: r.leader.x, y: r.leader.y, facing: 'down' });
       world.walkUp('leader', [`${t.next.title.toUpperCase()}: So you're the challenger everyone is talking about.`, 'Show me what you have!'], () => {
-        openBattle();
         post('/api/run', { station: 'battle', action: 'milestone' });
+        beginBattle('milestone', { sprite: towerFight.look });
       });
     });
   }
@@ -991,7 +1017,7 @@
       read: showDialog,
       paused: () => Boolean(station || dialog),
       // Grass or a trainer: the battle is already running on the server.
-      encounter: () => openBattle(),
+      encounter: (kind, info) => beginBattle(kind, info),
       loaded: () => showDevTag(),
       // A scene on arriving somewhere (the taxi driver in the MAIN CITY).
       scene: (scene) => (scene.id === 'fly' ? taxiScene() : showDialog(scene.lines)),

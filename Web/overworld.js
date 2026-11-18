@@ -730,6 +730,26 @@ function dev(userId, cmd, args = []) {
     case 'off':
       devs.delete(userId);
       return { ok: true, reload: true, text: 'Dev mode off. Back where you really are.' };
+    case 'restart': {
+      // Back to the very start of the web game: the opening, then Town 1,
+      // with every patch, trainer, item and visit of this prestige undone.
+      // The Discord profile (party, coins, milestones) isn't touched, and the
+      // starter isn't given twice (starter:given survives the wipe).
+      if (real.engaged || inBattle(userId)) return { ok: false, text: 'Finish your battle first.' };
+      const handle = db.open();
+      const prestige = (store.getUser(userId) || {}).prestige || 0;
+      const had = handle
+        .prepare("SELECT 1 FROM web_progress WHERE discord_user_id = ? AND prestige = ? AND key IN ('intro:done', 'starter:given')")
+        .get(userId, prestige);
+      if (had) markDone(userId, 'starter:given');
+      handle
+        .prepare("DELETE FROM web_progress WHERE discord_user_id = ? AND prestige = ? AND key <> 'starter:given'")
+        .run(userId, prestige);
+      handle.prepare('DELETE FROM web_position WHERE discord_user_id = ?').run(userId);
+      devs.delete(userId);
+      players.delete(userId);
+      return { ok: true, restart: true, text: 'Restarted. The opening plays again.' };
+    }
     default:
       return { ok: false, text: `Unknown command "${cmd}". Try dev.help().` };
   }

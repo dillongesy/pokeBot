@@ -27,6 +27,9 @@
   const VIEW_W = 240;
   const VIEW_H = 160;
   const WALK_MS = 200;
+  /** A ledge hop: two tiles in one smooth arc, this long and this high (px). */
+  const HOP_MS = 520;
+  const HOP_HEIGHT = 12;
   const RUN_MS = 110;
   // A tap shorter than this only turns the player.
   const TURN_MS = 90;
@@ -43,6 +46,8 @@
     o: { src: `${BASE}/tilesets/core_outdoor.png`, columns: 37 },
     b: { src: `${BASE}/tilesets/core_buildings.png`, columns: 47 },
     s: { src: `${BASE}/tilesets/core_set_pieces.png`, columns: 31 },
+    // Paving, fountains, stalls and statues for the MAIN CITY.
+    c: { src: `${BASE}/tilesets/core_city_and_country.png`, columns: 40 },
     // Indoors (Tuxemon's rooms, Web/maps/tmx.js).
     f: { src: `${BASE}/tilesets/core_indoor_floors.png`, columns: 46 },
     w: { src: `${BASE}/tilesets/core_indoor_walls.png`, columns: 46 },
@@ -59,7 +64,14 @@
     o1482: { frames: [1482, 1483, 1484, 1485, 1486], ms: 250 },
     o1556: { frames: [1556, 1557, 1558, 1559, 1560], ms: 250 },
     o1704: { frames: [1704, 1705, 1706, 1707, 1708], ms: 250 },
+    // The MAIN CITY's waving banners (from the city sheet's .tsx).
+    c1163: { frames: [1163, 1165, 1167, 1169, 1171], ms: 150 },
+    c1164: { frames: [1164, 1166, 1168, 1170, 1172], ms: 150 },
+    c1203: { frames: [1203, 1205, 1207, 1209, 1211], ms: 150 },
+    c1204: { frames: [1204, 1206, 1208, 1210, 1212], ms: 150 },
   };
+  // Its fountains: three 3 x 3 frames side by side on the sheet.
+  for (const id of [382, 383, 384, 422, 423, 424, 462, 463, 464]) ANIMS[`c${id}`] = { frames: [id, id + 3, id + 6], ms: 180 };
 
   // -------------------------------------------------------------------------
   // Pictures
@@ -73,7 +85,7 @@
   const CHAR_H = 32;
   const ROW = { down: 0, left: 1, right: 2, up: 3 };
   /** How long each effect frame shows, and how many times the effect plays. */
-  const FX = { grass: { ms: 150, loops: 2 }, splash: { ms: 90, loops: 1 } };
+  const FX = { grass: { ms: 150, loops: 2 }, splash: { ms: 90, loops: 1 }, dust: { ms: 70, loops: 1 } };
 
   const DIRS = {
     up: [0, -1],
@@ -394,13 +406,13 @@
       }
     }
 
-    function startEncounter(kind) {
+    /** A battle: the screen's transition into it is the app's (transition.js). */
+    function startEncounter(kind, info = {}) {
       frozen = true;
       held.length = 0;
       generation += 1;
       queue.length = 0;
-      fade = performance.now();
-      hooks.encounter(kind);
+      hooks.encounter(kind, info);
     }
 
     /** A trainer spotted you: "!", they walk up, they speak, the battle starts. */
@@ -461,7 +473,7 @@
       player.x = nx;
       player.y = ny;
       player.started = now;
-      player.duration = ((running ? RUN_MS : WALK_MS) / speed) * (hop ? 2 : 1);
+      player.duration = hop ? HOP_MS / speed : (running ? RUN_MS : WALK_MS) / speed;
       player.hop = hop;
       player.stepCount += 1;
 
@@ -516,20 +528,41 @@
 
     /** Where the player is drawn, in pixels, including mid-step. */
     function position(now) {
-      if (!player.from) return { x: player.x * TILE, y: player.y * TILE, t: 0 };
+      if (!player.from) return { x: player.x * TILE, y: player.y * TILE, t: 0, lift: 0 };
       const t = Math.min(1, (now - player.started) / player.duration);
-      // Hopping a ledge: up in an arc on the way down.
-      const lift = player.hop ? Math.sin(t * Math.PI) * 10 : 0;
+      // Hopping a ledge: the sprite goes up in an arc while its shadow (and
+      // the camera) slide along the ground, as in the games.
+      const lift = player.hop ? Math.sin(t * Math.PI) * HOP_HEIGHT : 0;
       return {
         x: (player.from.x + (player.x - player.from.x) * t) * TILE,
-        y: (player.from.y + (player.y - player.from.y) * t) * TILE - lift,
+        y: (player.from.y + (player.y - player.from.y) * t) * TILE,
         t,
+        lift,
       };
     }
 
     function drawEffects(now, camX, camY, front) {
       for (let i = effects.length - 1; i >= 0; i--) {
         const fx = effects[i];
+        if (fx.kind === 'dust') {
+          const age = (now - fx.started) / 280;
+          if (age >= 1) {
+            effects.splice(i, 1);
+            continue;
+          }
+          if (front) continue;
+          // Two little clouds puffing out from the feet and fading.
+          const bx = fx.x * TILE - camX + TILE / 2;
+          const by = fx.y * TILE - camY + TILE - 3;
+          g.fillStyle = `rgba(248,248,240,${0.9 * (1 - age)})`;
+          for (const side of [-1, 1]) {
+            const r = 2 + age * 3;
+            g.beginPath();
+            g.arc(bx + side * (4 + age * 7), by - age * 2, r, 0, Math.PI * 2);
+            g.fill();
+          }
+          continue;
+        }
         const img = art[fx.kind];
         const frames = img ? img.width / TILE : 1;
         const tick = Math.floor((now - fx.started) / FX[fx.kind].ms);
@@ -544,11 +577,11 @@
     }
 
     /** A character standing (or mid-step) with its feet on tile (px, py). */
-    function drawCharacter(img, px, py, facing, column, camX, camY, cut = 0) {
+    function drawCharacter(img, px, py, facing, column, camX, camY, cut = 0, lift = 0) {
       const sx = Math.round(px - camX);
       const top = Math.round(py - camY) + TILE - CHAR_H;
       if (art.shadow && !cut) g.drawImage(art.shadow, sx, top);
-      if (img) g.drawImage(img, column * CHAR_W, ROW[facing] * CHAR_H, CHAR_W, CHAR_H - cut, sx, top, CHAR_W, CHAR_H - cut);
+      if (img) g.drawImage(img, column * CHAR_W, ROW[facing] * CHAR_H, CHAR_W, CHAR_H - cut, sx, top - Math.round(lift), CHAR_W, CHAR_H - cut);
     }
 
     /** The dev overlay: one-battle grass in red, trainers' sight in yellow. */
@@ -575,8 +608,9 @@
       if (approach.startedAt && now - approach.startedAt >= approach.walk * TRAINER_STEP_MS && !approach.talked) {
         approach.talked = true;
         const done = () => {
+          const t = approach.trainer;
           approach = null;
-          startEncounter('trainer');
+          startEncounter('trainer', { sprite: t.sprite, name: t.name });
         };
         if (approach.lines.length) hooks.read(approach.lines, done);
         else done();
@@ -637,6 +671,9 @@
 
     function frame(now) {
       if (player.from && now - player.started >= player.duration) {
+        // Landing from a ledge: a puff of dust either side.
+        if (player.hop) effects.push({ kind: 'dust', x: player.x, y: player.y, started: now });
+        player.hop = false;
         player.from = null;
         if (!held.length) player.stepCount = 0;
       }
@@ -706,7 +743,7 @@
               return;
             }
             // Ankle-deep in water: the bottom of the sprite is under the surface.
-            drawCharacter(character(player.sprite), pos.x, pos.y, player.facing, column, camX, camY, wading && !player.from ? 3 : 0);
+            drawCharacter(character(player.sprite), pos.x, pos.y, player.facing, player.hop && player.from ? 1 : column, camX, camY, wading && !player.from ? 3 : 0, pos.lift);
             // Standing in tall grass hides the feet: the grass's lower half goes back on top.
             if (!player.from && where === 'tall' && !map.surf) {
               const name = map.layers.objects[player.y][player.x];
@@ -803,6 +840,10 @@
       leave() {
         player.facing = 'down';
         player.stepCount = 0;
+        fade = performance.now();
+      },
+      /** Back from a battle: the world fades in from black. */
+      fadeIn() {
         fade = performance.now();
       },
       /**

@@ -79,7 +79,15 @@
     const mineMon = el('img', 'b-mon mine');
     foeMon.alt = '';
     mineMon.alt = '';
-    arena.append(el('div', 'b-base foe'), el('div', 'b-base mine'), foeMon, mineMon, foeBox, mineBox);
+    // The opponent trainer, standing on their base at the start; the balls
+    // POKéMON come out of; each side's party as a row of balls.
+    const trainer = el('div', 'b-trainer');
+    trainer.hidden = true;
+    const foeBall = el('div', 'b-ball foe');
+    const mineBall = el('div', 'b-ball mine');
+    const foeLine = el('div', 'b-lineup foe');
+    const mineLine = el('div', 'b-lineup mine');
+    arena.append(el('div', 'b-base foe'), el('div', 'b-base mine'), trainer, foeMon, mineMon, foeBall, mineBall, foeLine, mineLine, foeBox, mineBox);
 
     const bottom = el('div', 'b-bottom');
     const textBox = el('div', 'b-text');
@@ -115,6 +123,11 @@
     /** A bench slot to send in once the card shows the switch buttons. */
     let pendingSend = null;
     let megaArmed = false;
+    /** The opening is playing: sprites appear on cue, not as the snapshot says. */
+    let introducing = false;
+    /** A cue's wait before the next line. */
+    let cueTimer = null;
+    let closing = false;
 
     // -----------------------------------------------------------------------
     // Drawing
@@ -152,8 +165,14 @@
       if (!snap) return;
       hpBox(foeBox, snap.foe, false);
       hpBox(mineBox, snap.mine, true);
-      if (foeMon.getAttribute('src') !== (snap.foe.sprite || '')) foeMon.src = snap.foe.sprite || '';
-      if (mineMon.getAttribute('src') !== (snap.mine.sprite || '')) mineMon.src = snap.mine.sprite || '';
+      // A new POKéMON in (a switch, or the trainer's next one) comes out of its ball.
+      for (const [img, ball, mon, box] of [[foeMon, foeBall, snap.foe, foeBox], [mineMon, mineBall, snap.mine, mineBox]]) {
+        const src = mon.sprite || '';
+        if (img.getAttribute('src') === src) continue;
+        const had = img.hasAttribute('src');
+        img.src = src;
+        if (had && !introducing && mon.hp > 0) sendOut(img, ball, box);
+      }
       foeMon.classList.toggle('fainted', snap.foe.hp <= 0);
       mineMon.classList.toggle('fainted', snap.mine.hp <= 0);
     }
@@ -258,6 +277,98 @@
       splash.append(el('div', 'b-vs-bar top'), art, el('b', 'b-vs-name', String(fight.title || '').toUpperCase()), el('span', 'b-vs-vs', 'VS'), el('div', 'b-vs-bar bottom'));
       root.append(splash);
       setTimeout(() => splash.remove(), 2800);
+    }
+
+    /** A ball flies out, pops open with a flash, and the POKéMON grows out of it. */
+    function sendOut(img, ball, box) {
+      img.classList.remove('out', 'dark', 'pop', 'fainted');
+      img.classList.add('waiting');
+      ball.classList.remove('throw');
+      void ball.offsetWidth;
+      ball.classList.add('throw');
+      setTimeout(() => {
+        img.classList.remove('waiting');
+        img.classList.add('pop');
+        if (box) box.classList.remove('off');
+      }, 520);
+      setTimeout(() => img.classList.remove('pop'), 1150);
+    }
+
+    /** A hit POKéMON blinks. */
+    function blink(img) {
+      img.classList.remove('hit');
+      void img.offsetWidth;
+      img.classList.add('hit');
+      setTimeout(() => img.classList.remove('hit'), 600);
+    }
+
+    /** Each side's party as a row of balls (trainer battles open with them). */
+    function lineups() {
+      const fill = (row, alive) => {
+        row.replaceChildren();
+        for (let i = 0; i < 6; i++) row.append(el('span', i < alive.length ? (alive[i] ? 'ok' : 'down') : 'none'));
+      };
+      fill(foeLine, (snap && snap.foeTeam) || []);
+      fill(mineLine, ((snap && snap.team) || []).map((m) => !m.fainted));
+    }
+
+    /**
+     * The start of a battle, as in the games: the arena opens, the bases
+     * slide in, then
+     *   wild      the POKéMON is a dark shape until it "appears"
+     *   trainer   the trainer stands there, then sends out their POKéMON
+     * and your POKéMON comes out of its ball.
+     */
+    function opening(title) {
+      const kind = (snap && snap.kind) || 'wild';
+      const trainerLike = kind !== 'wild';
+      introducing = true;
+      root.dataset.kind = kind;
+      root.classList.remove('opening');
+      root.classList.add('covered');
+      foeMon.classList.remove('pop', 'waiting', 'hit');
+      mineMon.classList.remove('pop', 'waiting', 'hit');
+      foeMon.classList.toggle('dark', !trainerLike);
+      foeMon.classList.toggle('out', trainerLike);
+      mineMon.classList.add('out');
+      foeBox.classList.add('off');
+      mineBox.classList.add('off');
+      trainer.classList.remove('leave');
+      trainer.hidden = !trainerLike;
+      const look = (hooks.foeLook && hooks.foeLook()) || 'cooldude';
+      trainer.style.backgroundImage = `url(/sprites/tuxemon/characters/${look}.png)`;
+      lineups();
+      root.classList.toggle('lineups', trainerLike);
+      if (kind === 'milestone') stadiumIntro((hooks.milestone && hooks.milestone()) || { title: snap.foeName, look, slug: '' });
+
+      queue.push({
+        cue: () => {
+          root.classList.remove('covered');
+          void root.offsetWidth;
+          root.classList.add('opening');
+        },
+        ms: (kind === 'milestone' ? 2700 : 0) + 950,
+      });
+      if (!trainerLike) {
+        queue.push({ cue: () => { foeMon.classList.remove('dark'); foeBox.classList.remove('off'); }, ms: 250 });
+        if (title) queue.push({ line: title });
+      } else {
+        if (title) queue.push({ line: title });
+        queue.push({
+          cue: () => {
+            trainer.classList.add('leave');
+            root.classList.remove('lineups');
+            setTimeout(() => sendOut(foeMon, foeBall, foeBox), 250);
+          },
+          ms: 0,
+        });
+        if (snap) queue.push({ line: `${snap.foeName} sent out ${snap.foe.name}!` });
+      }
+      if (snap) {
+        queue.push({ cue: () => sendOut(mineMon, mineBall, mineBox), ms: 0 });
+        queue.push({ line: `Go! ${snap.mine.name}!` });
+      }
+      queue.push({ cue: () => { introducing = false; }, ms: 0 });
     }
 
     // -----------------------------------------------------------------------
@@ -384,7 +495,7 @@
     function say(lines, then) {
       for (const line of lines) queue.push({ line });
       if (then) queue.push({ then });
-      if (!typing || typing.done) next();
+      if ((!typing || typing.done) && !cueTimer) next();
     }
 
     async function choose() {
@@ -518,15 +629,33 @@
 
     function next() {
       clearTimeout(typing && typing.auto);
+      clearTimeout(cueTimer);
+      cueTimer = null;
       const item = queue.shift();
       if (!item) return settle();
       if (item.then) {
         item.then();
         return;
       }
+      if (item.cue) {
+        item.cue();
+        if (item.ms) {
+          cueTimer = setTimeout(() => {
+            cueTimer = null;
+            next();
+          }, item.ms);
+        } else next();
+        return;
+      }
       if (item.apply) {
+        const before = snap;
         snap = item.apply;
         drawArena();
+        // Whoever just lost HP blinks.
+        if (before) {
+          if (snap.foe.name === before.foe.name && snap.foe.hp < before.foe.hp) blink(foeMon);
+          if (snap.mine.name === before.mine.name && snap.mine.hp < before.mine.hp) blink(mineMon);
+        }
         next();
         return;
       }
@@ -560,6 +689,9 @@
 
     function input(key) {
       if (!open) return false;
+      if (closing) return true;
+      // While the opening plays out (no line on screen), A waits for it.
+      if (cueTimer && key === 'a') return true;
       if (key === 'a') {
         if (typing && !typing.done) {
           clearInterval(typing.timer);
@@ -629,19 +761,12 @@
       if (state && (newBattle || !snap)) snap = state;
       else if (state) later = state;
       if (newBattle) {
-        root.classList.remove('intro');
-        void root.offsetWidth;
-        root.classList.add('intro');
-        if (snap && snap.kind === 'milestone') stadiumIntro((hooks.milestone && hooks.milestone()) || { title: snap.foeName, look: 'knightlord', slug: '' });
         megaArmed = false;
         pendingSend = null;
         pendingMove = null;
-        const title = plain(latest.embeds[0].title);
-        if (title) {
-          seen.add(`t:${latest.id}`);
-          queue.push({ line: title });
-          if (snap) queue.push({ line: `Go! ${snap.mine.name}!` });
-        }
+        seen.add(`t:${latest.id}`);
+        if (!later) drawArena();
+        opening(plain(latest.embeds[0].title));
       }
       if (!later) drawArena();
 
@@ -703,7 +828,8 @@
       if (mode === 'choice' && !pendingQuestion()) mode = 'wait';
       if (mode === 'done' && queue.length) mode = 'wait';
       drawMenu();
-      if (!typing || typing.done) {
+      // (A cue still playing moves the queue on by itself.)
+      if ((!typing || typing.done) && !cueTimer) {
         if (queue.length) next();
         else settle();
       }
@@ -726,17 +852,35 @@
       mineBox.replaceChildren();
       foeMon.removeAttribute('src');
       mineMon.removeAttribute('src');
+      introducing = false;
+      clearTimeout(cueTimer);
+      cueTimer = null;
+      trainer.hidden = true;
+      root.classList.remove('opening', 'lineups', 'closing');
+      // Black until the opening plays (the transition left the screen black).
+      root.classList.add('covered');
+      foeBox.classList.add('off');
+      mineBox.classList.add('off');
       arena.style.backgroundImage = `url(${BACKGROUNDS}/${hooks.background() || 'grass'}.png)`;
       root.hidden = false;
       drawMenu();
     }
 
     function close() {
-      open = false;
-      root.hidden = true;
+      if (closing) return;
+      closing = true;
       clearInterval(typing && typing.timer);
       clearTimeout(typing && typing.auto);
-      hooks.closed();
+      clearTimeout(cueTimer);
+      // Fade to black, then back to the world.
+      root.classList.add('closing');
+      setTimeout(() => {
+        closing = false;
+        open = false;
+        root.hidden = true;
+        root.classList.remove('closing');
+        hooks.closed();
+      }, 420);
     }
 
     return {

@@ -129,10 +129,20 @@ function chooseStarter(userId, speciesId) {
     .run(userId, prestigeOf(userId), DONE, Date.now());
   if (Number(claimed.changes) !== 1) return { ok: false, reason: 'already' };
 
-  const mon = createPokemon(species, data, { level: STARTER_LEVEL });
-  const gender = (species.gender || {}).genderless ? 'genderless' : rollSpeciesGender(species);
-  const shiny = Math.random() < 1 / rates.shinyRate;
-  const row = store.grantPokemon(userId, mon, { shiny, gender, method: 'starter' });
+  // The owner's dev RESTART replays the opening, but the starter is still
+  // only given once per prestige.
+  const given = db.open()
+    .prepare('INSERT OR IGNORE INTO web_progress (discord_user_id, prestige, key, done_at) VALUES (?, ?, ?, ?)')
+    .run(userId, prestigeOf(userId), 'starter:given', Date.now());
+  let row = { display_name: species.displayName || species.name, shiny: 0 };
+  let coins = 0;
+  if (Number(given.changes) === 1) {
+    const mon = createPokemon(species, data, { level: STARTER_LEVEL });
+    const gender = (species.gender || {}).genderless ? 'genderless' : rollSpeciesGender(species);
+    const shiny = Math.random() < 1 / rates.shinyRate;
+    row = store.grantPokemon(userId, mon, { shiny, gender, method: 'starter' });
+    coins = countAsCatch(userId);
+  }
 
   // The rival takes the starter that beats yours (fire beats grass, water
   // beats fire, grass beats water), from a random region.
@@ -146,7 +156,27 @@ function chooseStarter(userId, speciesId) {
   // Out of the lab and into Town 1, where the journey starts.
   require('./overworld').moveTo(userId, 'town-1');
 
-  return { ok: true, pokemon: { name: row.display_name, species: id, shiny: Boolean(row.shiny) }, rival };
+  return { ok: true, pokemon: { name: row.display_name, species: id, shiny: Boolean(row.shiny) }, rival, coins };
+}
+
+/**
+ * The starter counts as a catch, the same as one on Discord: the catch
+ * count, catch coins, quests and the daily quest. The Pokemon is already
+ * given, so a failure here is logged (quests catch up on the next sync).
+ */
+function countAsCatch(userId) {
+  try {
+    db.open()
+      .prepare('UPDATE users SET total_caught = total_caught + 1, updated_at = ? WHERE discord_user_id = ?')
+      .run(Date.now(), userId);
+    const coins = store.awardCatchCoins(userId);
+    require('../Utils/questengine').sync(userId);
+    require('../Utils/daily').recordCatch(userId);
+    return coins;
+  } catch (err) {
+    console.error('Counting the starter as a catch failed:', err);
+    return 0;
+  }
 }
 
 const isOutfit = (name) => outfits().includes(String(name));

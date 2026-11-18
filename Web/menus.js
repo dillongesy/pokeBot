@@ -242,15 +242,28 @@ function townMap(userId) {
     const m = maps.get(id);
     return m ? m.name : id;
   };
+  const levels = (id) => {
+    const m = maps.get(id);
+    return m && m.levels ? { lo: m.levels.lo, hi: m.levels.hi } : null;
+  };
   return {
     here,
-    intro: ['town-1', 'path-a', 'town-2', 'path-b'].map((id) => ({ id, name: name(id), visited: visited.has(id) })),
+    intro: ['town-1', 'path-a', 'town-2', 'path-b'].map((id) => ({ id, name: name(id), visited: visited.has(id), levels: /^path/.test(id) ? levels(id) : null })),
     gates: plan.gates.map((g) => ({
       number: g.number,
       region: g.region,
       biomes: g.biomes,
+      milestones: g.milestones,
       stops: g.routes.map((r) => ({
-        route: { id: `route-${r.number}`, name: r.name, visited: visited.has(`route-${r.number}`) },
+        route: {
+          id: `route-${r.number}`,
+          name: r.name,
+          visited: visited.has(`route-${r.number}`),
+          levels: { lo: r.levels.lo, hi: r.levels.hi },
+          biome: r.biome,
+          milestone: r.milestone,
+          hidden: r.pockets.length,
+        },
         stop: { id: `stop-${r.number}`, name: r.stop.name, kind: r.stop.kind, visited: visited.has(`stop-${r.number}`) },
       })),
     })),
