@@ -169,6 +169,27 @@ function rememberSpot(userId, map, t, x, y) {
   }
 }
 
+/**
+ * Is a gate open: every route up to Route `n` (the one before the gate's
+ * first) cleared and every milestone up to `n` beaten? Gate 1 (n = 0) always is.
+ */
+function gateOpen(userId, n) {
+  if (!n) return true;
+  if (milestonesOf(userId) < n) return false;
+  for (let r = 1; r <= n; r++) if (!routeCleared(userId, r)) return false;
+  return true;
+}
+
+/**
+ * Leaving a map: its beaten trainers go back to where they started next time
+ * (as in the games, where they only stay put until you leave).
+ */
+function forgetSpots(userId, mapId) {
+  db.open().prepare('DELETE FROM web_progress WHERE discord_user_id = ? AND prestige = ? AND key LIKE ?').run(userId, prestigeOf(userId), `${mapId}:trainerat:%`);
+  const p = load(userId);
+  if (p.spots) delete p.spots[mapId];
+}
+
 /** A trainer who walks off once beaten (AIDE at Town 1's gate) and has. */
 function gone(userId, map, t) {
   return Boolean(t.leaves) && isDone(userId, trainerKey(map.id, t.id));
@@ -182,12 +203,16 @@ function load(userId) {
   const row = db.open().prepare('SELECT * FROM web_position WHERE discord_user_id = ?').get(userId);
   const start = maps.get(maps.START);
 
-  // A stored spot on a map that has since gone (or changed) starts over at its spawn.
-  const map = row && maps.get(row.map);
+  // A stored spot that's now a wall (the map was rebuilt) starts over at
+  // that map's spawn; a room that's gone, outside the building it was in.
+  let map = row && maps.get(row.map);
   const standable = map && map.solid[row.y]?.[row.x] === false;
+  if (row && !map && /^in:/.test(row.map)) map = maps.get(row.map.split(':')[1]);
   p = standable
     ? { map: row.map, x: row.x, y: row.y, facing: row.facing, lastTown: row.last_town || maps.START }
-    : { map: start.id, ...start.spawn, lastTown: start.id };
+    : map
+      ? { map: map.id, ...map.spawn, lastTown: row.last_town || maps.START }
+      : { map: start.id, ...start.spawn, lastTown: start.id };
   p.outfit = (row && row.outfit) || 'adventurer';
 
   // Not stored: what's happening right now.
@@ -239,6 +264,8 @@ function view(userId) {
       opened: (o) => cleared >= o.after,
       found: (id) => isDone(userId, itemKey(map.id, id)),
       spot: (t) => spotOf(userId, map, t),
+      outfit: real.outfit,
+      gateOpen: (n) => gateOpen(userId, n),
     }),
     player: { ...position(p), outfit: real.outfit },
     busy: !(dev && dev.ghost) && Boolean(real.engaged),
@@ -310,6 +337,7 @@ function step(userId, body) {
     if (door.station === 'center' && p.lastTown !== map.id && map.kind === 'town') p.lastTown = map.id;
     const room = maps.get(`in:${map.id}:${door.x},${door.y}`);
     if (room) {
+      forgetSpots(userId, map.id);
       Object.assign(p, { map: room.id, ...room.spawn, patch: null });
       save(userId, p);
       return { ok: true, player: position(p), events: [{ type: 'map' }] };
@@ -327,9 +355,7 @@ function step(userId, body) {
     // A gate: every route before it cleared and every milestone beaten, in
     // order. No skipping ahead to a later gate.
     const { route: n, gate } = ahead.to.requires;
-    let open = milestonesOf(userId) >= n;
-    for (let r = 1; open && r <= n; r++) open = routeCleared(userId, r);
-    if (!open) {
+    if (!gateOpen(userId, n)) {
       return {
         ok: false,
         reason: 'locked',
@@ -358,6 +384,7 @@ function step(userId, body) {
   const warp = map.warps.find((w) => w.x === nx && w.y === ny);
   if (warp) {
     const to = maps.get(warp.to.map);
+    forgetSpots(userId, map.id);
     Object.assign(p, { map: to.id, x: warp.to.x, y: warp.to.y, facing: warp.to.facing || dir, patch: null });
     if (to.kind === 'town') p.lastTown = to.id;
     markDone(userId, `visited:${to.id}`);
@@ -439,7 +466,7 @@ function engage(userId, p, map, t, walk) {
   const [dx, dy] = maps.DIRS[t.facing];
   rememberSpot(userId, map, t, t.x + dx * walk, t.y + dy * walk);
   const team = t.rival ? [{ species: rivalOf(userId), level: t.level, evolve: true }, ...t.team] : t.team;
-  begin(userId, p, { kind: 'trainer', name: t.name, team }, trainerKey(map.id, t.id), t.reward, t.won || null);
+  begin(userId, p, { kind: 'trainer', name: t.name, team }, trainerKey(map.id, t.id), t.reward, t.won || null, Boolean(t.leaves));
   return { type: 'trainer', id: t.id, name: t.name, walk, lines: t.before };
 }
 
@@ -516,9 +543,11 @@ function startWild(userId, p, map, key, fixedLevel = null) {
  * @param {string|null} key  what winning marks done (null for optional grass)
  */
 /**
- * @param {string[]|null} won  what the trainer says once you've beaten them
+ * @param {string[]|null} won    what the trainer says once you've beaten them
+ * @param {boolean}       leaves the trainer goes away once beaten (the page
+ *                               fades out and back in without them)
  */
-function begin(userId, p, foe, key, reward = null, won = null) {
+function begin(userId, p, foe, key, reward = null, won = null, leaves = false) {
   p.engaged = { key };
   Promise.resolve()
     .then(() => fight(userId, foe))
@@ -535,8 +564,8 @@ function begin(userId, p, foe, key, reward = null, won = null) {
         markDone(userId, key);
         const got = first ? pay(userId, reward) : null;
         const lines = [...(first && won ? won : []), ...(got ? [`You got ${got} for winning!`] : [])];
-        if (lines.length) {
-          notify(userId, 'world', { player: position(p), refresh: true, lines });
+        if (lines.length || (first && leaves)) {
+          notify(userId, 'world', { player: position(p), refresh: true, lines, leaves: Boolean(first && leaves) });
           return;
         }
       }
@@ -640,6 +669,7 @@ function fly(userId, key) {
   const place = all.find((pl) => pl.key === String(key));
   if (!place) return { ok: false, text: "You haven't been there yet." };
   const map = maps.get(place.map);
+  forgetSpots(userId, p.map);
   Object.assign(p, { map: map.id, x: place.x, y: place.y, facing: place.facing || 'down', patch: null });
   if (map.kind === 'town') p.lastTown = map.id;
   save(userId, p);
@@ -691,6 +721,7 @@ function blackOut(userId, p) {
   const labDoor = town.id === 'town-1' && town.doors.find((d) => d.station === 'lab');
   const lab = labDoor && maps.get(`in:town-1:${labDoor.x},${labDoor.y}`);
   const wake = lab || town;
+  forgetSpots(userId, p.map);
   Object.assign(p, { map: wake.id, ...wake.spawn, patch: null });
   save(userId, p);
   notify(userId, 'world', {
@@ -861,4 +892,4 @@ function sceneSeen(userId, id) {
 /** Forget a player's live state (tests, or after their position changes elsewhere). */
 const forget = (userId) => players.delete(userId);
 
-module.exports = { configure, view, step, dev, setOutfit, pickup, routeCleared, flyPlaces, fly, moveTo, tower, forget, isDone, markDone, challenge, sceneSeen, gone };
+module.exports = { configure, view, step, dev, setOutfit, pickup, routeCleared, flyPlaces, fly, moveTo, tower, forget, isDone, markDone, challenge, sceneSeen, gone, gateOpen };

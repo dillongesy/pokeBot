@@ -386,7 +386,15 @@ async function handle(req, res) {
     if (id !== 'town-1' && !/^in:town-1:\d+,\d+$/.test(id)) return send(res, 404, { error: 'No such scene.' });
     const map = require('./maps').get(id);
     if (!map) return send(res, 404, { error: 'No such scene.' });
-    return send(res, 200, { ...require('./maps').publicView(map, () => false), people: map.people || null, spawn: map.spawn });
+    const outfit = String(url.searchParams.get('outfit') || 'adventurer');
+    const cast = require('./maps').castLooks(outfit);
+    return send(res, 200, {
+      ...require('./maps').publicView(map, () => false, { outfit }),
+      people: map.people || null,
+      spawn: map.spawn,
+      // The opening's own cast, dressed so nobody looks like the player.
+      cast: { prof: cast('professor', 'prof'), aide: cast('', '', true) },
+    });
   }
   if (req.method === 'GET' && pathname === '/api/party') return send(res, 200, menus.party(session.id));
   if (req.method === 'GET' && pathname === '/api/townmap') return send(res, 200, menus.townMap(session.id));

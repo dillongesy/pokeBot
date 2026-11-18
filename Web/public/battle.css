@@ -127,18 +127,20 @@
   background: #f8f8f8;
   box-shadow: 0 0 0 calc(var(--gp) * .8) #181818;
 }
-.b-ball.mine { left: calc(var(--gp) * 62); bottom: calc(var(--gp) * 30); }
-.b-ball.foe { left: calc(var(--gp) * 176); top: calc(var(--gp) * 44); }
+/* Where each ball lands: on the platform, at the POKéMON's feet. */
+.b-ball.mine { left: calc(var(--gp) * 56); bottom: calc(var(--gp) * 8); }
+.b-ball.foe { left: calc(var(--gp) * 175); top: calc(var(--gp) * 57); }
 .b-ball.mine.throw { animation: b-throw-mine .52s linear both, b-burst .35s ease-out .5s both; }
 .b-ball.foe.throw { animation: b-throw-foe .52s linear both, b-burst .35s ease-out .5s both; }
+/* Thrown in from off the edge, up in an arc and down onto the platform. */
 @keyframes b-throw-mine {
-  0% { opacity: 1; transform: translate(calc(var(--gp) * -70), calc(var(--gp) * 20)) rotate(0); }
-  50% { transform: translate(calc(var(--gp) * -30), calc(var(--gp) * -30)) rotate(360deg); }
-  100% { opacity: 1; transform: none; transform: rotate(720deg); }
+  0% { opacity: 1; transform: translate(calc(var(--gp) * -66), calc(var(--gp) * -20)) rotate(0); }
+  45% { transform: translate(calc(var(--gp) * -26), calc(var(--gp) * -62)) rotate(360deg); }
+  100% { opacity: 1; transform: rotate(720deg); }
 }
 @keyframes b-throw-foe {
-  0% { opacity: 1; transform: translate(calc(var(--gp) * 60), calc(var(--gp) * -30)) rotate(0); }
-  50% { transform: translate(calc(var(--gp) * 25), calc(var(--gp) * -40)) rotate(-360deg); }
+  0% { opacity: 1; transform: translate(calc(var(--gp) * 72), calc(var(--gp) * -40)) rotate(0); }
+  45% { transform: translate(calc(var(--gp) * 30), calc(var(--gp) * -58)) rotate(-360deg); }
   100% { opacity: 1; transform: rotate(-720deg); }
 }
 /* The ball bursts open in a white flash. */

@@ -164,12 +164,61 @@
   }
 
   /** Everything about a map that is drawn, prepared once per map. */
+  /**
+   * A closed gate: a red and white barrier across the way out, on two posts.
+   * `tiles` are the gate's warp tiles ({x, y, gate}); each gate's are drawn
+   * as one barrier, across them along the map's edge.
+   */
+  function drawBarriers(g, tiles) {
+    const byGate = {};
+    for (const t of tiles) (byGate[t.gate] = byGate[t.gate] || []).push(t);
+    for (const list of Object.values(byGate)) {
+      const xs = list.map((t) => t.x);
+      const ys = list.map((t) => t.y);
+      const across = new Set(ys).size === 1; // side by side: the bar runs left to right
+      const x0 = Math.min(...xs) * TILE;
+      const y0 = Math.min(...ys) * TILE;
+      const x1 = (Math.max(...xs) + 1) * TILE;
+      const y1 = (Math.max(...ys) + 1) * TILE;
+      const post = (px, py) => {
+        g.fillStyle = '#3a3030';
+        g.fillRect(px - 2, py - 9, 4, 12);
+        g.fillStyle = '#6d5a52';
+        g.fillRect(px - 1, py - 9, 2, 11);
+        g.fillStyle = 'rgba(0,0,0,0.25)';
+        g.fillRect(px - 2, py + 3, 5, 2);
+      };
+      const bar = (bx, by, w, h) => {
+        g.fillStyle = '#2a2224';
+        g.fillRect(bx - 1, by - 1, w + 2, h + 2);
+        for (let i = 0; i < (across ? w : h); i += 4) {
+          g.fillStyle = (i / 4) % 2 ? '#f4f0e8' : '#d8483c';
+          if (across) g.fillRect(bx + i, by, Math.min(4, w - i), h);
+          else g.fillRect(bx, by + i, w, Math.min(4, h - i));
+        }
+      };
+      if (across) {
+        const cy = (y0 + y1) / 2;
+        post(x0 + 3, cy + 2);
+        post(x1 - 3, cy + 2);
+        bar(x0 + 1, cy - 6, x1 - x0 - 2, 4);
+      } else {
+        const cx = (x0 + x1) / 2;
+        post(cx, y0 + 6);
+        post(cx, y1 - 2);
+        bar(cx - 2, y0 + 1, 4, y1 - y0 - 6);
+      }
+    }
+  }
+
   function prepare(sheets, map) {
     const animated = [];
     for (const [index, layer] of [map.layers.ground, map.layers.objects].entries()) {
       for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) if (ANIMS[layer[y][x]]) animated.push([index, x, y, layer[y][x]]);
     }
-    // Paint on the road (a gate's number), part of the ground.
+    // Paint on the road (a gate's number), part of the ground: white for a
+    // gate that's open to you, faded red for one that's still closed.
+    const closed = new Set((map.gates || []).filter((g) => !g.open).map((g) => String(g.gate)));
     const ground = drawLayer(sheets, map, map.layers.ground);
     if ((map.marks || []).length) {
       const gg = ground.getContext('2d');
@@ -182,13 +231,15 @@
         gg.lineWidth = 3;
         gg.strokeStyle = 'rgba(60,64,80,0.55)';
         gg.strokeText(m.text, cx, cy);
-        gg.fillStyle = 'rgba(250,250,240,0.85)';
+        gg.fillStyle = closed.has(m.text) ? 'rgba(214,92,80,0.85)' : 'rgba(250,250,240,0.85)';
         gg.fillText(m.text, cx, cy);
       }
     }
+    const objects = drawLayer(sheets, map, map.layers.objects);
+    drawBarriers(objects.getContext('2d'), (map.gates || []).filter((g) => !g.open));
     return {
       ground,
-      objects: drawLayer(sheets, map, map.layers.objects),
+      objects,
       overlays: drawLayer(sheets, map, map.layers.overlays),
       overlays2: map.layers.overlays2 ? drawLayer(sheets, map, map.layers.overlays2) : null,
       above: drawLayer(sheets, map, map.layers.above),
@@ -338,6 +389,8 @@
         if (doorAt(nx, ny - 1)) continue;
         // Indoors, never in front of the way out (or anywhere in line with it).
         if (/^in:/.test(map.id) && map.warps.some((w) => w.x === nx && ny < w.y)) continue;
+        // Nor at the foot of the stairs.
+        if (map.warps.some((w) => w.x === nx && ny === w.y + 1)) continue;
         if ((nx === player.x && ny === player.y) || (player.from && nx === player.from.x && ny === player.from.y)) continue;
         n.from = { x: n.x, y: n.y };
         n.x = nx;
@@ -396,8 +449,10 @@
     async function reload() {
       generation += 1;
       queue.length = 0;
-      fade = performance.now();
+      // The screen stays as it is (black, through a door) until the new
+      // place is ready, then fades in once: never the old place first.
       await load();
+      fade = performance.now();
     }
 
     async function pump() {
@@ -1187,6 +1242,12 @@
       },
       /** Load the map and position again (after a dev command). */
       refresh: () => reload(),
+      /** Fade to black, held until the next fadeIn(). */
+      async fadeAway(ms = 400) {
+        fadeOut = performance.now();
+        fadeOutMs = ms;
+        await new Promise((r) => setTimeout(r, ms));
+      },
       /** Freeze or free walking (cutscenes). */
       setFrozen(on) {
         frozen = Boolean(on);
@@ -1240,7 +1301,15 @@
     canvas.width = map.width * TILE;
     canvas.height = map.height * TILE;
     const g = canvas.getContext('2d');
-    for (const layer of ['ground', 'objects', 'overlays', 'overlays2', 'above']) if (map.layers[layer]) g.drawImage(drawLayer(sheets, map, map.layers[layer], true), 0, 0);
+    // As the game draws it: road paint and gate barriers included.
+    const drawn = prepare(sheets, map);
+    for (const layer of ['ground', 'objects', 'overlays', 'overlays2', 'above']) if (drawn[layer]) g.drawImage(drawn[layer], 0, 0);
+    // Who stands where, as boxes (dev previews).
+    for (const n of [...(map.npcs || []), ...(map.trainers || [])]) {
+      g.strokeStyle = map.trainers && map.trainers.includes(n) ? '#e03030' : '#ffe040';
+      g.lineWidth = 2;
+      g.strokeRect(n.x * TILE + 2, n.y * TILE + 2, TILE - 4, TILE - 4);
+    }
     return canvas;
   }
 

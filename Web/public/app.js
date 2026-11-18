@@ -80,7 +80,9 @@
     // wait until the battle screen is closed.
     events.addEventListener('world', (e) => {
       const data = JSON.parse(e.data);
-      if (world) world.sync(data.player, data.refresh);
+      // A trainer who goes away once beaten (AIDE): they say their piece
+      // first, then the screen fades out and back in without them.
+      if (world) world.sync(data.player, data.refresh && !data.leaves);
       // Whited out: the screen goes white, the words, then where you woke up.
       if (data.whiteout) {
         whiteout = { lines: data.whiteout.map(fillName), after: data.lines || [] };
@@ -88,10 +90,12 @@
         return;
       }
       const lines = [...(data.lines || []), ...(data.message ? [data.message] : [])];
-      if (lines.length) {
-        if (battleUI.open) afterBattle.push(...lines);
-        else showDialog(lines);
-      }
+      const done = data.leaves ? () => goneAway() : null;
+      if (battleUI.open) {
+        afterBattle.push(...lines);
+        if (done) afterBattleDone = done;
+      } else if (lines.length) showDialog(lines, done);
+      else if (done) done();
     });
 
     events.addEventListener('status', (e) => {
@@ -296,6 +300,17 @@
 
   /** Words from the world (a white-out) that wait for the battle screen to close. */
   const afterBattle = [];
+  /** What happens once the words after a battle are read (AIDE leaving). */
+  let afterBattleDone = null;
+
+  /** A beaten trainer goes away: fade to black, the map without them, fade in. */
+  async function goneAway() {
+    world.setFrozen(true);
+    await world.fadeAway(450);
+    await world.refresh();
+    world.fadeIn();
+    world.setFrozen(false);
+  }
   /** The latest battle snapshot from the server, for opening the screen mid-battle. */
   let battleSnap = null;
 
@@ -320,16 +335,19 @@
   // PROF. A (and AIDE runs ahead), as in the games.
   // -------------------------------------------------------------------------
 
-  const sceneMap = (id) => fetch(`/api/scene-map?id=${encodeURIComponent(id)}`).then((r) => r.json());
+  let sceneOutfit = 'adventurer';
+  const sceneMap = (id) => fetch(`/api/scene-map?id=${encodeURIComponent(id)}&outfit=${encodeURIComponent(sceneOutfit)}`).then((r) => r.json());
   const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
   async function playOpening(opening, current) {
     const outfit = await introUI.welcome(opening, current);
     const S = world.scene;
     const name = String(me.username || 'TRAINER').toUpperCase();
-    const PROF = { id: 'prof', name: 'PROF. A', sprite: 'professor' };
-    const AIDE = { id: 'aide', name: 'AIDE', sprite: 'cooldude_red' };
+    sceneOutfit = outfit;
     const town = await sceneMap('town-1');
+    // Nobody in the opening wears the player's outfit (the server says who wears what).
+    const PROF = { id: 'prof', name: 'PROF. A', sprite: town.cast.prof };
+    const AIDE = { id: 'aide', name: 'AIDE', sprite: town.cast.aide };
     const door = (station) => town.doors.find((d) => d.station === station);
     const home = door('home');
     const house = door('rival');
@@ -490,11 +508,15 @@
         leaveArena();
         if (whiteout) {
           afterBattle.length = 0;
+          afterBattleDone = null;
           playWhiteout();
           return;
         }
         world.fadeIn();
-        if (afterBattle.length) showDialog(afterBattle.splice(0));
+        const done = afterBattleDone;
+        afterBattleDone = null;
+        if (afterBattle.length) showDialog(afterBattle.splice(0), done);
+        else if (done) done();
       },
     });
   }

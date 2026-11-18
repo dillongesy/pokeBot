@@ -81,6 +81,36 @@ function get(id) {
 const CHARACTERS = new Set(require('fs').readdirSync(require('path').join(__dirname, '..', 'sprites', 'tuxemon', 'characters')).map((f) => f.replace(/\.png$/, '')));
 const looks = (sprite) => (CHARACTERS.has(sprite) ? sprite : 'cooldude');
 
+/** AIDE's look, and his look when the player is dressed the same. */
+const RIVAL_LOOK = 'cooldude_red';
+const RIVAL_ALT = 'cooldude_black';
+/** Not people to dress anyone as. */
+const NOT_PEOPLE = new Set(['drop_shadow', 'invisible', 'naked', 'light', '37707_female_missing', '37707_male_missing']);
+const hashOf = (text) => [...String(text)].reduce((h, c) => (Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0), 2166136261);
+
+/**
+ * How people look to a player: nobody else wears the player's outfit or
+ * AIDE's. Anyone who would is dressed in another colour of the same
+ * character (or another person, if there's no other colour).
+ *
+ * @param {string} outfit the player's outfit
+ * @returns {(sprite: string, who?: string, rival?: boolean) => string}
+ */
+function castLooks(outfit) {
+  const rival = outfit === RIVAL_LOOK ? RIVAL_ALT : RIVAL_LOOK;
+  const taken = new Set([outfit, rival]);
+  return (sprite, who = '', isRival = false) => {
+    if (isRival) return rival;
+    const s = looks(sprite);
+    if (!taken.has(s)) return s;
+    const base = s.split('_')[0];
+    let free = [...CHARACTERS].filter((c) => c.split('_')[0] === base && !taken.has(c) && !NOT_PEOPLE.has(c)).sort();
+    if (!free.length) free = ['cooldude_brown', 'heroine_brown', 'monk_blue', 'postboy_green'].filter((c) => !taken.has(c));
+    // The same stand-in for the same look everywhere (PROF. A in town and in his lab).
+    return free[hashOf(s) % free.length];
+  };
+}
+
 /**
  * What the browser is sent: the picture and what blocks you, but not what
  * decides outcomes (which grass is a one-battle patch, trainers' teams).
@@ -88,7 +118,8 @@ const looks = (sprite) => (CHARACTERS.has(sprite) ? sprite : 'cooldude');
  * @param {object} map
  * @param {(trainerId: string) => boolean} beaten
  */
-function publicView(map, beaten, { opened = () => false, found = () => false, spot = (t) => t } = {}) {
+function publicView(map, beaten, { opened = () => false, found = () => false, spot = (t) => t, outfit = 'adventurer', gateOpen = () => true } = {}) {
+  const dress = castLooks(outfit);
   return {
     id: map.id,
     name: map.name,
@@ -102,14 +133,16 @@ function publicView(map, beaten, { opened = () => false, found = () => false, sp
     signs: map.signs,
     doors: map.doors,
     warps: map.warps.map((w) => ({ x: w.x, y: w.y })),
+    // The MAIN CITY's gates, and whether each is open to this player yet.
+    gates: map.warps.filter((w) => w.to.requires && w.to.requires.all).map((w) => ({ x: w.x, y: w.y, gate: w.to.requires.gate, open: gateOpen(w.to.requires.route) })),
     // A trainer who leaves once beaten (AIDE at Town 1's gate) is gone.
     trainers: map.trainers.filter((t) => !(t.leaves && beaten(t.id))).map((t) => {
       const at = spot(t);
-      return { id: t.id, name: t.name, sprite: looks(t.sprite), x: at.x, y: at.y, facing: t.facing, beaten: beaten(t.id) };
+      return { id: t.id, name: t.name, sprite: dress(t.sprite, `${map.id}:${t.id}`, Boolean(t.rival)), x: at.x, y: at.y, facing: t.facing, beaten: beaten(t.id) };
     }),
     obstacles: (map.obstacles || []).map((o) => ({ ...o, open: opened(o) })),
     npcs: (map.npcs || []).map((n) => ({
-      id: n.id, name: n.name, sprite: looks(n.sprite), x: n.x, y: n.y, facing: n.facing, lines: n.lines, action: n.action || null,
+      id: n.id, name: n.name, sprite: dress(n.sprite, `${map.id}:${n.id}`), x: n.x, y: n.y, facing: n.facing, lines: n.lines, action: n.action || null,
       // How far they wander from where they stand (0: they stay put).
       wander: n.wander != null ? n.wander : n.action ? 0 : 2,
     })),
@@ -141,4 +174,4 @@ function secrets(map) {
   return { patches, sight, trainers: map.trainers.map((t) => ({ id: t.id, team: t.team })) };
 }
 
-module.exports = { MAPS, START, DIRS, get, publicView, secrets };
+module.exports = { MAPS, START, DIRS, get, publicView, secrets, castLooks };

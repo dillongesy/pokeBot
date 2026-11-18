@@ -113,9 +113,13 @@ const BUILDINGS = {
   // aren't used: they look cut off.)
   brick: cut(0, 13, 5, 4, 3, 2),
   tudor: cut(0, 13, 5, 4, 3, 2),
-  // Town houses with a chimney, 5 x 5: stone and brick.
-  townhouse: cut(5, 13, 5, 5, 3, 3),
-  townhouseBrick: cut(18, 13, 5, 5, 3, 3),
+  // (The sheet's town houses with chimneys, at rows 13-17, have no left
+  // edge to their roofs: they look cut off, so they aren't used.)
+  // A small white office, 5 x 4, and a shop with a purple sign, 5 x 4.
+  officeSmall: cut(30, 1, 5, 4, 2),
+  shopPurple: cut(30, 5, 5, 4, 2),
+  // A department store with a red roof and awnings, 8 x 8.
+  deptStore: cut(36, 41, 8, 8, 3, 3),
   // A round orange hut, 4 x 3, and a dojo with a tiled roof, 4 x 3.
   dome: cut(31, 24, 4, 3, 1, 1),
   dojo: cut(27, 25, 4, 3, 1, 1),

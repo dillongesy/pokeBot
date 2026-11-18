@@ -176,7 +176,8 @@
         if (img.getAttribute('src') === src) continue;
         const had = img.hasAttribute('src');
         img.src = src;
-        if (had && !introducing && mon.hp > 0) sendOut(img, ball, box);
+        // (A wild POKéMON is never thrown out of a ball: no trainer owns it.)
+        if (had && !introducing && mon.hp > 0) sendOut(img, img === foeMon && isWild() ? null : ball, box);
       }
       foeMon.classList.toggle('fainted', snap.foe.hp <= 0);
       mineMon.classList.toggle('fainted', snap.mine.hp <= 0);
@@ -304,9 +305,11 @@
     function sendOut(img, ball, box) {
       img.classList.remove('out', 'dark', 'pop', 'fainted');
       img.classList.add('waiting');
-      ball.classList.remove('throw');
-      void ball.offsetWidth;
-      ball.classList.add('throw');
+      if (ball) {
+        ball.classList.remove('throw');
+        void ball.offsetWidth;
+        ball.classList.add('throw');
+      }
       setTimeout(() => {
         img.classList.remove('waiting');
         img.classList.add('pop');
@@ -379,7 +382,8 @@
           cue: () => {
             trainer.classList.add('leave');
             root.classList.remove('lineups');
-            setTimeout(() => sendOut(foeMon, foeBall, foeBox), 250);
+            // Once the trainer is off their base, their ball lands on it.
+            setTimeout(() => sendOut(foeMon, foeBall, foeBox), 420);
           },
           ms: 0,
         });

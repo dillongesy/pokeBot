@@ -119,15 +119,18 @@ function buildRoom(id, outside, door) {
   const file = door.room || ROOMS[door.station] || HOUSES[hash(id) % HOUSES.length];
   const title = { home: 'Your house', lab: "PROF. A's LAB", center: 'POKéMON CENTER', mart: 'POKéMON MART', battle: 'BATTLE TOWER', rival: "PROF. A's HOUSE", restaurant: 'Restaurant' }[door.station] || `${outside.name}: a house`;
   const room = load(file, { id, name: title });
+  room.file = file;
 
   // Out the door, back to where you came in.
   const out = { map: outside.id, x: door.x, y: door.y + 1, facing: 'down' };
   room.warps.push({ x: room.exit.x, y: room.exit.y, to: out });
   room.outside = out;
 
-  // Stairs up (your house has a bedroom): "<this room>:up".
-  for (const t of room.teleports) {
-    if (UPSTAIRS[t.target]) room.warps.push({ x: t.x, y: t.y, to: { map: `${id}:up`, x: t.tx, y: t.ty, facing: 'down' } });
+  // Stairs up to a bedroom: "<this room>:up".
+  const stairs = STAIRS[file];
+  if (stairs) {
+    room.solid[stairs.down.y][stairs.down.x] = false;
+    room.warps.push({ x: stairs.down.x, y: stairs.down.y, to: { map: `${id}:up`, ...stairs.arrive, facing: 'down' } });
   }
 
   const cast = CAST[file] || {};
@@ -168,22 +171,43 @@ function buildRoom(id, outside, door) {
 }
 
 /**
- * Rooms upstairs, by file: where their stairs down are, and where you land
- * downstairs. (Tuxemon's bedroom has no events of its own.)
+ * Houses with an upstairs, by the downstairs room's file. Tuxemon's bedroom
+ * has no events of its own, so its stairs are placed by hand: the top step,
+ * walked into from the right, and where you land beside it coming up.
+ *   down     the stairs tile downstairs (walk up into it)
+ *   landing  where you land downstairs coming back down, below the stairs
+ *   room     the bedroom's file
+ *   up       the stairs tile in the bedroom
+ *   arrive   where you land in the bedroom, beside its stairs
  */
-const UPSTAIRS = {
-  player_house_bedroom: { stairs: { x: 8, y: 1 }, landing: { x: 0, y: 2 }, name: 'Your room' },
+const STAIRS = {
+  player_house_downstairs: {
+    down: { x: 0, y: 1 }, landing: { x: 0, y: 2 },
+    room: 'player_house_bedroom', up: { x: 7, y: 2 }, arrive: { x: 8, y: 2 }, name: 'Your room',
+  },
+  taba_house2: {
+    down: { x: 5, y: 1 }, landing: { x: 5, y: 2 },
+    room: 'player_house_bedroom', up: { x: 7, y: 2 }, arrive: { x: 8, y: 2 }, name: "AIDE's room",
+    // AIDE's things: what's on the desk and the bed.
+    signs: [
+      { x: 3, y: 2, lines: ["It's AIDE's computer. A battle video is paused on the screen. AIDE is losing in it."] },
+      { x: 4, y: 2, lines: ["It's AIDE's computer. A battle video is paused on the screen. AIDE is losing in it."] },
+      { x: 0, y: 2, lines: ["AIDE's bed. It hasn't been made in weeks."] },
+      { x: 0, y: 3, lines: ["AIDE's bed. It hasn't been made in weeks."] },
+      { x: 1, y: 2, lines: ["A note on the nightstand: \"Beat the PROF's new trainer. EASY.\""] },
+    ],
+  },
 };
 
 /** The room upstairs from `downId` ("<downId>:up"). */
 function buildUpstairs(id, down) {
-  const t = down.teleports.find((x) => UPSTAIRS[x.target]);
-  if (!t) return null;
-  const up = UPSTAIRS[t.target];
-  const room = load(t.target, { id, name: up.name, exit: up.stairs });
-  room.warps.push({ x: up.stairs.x, y: up.stairs.y, to: { map: down.id, ...up.landing, facing: 'down' } });
-  room.spawn = { x: t.tx, y: t.ty, facing: 'down' };
+  const stairs = STAIRS[down.file];
+  if (!stairs) return null;
+  const room = load(stairs.room, { id, name: stairs.name, exit: stairs.up });
+  room.warps.push({ x: stairs.up.x, y: stairs.up.y, to: { map: down.id, ...stairs.landing, facing: 'down' } });
+  room.spawn = { ...stairs.arrive, facing: 'down' };
   room.outside = down.outside;
+  for (const sign of stairs.signs || []) room.signs.push(sign);
   return room;
 }
 

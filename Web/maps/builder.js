@@ -166,6 +166,17 @@ class MapBuilder {
       if (opacity(tile) >= WALL_OPACITY) this.block(x + dx, top + dy);
     }));
     for (const o of plan.overlay || []) this.set('overlays', x + o.dx, top + o.dy, o.tile);
+    // A building nobody goes into (just part of a town) has no door: the
+    // wall beside the door is drawn where it would be, so it doesn't look
+    // like there's a secret way in.
+    if (!door || !(door.station || door.lines || door.room)) {
+      const dx = plan.door.dx;
+      const from = dx - 1 >= 1 ? dx - 1 : dx + 1;
+      const last = plan.body.length - 1;
+      for (let r = Math.max(0, last - 1); r <= last; r++) this.set('objects', x + dx, top + r, plan.body[r][from]);
+      this.block(x + dx, top + last);
+      return this;
+    }
     // The door is the building's bottom-row tile you walk up into.
     this.doors.push({ x: x + plan.door.dx, y: top + plan.body.length - 1, ...door });
     return this;

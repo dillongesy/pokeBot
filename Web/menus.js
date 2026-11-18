@@ -252,6 +252,8 @@ function townMap(userId) {
     gates: plan.gates.map((g) => ({
       number: g.number,
       region: g.region,
+      // Open to this player yet (every route and milestone before it done)?
+      open: require('./overworld').gateOpen(userId, g.routes[0].number - 1),
       biomes: g.biomes,
       milestones: g.milestones,
       stops: g.routes.map((r) => ({
