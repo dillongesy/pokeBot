@@ -169,16 +169,21 @@ class MapBuilder {
     // A building nobody goes into (just part of a town) has no door: the
     // wall beside the door is drawn where it would be, so it doesn't look
     // like there's a secret way in.
+    // The door's row: the bottom one, or higher up when a wing of the
+    // building comes further forward (the step in front stays walkable).
+    const up = plan.door.up || 0;
+    const doorRow = plan.body.length - 1 - up;
     if (!door || !(door.station || door.lines || door.room)) {
       const dx = plan.door.dx;
       const from = dx - 1 >= 1 ? dx - 1 : dx + 1;
-      const last = plan.body.length - 1;
-      for (let r = Math.max(0, last - 1); r <= last; r++) this.set('objects', x + dx, top + r, plan.body[r][from]);
-      this.block(x + dx, top + last);
+      for (let r = Math.max(0, doorRow - 1); r <= plan.body.length - 1; r++) this.set('objects', x + dx, top + r, plan.body[r][from]);
+      this.block(x + dx, top + doorRow);
+      if (up) for (let r = doorRow + 1; r < plan.body.length; r++) this.block(x + dx, top + r, false);
       return this;
     }
-    // The door is the building's bottom-row tile you walk up into.
-    this.doors.push({ x: x + plan.door.dx, y: top + plan.body.length - 1, ...door });
+    if (up) for (let r = doorRow + 1; r < plan.body.length; r++) this.block(x + plan.door.dx, top + r, false);
+    // The door is the tile you walk up into.
+    this.doors.push({ x: x + plan.door.dx, y: top + doorRow, ...door });
     return this;
   }
 
@@ -355,9 +360,15 @@ class MapBuilder {
     return this;
   }
 
-  /** A named stretch of the map (a rest stop), visited by walking into its rows. */
+  /**
+   * A named stretch of the map (a rest stop), visited by walking into it:
+   * rows y0 to y1 right across, or a rectangle { x, y, w, h }.
+   */
   place(id, name, y0, y1) {
-    this.places.push({ id, name, y0, y1 });
+    if (typeof y0 === 'object') {
+      const r = y0;
+      this.places.push({ id, name, x0: r.x, x1: r.x + r.w - 1, y0: r.y, y1: r.y + r.h - 1 });
+    } else this.places.push({ id, name, x0: 0, x1: this.width - 1, y0, y1 });
     return this;
   }
 

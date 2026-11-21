@@ -7,7 +7,6 @@
  *   wild      two white flashes, then black closing in from every edge with
  *             tall grass along its border (the Black/White way)
  *   trainer   two flashes, then black bars sliding in from alternate sides
- *             while a POKé BALL spins up from the middle and fills the screen
  *
  * play() resolves once the screen is black. The black stays until the
  * battle screen is up; then call the handle's remove().
@@ -90,57 +89,20 @@
     g.globalAlpha = 1;
   }
 
-  function pokeBall(g, x, y, r, angle) {
-    g.save();
-    g.translate(x, y);
-    g.rotate(angle);
-    g.lineWidth = Math.max(2, r * 0.12);
-    g.strokeStyle = '#101010';
-    // Top half red, bottom half white.
-    g.fillStyle = '#e83838';
-    g.beginPath();
-    g.arc(0, 0, r, Math.PI, 0);
-    g.closePath();
-    g.fill();
-    g.fillStyle = '#f8f8f8';
-    g.beginPath();
-    g.arc(0, 0, r, 0, Math.PI);
-    g.closePath();
-    g.fill();
-    // The band and the button.
-    g.fillStyle = '#101010';
-    g.fillRect(-r, -r * 0.09, r * 2, r * 0.18);
-    g.beginPath();
-    g.arc(0, 0, r, 0, Math.PI * 2);
-    g.stroke();
-    g.beginPath();
-    g.arc(0, 0, r * 0.3, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = '#f8f8f8';
-    g.beginPath();
-    g.arc(0, 0, r * 0.18, 0, Math.PI * 2);
-    g.fill();
-    g.restore();
-  }
-
-  /** Trainer: bars slide in from alternate sides; a POKé BALL spins up. */
-  function ballWipe(g, p) {
+  /**
+   * Trainer: black bars slide in from alternate sides, each a little after
+   * the one above, until the screen is shut. (No POKé BALL here: balls are
+   * only ever thrown for POKéMON, in the battle itself.)
+   */
+  function barWipe(g, p) {
     const bars = 10;
     const bh = H / bars;
     g.fillStyle = '#000';
     for (let i = 0; i < bars; i++) {
-      const q = ease(clamp(p * 1.5 - i * 0.05));
+      const q = ease(clamp(p * 1.6 - i * 0.06));
       const w = q * W;
       if (i % 2) g.fillRect(W - w, i * bh, w, bh + 0.5);
       else g.fillRect(0, i * bh, w, bh + 0.5);
-    }
-    const grow = ease(clamp(p / 0.85));
-    const r = 6 + grow * 110;
-    pokeBall(g, W / 2, H / 2, r, grow * Math.PI * 4);
-    const dark = clamp((p - 0.78) / 0.22);
-    if (dark > 0) {
-      g.fillStyle = `rgba(0,0,0,${dark})`;
-      g.fillRect(0, 0, W, H);
     }
   }
 
@@ -173,7 +135,7 @@
         } else {
           const p = clamp((t - FLASH_MS) / WIPE_MS[style]);
           if (style === 'wild') grassWipe(g, p);
-          else ballWipe(g, p);
+          else barWipe(g, p);
         }
         if (t < total) {
           requestAnimationFrame(frame);

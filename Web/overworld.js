@@ -400,7 +400,7 @@ function step(userId, body) {
 
   // Walking into a rest stop counts as visiting it (for flying, later).
   for (const place of map.places || []) {
-    if (p.y >= place.y0 && p.y <= place.y1) markDone(userId, `visited:${map.id}:${place.id}`);
+    if (p.y >= place.y0 && p.y <= place.y1 && p.x >= (place.x0 ?? 0) && p.x <= (place.x1 ?? map.width - 1)) markDone(userId, `visited:${map.id}:${place.id}`);
   }
 
   const encounter = grassCheck(userId, p, map, from) || sightCheck(userId, p, map);
@@ -633,6 +633,20 @@ function rivalOf(userId) {
 
 const FLY_KEY = 'fly:unlocked';
 
+/** The nearest tile to (x, y) you can stand on (for flying into a rest stop). */
+function standNear(map, x, y) {
+  for (let r = 0; r < 8; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (map.solid[ny] && map.solid[ny][nx] === false && !map.warps.some((w) => w.x === nx && w.y === ny)) return { x: nx, y: ny };
+      }
+    }
+  }
+  return { ...map.spawn };
+}
+
 /**
  * Everywhere this player can fly to: every town, stop and the Main City
  * they've been to, and every rest stop they've walked through. Nothing until
@@ -650,7 +664,13 @@ function flyPlaces(userId) {
     if (!map) continue;
     if (placeId) {
       const place = (map.places || []).find((pl) => pl.id === placeId);
-      if (place) places.push({ key, name: `${place.name} (${map.name})`, map: map.id, x: 8, y: place.y0 + 1, facing: 'down' });
+      if (place) {
+        // The middle of the rest stop (the road runs through it).
+        const x = place.x0 != null ? Math.floor((place.x0 + place.x1) / 2) : 8;
+        const y = Math.floor((place.y0 + place.y1) / 2);
+        const spot = standNear(map, x, y);
+        places.push({ key, name: `${place.name} (${map.name})`, map: map.id, ...spot, facing: 'down' });
+      }
     } else if (map.kind === 'town' || /^stop-/.test(map.id)) {
       places.push({ key, name: map.name, map: map.id, ...map.spawn });
     }

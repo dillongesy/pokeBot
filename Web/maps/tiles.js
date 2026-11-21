@@ -78,14 +78,19 @@ const OBSTACLES = {
  * from column c0, row r0. The top `above` rows are drawn over the player;
  * the door is on the bottom row, `door` tiles in from the left.
  */
-function cut(c0, r0, w, h, door, above = 1) {
+/**
+ * A building cut from the sheet: `w` x `h` tiles from column c0, row r0; the
+ * door in column `door`; the top `above` rows drawn over you (the roof);
+ * `doorUp` rows between the door and the bottom (a wing that comes forward).
+ */
+function cut(c0, r0, w, h, door, above = 1, doorUp = 0) {
   const rows = [];
   for (let r = 0; r < h; r++) {
     const row = [];
     for (let c = 0; c < w; c++) row.push(`b${(r0 + r) * 47 + c0 + c}`);
     rows.push(row);
   }
-  return { above: rows.slice(0, above), body: rows.slice(above), door: { dx: door } };
+  return { above: rows.slice(0, above), body: rows.slice(above), door: { dx: door, up: doorUp } };
 }
 
 /** Every building used, by what it is. */
@@ -108,11 +113,12 @@ const BUILDINGS = {
   cottageBrown: cut(7, 19, 5, 6, 3, 2),
   cottageRed: cut(12, 19, 5, 6, 3, 2),
   cottageGrey: cut(17, 19, 5, 6, 3, 2),
-  // A timber-framed house with a pitched roof, 5 x 4. (The sheet's 5 x 4
-  // brick and timber fronts at rows 9-12 have no roofs of their own, so they
-  // aren't used: they look cut off.)
-  brick: cut(0, 13, 5, 4, 3, 2),
-  tudor: cut(0, 13, 5, 4, 3, 2),
+  // A timber-framed house with a pitched roof, 5 x 5: its left wing (with
+  // the lattice window) comes a row further forward than the door. (The
+  // sheet's 5 x 4 brick and timber fronts at rows 9-12 have no roofs of
+  // their own, so they aren't used: they look cut off.)
+  brick: cut(0, 13, 5, 5, 3, 2, 1),
+  tudor: cut(0, 13, 5, 5, 3, 2, 1),
   // (The sheet's town houses with chimneys, at rows 13-17, have no left
   // edge to their roofs: they look cut off, so they aren't used.)
   // A small white office, 5 x 4, and a shop with a purple sign, 5 x 4.

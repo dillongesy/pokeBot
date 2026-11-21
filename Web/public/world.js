@@ -569,7 +569,8 @@
         // wake after a white-out). Exploring, it explains doors are shut.
         queue.push({ dir, x: player.x, y: player.y });
         pump();
-        fade = now;
+        // (No fade here: the server's answer starts the one fade through
+        // the door. A fade here as well made it fade twice.)
         // Most doors lead into a room (the server's answer moves you there);
         // the Drop Station is a counter.
         if (door.station === 'drop' && !(devState && devState.exploring)) hooks.enter('drop', door);

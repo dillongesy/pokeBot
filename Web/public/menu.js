@@ -826,7 +826,7 @@
       let at = 0;
       const WARPS = [
         ['Town 1', 'town-1'], ['Path a', 'path-a'], ['Town 2', 'town-2'], ['Path b', 'path-b'], ['Main City', 'main-city'],
-        ['Battle Tower lobby', 'in:main-city:29,31'], ['Route 1', 'route-1'], ['Route 10 (rival)', 'route-10'], ['Route 11', 'route-11'],
+        ['Battle Tower lobby', 'in:main-city:31,40'], ['Route 1', 'route-1'], ['Route 10 (rival)', 'route-10'], ['Route 11', 'route-11'],
         ['Route 21', 'route-21'], ['Route 31', 'route-31'], ['Route 41', 'route-41'], ['Route 51 (sea)', 'route-51'],
         ['Route 61 (snow)', 'route-61'], ['Route 71', 'route-71'], ['Test Route', 'testroute'], ['Dev Town', 'devtown'],
       ];

@@ -27,7 +27,7 @@ const path = require('path');
 const content = require('./content');
 const versiongroups = require('./versiongroups');
 const movepower = require('./movepower');
-const { loadSpecies, loadForm } = require('./pokemon');
+const { loadSpecies, loadForm, movesFormOf } = require('./pokemon');
 
 const DATA = path.join(__dirname, '..', 'Data', 'Machines');
 
@@ -207,7 +207,9 @@ function machineMoves(speciesId, formFolder) {
   const key = `${speciesId}/${formFolder}`;
   if (learnableCache.has(key)) return learnableCache.get(key);
 
-  let moves = readMachines(loadForm(speciesId, formFolder));
+  // A Mega can be taught what its base form can.
+  const folder = movesFormOf(speciesId, formFolder);
+  let moves = readMachines(loadForm(speciesId, folder));
 
   // No machine list of its own: fall back to the species' default form.
   if (!moves.size) {
@@ -215,7 +217,7 @@ function machineMoves(speciesId, formFolder) {
     const forms = (species && species.forms) || [];
     const base = forms.find((entry) => entry.percentage > 0) || forms[0];
 
-    if (base && base.folder !== formFolder) {
+    if (base && base.folder !== folder) {
       moves = readMachines(loadForm(speciesId, base.folder));
     }
   }

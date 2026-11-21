@@ -20,7 +20,7 @@
 const content = require('./content');
 const versiongroups = require('./versiongroups');
 const movepower = require('./movepower');
-const { loadSpecies, loadForm } = require('./pokemon');
+const { loadSpecies, loadForm, movesFormOf } = require('./pokemon');
 
 /** How many moves a Pokemon can know. */
 const MAX_MOVES = 4;
@@ -63,6 +63,8 @@ function levelUpMoves(speciesId, formFolder) {
 
 function build(speciesId, formFolder) {
   const empty = { versionGroup: null, moves: [] };
+  // A Mega learns what its base form learns.
+  formFolder = movesFormOf(speciesId, formFolder);
 
   let form = loadForm(speciesId, formFolder);
   let list = readLevelUp(form);

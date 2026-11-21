@@ -402,6 +402,21 @@ function reloadData() {
 }
 
 /** Load a form's data.json from Data/Pokemon. */
+/**
+ * The form whose moves a Pokemon learns. A Mega (or another look it only
+ * has in battle, like Gigantamax) learns what its base form learns: the
+ * data's own move lists for Megas are years out of date (Ultra Sun and
+ * Ultra Moon), so Mega Blaziken would miss Bounce at level 30.
+ */
+function movesFormOf(speciesId, formFolder) {
+  const form = loadForm(speciesId, formFolder);
+  if (!form || !(form.isMega || form.isGmax || form.isBattleOnly)) return formFolder;
+  const species = loadSpecies(speciesId);
+  const forms = (species && species.forms) || [];
+  const base = forms.find((entry) => entry.percentage > 0) || forms.find((entry) => entry.folder !== formFolder);
+  return base ? base.folder : formFolder;
+}
+
 function loadForm(speciesId, formFolder) {
   const key = `${speciesId}/${formFolder}`;
   if (formCache.has(key)) return formCache.get(key);
@@ -551,6 +566,7 @@ function nameCandidates(text) {
 }
 
 module.exports = {
+  movesFormOf,
   STATS,
   MAX_IV,
   MAX_LEVEL,
